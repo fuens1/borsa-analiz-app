@@ -96,7 +96,7 @@ with st.sidebar:
     # X Arama Sorgusu ($ İŞARETİ ZORUNLU KILINDI)
     # lang:tr -> Sadece Türkçe
     # min_faves:5 -> Çöp tweetleri eler, en az 5 beğeni alanları getirir
-    search_query = f"${clean_ticker} lang:tr until:{next_day} since:{selected_date} min_faves:5"
+    search_query = f"#{clean_ticker} lang:tr until:{next_day} since:{selected_date} min_faves:5"
     
     # URL Encoding (Boşluklar ve özel karakterler için)
     from urllib.parse import quote
@@ -202,3 +202,4 @@ if st.button("🐋 DEV ANALİZİ BAŞLAT (Balina + Giriş Seviyesi)", type="prim
                 st.write(response.text)
         except Exception as e:
             st.error(f"Hata oluştu: {e}")
+
