@@ -73,7 +73,7 @@ with col2:
 
 # --- ANALİZ MOTORU ---
 st.markdown("---")
-if st.button("🐋 BALİNA ANALİZİNİ BAŞLAT", type="primary", use_container_width=True):
+if st.button("📈 ANALİZİ BAŞLAT", type="primary", use_container_width=True):
     
     input_content = []
     
@@ -140,4 +140,5 @@ if st.button("🐋 BALİNA ANALİZİNİ BAŞLAT", type="primary", use_container_
                 st.write(response.text)
         except Exception as e:
             st.error(f"Hata oluştu: {e}")
+
 
