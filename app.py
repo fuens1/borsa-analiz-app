@@ -1,13 +1,13 @@
 import streamlit as st
 from PIL import Image
 import google.generativeai as genai
-import os
+import datetime
 
 # ==========================================
 # 🔐 GÜVENLİK VE AYARLAR (BULUT VERSİYONU)
 # ==========================================
 
-st.set_page_config(page_title="BIST Analiz Pro V5", layout="wide", page_icon="🐋")
+st.set_page_config(page_title="BIST Analiz Pro V6", layout="wide", page_icon="🐋")
 
 # Görsel stil ayarları
 st.markdown("""
@@ -17,11 +17,30 @@ st.markdown("""
     h3 { color: #ffbd45 !important; }
     div[data-testid="stFileUploader"] { margin-bottom: 20px; }
     .stAlert { border-left: 5px solid #ffbd45; }
+    
+    /* X Butonu Stili */
+    .x-btn {
+        display: inline-block;
+        background-color: #000000;
+        color: white !important;
+        padding: 10px 20px;
+        text-align: center;
+        text-decoration: none;
+        font-size: 16px;
+        border-radius: 8px;
+        border: 1px solid #333;
+        width: 100%;
+        margin-top: 10px;
+    }
+    .x-btn:hover {
+        background-color: #333;
+        border-color: #fff;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🐋 BIST Pro V5: Yapay Zeka Hisse Analizi")
-st.info("Gelişmiş Yapay Zeka ile Hisseleri Analiz Et, Gücü Yakala!")
+st.title("🐋 BIST Pro V6: Balina Takibi & X Zaman Makinesi")
+st.info("Yapay Zeka ile Teknik Analiz + X (Twitter) Geçmiş Sentiment Taraması")
 
 # --- API KEY KONTROLÜ (SECRETS) ---
 api_key = None
@@ -29,6 +48,7 @@ if "GOOGLE_API_KEY" in st.secrets:
     api_key = st.secrets["GOOGLE_API_KEY"]
 else:
     with st.sidebar:
+        st.header("🔑 Ayarlar")
         st.warning("⚠️ API Key Bulunamadı.")
         api_key = st.text_input("Google API Key Giriniz", type="password")
 
@@ -54,7 +74,34 @@ if not active_model:
     st.error("Model bağlanamadı. API Key hatalı olabilir.")
     st.stop()
 
-# --- YÜKLEME ALANLARI ---
+# ==========================================
+# 🐦 YAN MENÜ: X (TWITTER) ZAMAN MAKİNESİ
+# ==========================================
+with st.sidebar:
+    st.markdown("---")
+    st.header("🐦 X (Twitter) Zaman Makinesi")
+    st.info("Geçmiş tarihte o hisse hakkında en çok konuşulanları bulur.")
+    
+    ticker = st.text_input("Hisse Kodu (Örn: THYAO)", "THYAO").upper()
+    selected_date = st.date_input("Hangi Tarihe Gidilsin?", datetime.date.today())
+    
+    # Tarih formatlama ve Link Üretme
+    # X Arama Formatı: $THYAO until:2023-12-02 since:2023-12-01 min_faves:10
+    next_day = selected_date + datetime.timedelta(days=1)
+    
+    search_query = f"${ticker} lang:tr until:{next_day} since:{selected_date}"
+    x_url = f"https://x.com/search?q={search_query}&src=typed_query&f=top"
+    
+    st.markdown(f"""
+    <a href="{x_url}" target="_blank" class="x-btn">
+       🔍 <b>{selected_date}</b> Tarihli<br>En Popüler <b>#{ticker}</b> Gönderilerini Gör
+    </a>
+    """, unsafe_allow_html=True)
+    st.caption("*Bu özellik X API kısıtlamalarına takılmadan, doğrudan geçmişteki en popüler tweetlere ulaşmanızı sağlar.*")
+
+# ==========================================
+# 📤 YÜKLEME ALANLARI
+# ==========================================
 col1, col2 = st.columns(2)
 
 with col1:
@@ -71,16 +118,20 @@ with col2:
     st.markdown("### 4. Takas Analizi")
     img_takas = st.file_uploader("Takas Ekranı", type=["jpg", "png", "jpeg"], key="t")
 
-# --- ANALİZ MOTORU ---
+# ==========================================
+# 🚀 ANALİZ MOTORU
+# ==========================================
 st.markdown("---")
-if st.button("📈 ANALİZİ BAŞLAT", type="primary", use_container_width=True):
+if st.button("🐋 DEV ANALİZİ BAŞLAT (Balina + Giriş Seviyesi)", type="primary", use_container_width=True):
     
     input_content = []
     
-    # GÜNCELLEME: Prompt Balina Takibi ve Giriş Seviyeleri için özelleştirildi.
-    system_prompt = """
+    system_prompt = f"""
     Sen dünyanın en iyi Borsa İstanbul 'Quantitative Analyst' ve 'Smart Money' (Akıllı Para) uzmanısın.
     GÖREV: Yüklenen borsa ekran görüntülerini analiz et.
+    
+    BAĞLAM:
+    Kullanıcı şu hisse ile ilgileniyor: {ticker} (Eğer görseller başka hisseye aitse görseldekini baz al).
     
     TERMİNOLOJİ KURALLARI:
     1. "POC (Point of Control)", "Hacim Profili", "VWAP", "Smart Money Concepts (SMC)" terimlerini kullan.
@@ -134,11 +185,9 @@ if st.button("📈 ANALİZİ BAŞLAT", type="primary", use_container_width=True)
     else:
         try:
             model = genai.GenerativeModel(active_model)
-            with st.spinner(f"Veriler Analiz Ediliyor. Yapay Zeka Analizi Olup, Yatırım Tavsiyesi İçermez!"):
+            with st.spinner(f"Balinalar taranıyor... {ticker} verileri işleniyor..."):
                 response = model.generate_content(input_content)
                 st.markdown("## 🐋 Yapay Zeka Raporu")
                 st.write(response.text)
         except Exception as e:
             st.error(f"Hata oluştu: {e}")
-
-
