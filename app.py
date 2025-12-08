@@ -2,12 +2,13 @@ import streamlit as st
 from PIL import Image
 import google.generativeai as genai
 import datetime
+from urllib.parse import quote
 
 # ==========================================
 # 🔐 GÜVENLİK VE AYARLAR (BULUT VERSİYONU)
 # ==========================================
 
-st.set_page_config(page_title="BIST Analiz Pro V7", layout="wide", page_icon="🐋")
+st.set_page_config(page_title="BIST Analiz Pro V9", layout="wide", page_icon="🐋")
 
 # Görsel stil ayarları
 st.markdown("""
@@ -41,8 +42,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🐋 BIST Pro V7: Balina Takibi & X Cashtag Analizi")
-st.info("Yapay Zeka ile Teknik Analiz + X ($Cashtag) Geçmiş Sentiment Taraması")
+st.title("🐋 BIST Pro V9: Balina & X Canlı Akış")
+st.info("Yapay Zeka Analizi + X (Twitter) Zaman Makinesi")
 
 # --- API KEY KONTROLÜ (SECRETS) ---
 api_key = None
@@ -77,38 +78,54 @@ if not active_model:
     st.stop()
 
 # ==========================================
-# 🐦 YAN MENÜ: X (TWITTER) ZAMAN MAKİNESİ
+# 🐦 YAN MENÜ: X (TWITTER) TARAYICI
 # ==========================================
 with st.sidebar:
     st.markdown("---")
-    st.header("🐦 X ($Cashtag) Zaman Makinesi")
-    st.info("Geçmiş tarihte hisse hakkında en çok etkileşim alan gönderileri bulur.")
+    st.header("🐦 X (#Hashtag) Tarayıcı")
     
-    # Kullanıcı girişi ve temizlik (# veya $ işaretlerini temizle)
+    # Hisse Kodu Girişi
     raw_ticker = st.text_input("Hisse Kodu (Örn: THYAO)", "THYAO").upper()
     clean_ticker = raw_ticker.replace("#", "").replace("$", "").strip()
     
-    selected_date = st.date_input("Hangi Tarihe Gidilsin?", datetime.date.today())
+    # MOD SEÇİMİ (YENİ EKLENDİ)
+    search_mode = st.radio(
+        "Arama Tipi:",
+        ("🔥 En Popüler (Geçmiş)", "⏱️ Son Dakika (Canlı)")
+    )
     
-    # Tarih formatlama
-    next_day = selected_date + datetime.timedelta(days=1)
+    x_url = ""
+    btn_text = ""
     
-    # X Arama Sorgusu ($ İŞARETİ ZORUNLU KILINDI)
-    # lang:tr -> Sadece Türkçe
-    # min_faves:5 -> Çöp tweetleri eler, en az 5 beğeni alanları getirir
-    search_query = f"#{clean_ticker} lang:tr until:{next_day} since:{selected_date} min_faves:5"
-    
-    # URL Encoding (Boşluklar ve özel karakterler için)
-    from urllib.parse import quote
-    encoded_query = quote(search_query)
-    x_url = f"https://x.com/search?q={encoded_query}&src=typed_query&f=top"
-    
+    if search_mode == "🔥 En Popüler (Geçmiş)":
+        st.caption("Belirli bir tarihteki en etkileşimli tweetleri getirir.")
+        selected_date = st.date_input("Hangi Tarih?", datetime.date.today())
+        next_day = selected_date + datetime.timedelta(days=1)
+        
+        # Filtre: Tarih aralığı + En az 5 Fav
+        search_query = f"#{clean_ticker} lang:tr until:{next_day} since:{selected_date} min_faves:5"
+        encoded_query = quote(search_query)
+        # f=top parametresini ekliyoruz
+        x_url = f"https://x.com/search?q={encoded_query}&src=typed_query&f=top"
+        btn_text = f"🔥 <b>{selected_date}</b> Tarihli<br>Popüler <b>#{clean_ticker}</b> Tweetleri"
+        
+    else: # SON DAKİKA MODU
+        st.caption("Tarih farketmeksizin, şu an atılan en son tweetleri listeler.")
+        
+        # Filtre: Sadece dil ve hashtag (Zaman ve beğeni kısıtı yok)
+        search_query = f"#{clean_ticker} lang:tr"
+        encoded_query = quote(search_query)
+        # f=live parametresini ekliyoruz (En Yeniler)
+        x_url = f"https://x.com/search?q={encoded_query}&src=typed_query&f=live"
+        btn_text = f"⏱️ <b>#{clean_ticker}</b> Hakkında<br>Son Dakika Akışını Gör"
+
+    # Butonu Oluştur
     st.markdown(f"""
     <a href="{x_url}" target="_blank" class="x-btn">
-       🔍 <b>{selected_date}</b> Tarihli<br>En Popüler <b>${clean_ticker}</b> Tweetlerini Gör
+       {btn_text}
     </a>
     """, unsafe_allow_html=True)
-    st.caption(f"*Butona bastığınızda X üzerinde otomatik olarak ${clean_ticker} araması yapılır.*")
+
 
 # ==========================================
 # 📤 YÜKLEME ALANLARI
@@ -196,10 +213,9 @@ if st.button("🐋 DEV ANALİZİ BAŞLAT (Balina + Giriş Seviyesi)", type="prim
     else:
         try:
             model = genai.GenerativeModel(active_model)
-            with st.spinner(f"Balinalar taranıyor... ${clean_ticker} verileri işleniyor..."):
+            with st.spinner(f"Balinalar taranıyor... #{clean_ticker} verileri işleniyor..."):
                 response = model.generate_content(input_content)
                 st.markdown("## 🐋 Yapay Zeka Raporu")
                 st.write(response.text)
         except Exception as e:
             st.error(f"Hata oluştu: {e}")
-
