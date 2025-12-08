@@ -7,7 +7,7 @@ import datetime
 # 🔐 GÜVENLİK VE AYARLAR (BULUT VERSİYONU)
 # ==========================================
 
-st.set_page_config(page_title="BIST Analiz Pro V6", layout="wide", page_icon="🐋")
+st.set_page_config(page_title="BIST Analiz Pro V7", layout="wide", page_icon="🐋")
 
 # Görsel stil ayarları
 st.markdown("""
@@ -23,7 +23,7 @@ st.markdown("""
         display: inline-block;
         background-color: #000000;
         color: white !important;
-        padding: 10px 20px;
+        padding: 12px 20px;
         text-align: center;
         text-decoration: none;
         font-size: 16px;
@@ -31,16 +31,18 @@ st.markdown("""
         border: 1px solid #333;
         width: 100%;
         margin-top: 10px;
+        transition: 0.3s;
     }
     .x-btn:hover {
-        background-color: #333;
-        border-color: #fff;
+        background-color: #1a1a1a;
+        border-color: #1d9bf0; /* X Mavisi */
+        color: #1d9bf0 !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🐋 BIST Pro V6: Balina Takibi & X Zaman Makinesi")
-st.info("Yapay Zeka ile Teknik Analiz + X (Twitter) Geçmiş Sentiment Taraması")
+st.title("🐋 BIST Pro V7: Balina Takibi & X Cashtag Analizi")
+st.info("Yapay Zeka ile Teknik Analiz + X ($Cashtag) Geçmiş Sentiment Taraması")
 
 # --- API KEY KONTROLÜ (SECRETS) ---
 api_key = None
@@ -79,25 +81,34 @@ if not active_model:
 # ==========================================
 with st.sidebar:
     st.markdown("---")
-    st.header("🐦 X (Twitter) Zaman Makinesi")
-    st.info("Geçmiş tarihte o hisse hakkında en çok konuşulanları bulur.")
+    st.header("🐦 X ($Cashtag) Zaman Makinesi")
+    st.info("Geçmiş tarihte hisse hakkında en çok etkileşim alan gönderileri bulur.")
     
-    ticker = st.text_input("Hisse Kodu (Örn: THYAO)", "THYAO").upper()
+    # Kullanıcı girişi ve temizlik (# veya $ işaretlerini temizle)
+    raw_ticker = st.text_input("Hisse Kodu (Örn: THYAO)", "THYAO").upper()
+    clean_ticker = raw_ticker.replace("#", "").replace("$", "").strip()
+    
     selected_date = st.date_input("Hangi Tarihe Gidilsin?", datetime.date.today())
     
-    # Tarih formatlama ve Link Üretme
-    # X Arama Formatı: $THYAO until:2023-12-02 since:2023-12-01 min_faves:10
+    # Tarih formatlama
     next_day = selected_date + datetime.timedelta(days=1)
     
-    search_query = f"#{ticker} lang:tr until:{next_day} since:{selected_date}"
-    x_url = f"https://x.com/search?q={search_query}&src=typed_query&f=top"
+    # X Arama Sorgusu ($ İŞARETİ ZORUNLU KILINDI)
+    # lang:tr -> Sadece Türkçe
+    # min_faves:5 -> Çöp tweetleri eler, en az 5 beğeni alanları getirir
+    search_query = f"${clean_ticker} lang:tr until:{next_day} since:{selected_date} min_faves:5"
+    
+    # URL Encoding (Boşluklar ve özel karakterler için)
+    from urllib.parse import quote
+    encoded_query = quote(search_query)
+    x_url = f"https://x.com/search?q={encoded_query}&src=typed_query&f=top"
     
     st.markdown(f"""
     <a href="{x_url}" target="_blank" class="x-btn">
-       🔍 <b>{selected_date}</b> Tarihli<br>En Popüler <b>#{ticker}</b> Gönderilerini Gör
+       🔍 <b>{selected_date}</b> Tarihli<br>En Popüler <b>${clean_ticker}</b> Tweetlerini Gör
     </a>
     """, unsafe_allow_html=True)
-    st.caption("*Bu özellik X API kısıtlamalarına takılmadan, doğrudan geçmişteki en popüler tweetlere ulaşmanızı sağlar.*")
+    st.caption(f"*Butona bastığınızda X üzerinde otomatik olarak ${clean_ticker} araması yapılır.*")
 
 # ==========================================
 # 📤 YÜKLEME ALANLARI
@@ -131,7 +142,7 @@ if st.button("🐋 DEV ANALİZİ BAŞLAT (Balina + Giriş Seviyesi)", type="prim
     GÖREV: Yüklenen borsa ekran görüntülerini analiz et.
     
     BAĞLAM:
-    Kullanıcı şu hisse ile ilgileniyor: {ticker} (Eğer görseller başka hisseye aitse görseldekini baz al).
+    Kullanıcı şu hisse ile ilgileniyor: {clean_ticker} (Eğer görseller başka hisseye aitse görseldekini baz al).
     
     TERMİNOLOJİ KURALLARI:
     1. "POC (Point of Control)", "Hacim Profili", "VWAP", "Smart Money Concepts (SMC)" terimlerini kullan.
@@ -185,10 +196,9 @@ if st.button("🐋 DEV ANALİZİ BAŞLAT (Balina + Giriş Seviyesi)", type="prim
     else:
         try:
             model = genai.GenerativeModel(active_model)
-            with st.spinner(f"Balinalar taranıyor... {ticker} verileri işleniyor..."):
+            with st.spinner(f"Balinalar taranıyor... ${clean_ticker} verileri işleniyor..."):
                 response = model.generate_content(input_content)
                 st.markdown("## 🐋 Yapay Zeka Raporu")
                 st.write(response.text)
         except Exception as e:
             st.error(f"Hata oluştu: {e}")
-
