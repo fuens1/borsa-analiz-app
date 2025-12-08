@@ -8,7 +8,7 @@ from urllib.parse import quote
 # 🔐 GÜVENLİK VE AYARLAR (BULUT VERSİYONU)
 # ==========================================
 
-st.set_page_config(page_title="BIST Analiz Pro V11", layout="wide", page_icon="🐋")
+st.set_page_config(page_title="BIST Analiz Pro V13", layout="wide", page_icon="🐋")
 
 # Görsel stil ayarları
 st.markdown("""
@@ -55,8 +55,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🐋 BIST Pro V11: Sohbet & Derin Analiz")
-st.info("20+ Madde Detaylı Yorum, İstatistik Özetleri ve 'Raporla Sohbet' Özelliği.")
+st.title("🐋 BIST Pro V13: Bağımsız X Modülü")
+st.info("X Tarayıcısı analizden bağımsız çalışır. Analiz motoru sadece yüklediğiniz görsellerdeki veriyi okur.")
 
 # --- API KEY KONTROLÜ (SECRETS) ---
 api_key = None
@@ -97,11 +97,12 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # ==========================================
-# 🐦 YAN MENÜ: X (TWITTER) TARAYICI
+# 🐦 YAN MENÜ: X (TWITTER) TARAYICI (BAĞIMSIZ)
 # ==========================================
 with st.sidebar:
     st.markdown("---")
     st.header("🐦 X (#Hashtag) Tarayıcı")
+    st.caption("Buradaki seçimler ana analizi etkilemez. Sadece X'te arama yapmak içindir.")
     
     raw_ticker = st.text_input("Hisse Kodu (Örn: THYAO)", "THYAO").upper()
     clean_ticker = raw_ticker.replace("#", "").replace("$", "").strip()
@@ -115,7 +116,6 @@ with st.sidebar:
     btn_text = ""
     
     if search_mode == "🔥 En Popüler (Geçmiş)":
-        st.caption("Belirli bir tarihteki en etkileşimli tweetleri getirir.")
         selected_date = st.date_input("Hangi Tarih?", datetime.date.today())
         next_day = selected_date + datetime.timedelta(days=1)
         search_query = f"#{clean_ticker} lang:tr until:{next_day} since:{selected_date} min_faves:5"
@@ -124,7 +124,6 @@ with st.sidebar:
         btn_text = f"🔥 <b>{selected_date}</b> Tarihli<br>Popüler <b>#{clean_ticker}</b> Tweetleri"
         
     else: 
-        st.caption("Tarih farketmeksizin, şu an atılan en son tweetleri listeler.")
         search_query = f"#{clean_ticker} lang:tr"
         encoded_query = quote(search_query)
         x_url = f"https://x.com/search?q={encoded_query}&src=typed_query&f=live"
@@ -156,54 +155,55 @@ with col2:
 st.markdown("---")
 if st.button("🐋 DETAYLI ANALİZİ BAŞLAT", type="primary", use_container_width=True):
     
-    # Yeni analiz başladığında hafızayı temizle
     st.session_state.messages = [] 
     input_content = []
     
-    # --- GÜÇLENDİRİLMİŞ PROMPT (20 MADDE + SAYAÇ) ---
+    # --- PROMPT GÜNCELLENDİ: HEDEF HİSSE KALDIRILDI ---
+    # Artık hisse adı görselden okunacak.
+    
     system_prompt = f"""
     Sen dünyanın en iyi Borsa Fon Yöneticisi ve SMC (Smart Money Concepts) uzmanısın.
-    HEDEF HİSSE: #{clean_ticker}
     
-    GÖREV: Yüklenen her görseli mikroskop altında incele.
+    GÖREV: Yüklenen borsa ekran görüntülerini (Derinlik, AKD, Kademe, Takas) analiz et.
+    
+    🚨 İLK İŞİN: Görsellerin üzerindeki yazılardan hangi hisseye ait olduğunu (Örn: ASELS, GARAN) tespit etmeye çalış. Analizi o hisseye göre yap. Eğer hisse adı görünmüyorsa "HEDEF HİSSE" olarak genel yorumla.
     
     ÖNEMLİ KURALLAR:
-    1. **SAYI ZORUNLULUĞU:** Her ana başlık altında (Derinlik, AKD, Kademe, Takas) madde madde analiz yaparken, **EN AZ 20 FARKLI GÖZLEM** yazacaksın. Kısa kesmek yasak. Gerekirse en küçük lot farkını bile yaz.
-    2. **İSTATİSTİK KUTUSU:** Her bölümün en altına, o bölümdeki verilerin duygu durumunu sayıp şu formatta bir kutu ekle:
-       `📊 VERİ ÖZETİ: ✅ Olumlu: [Sayı] | 🔻 Olumsuz: [Sayı] | 🔸 Nötr: [Sayı]`
-    3. **RENKLER:** :green[Pozitif], :red[Negatif], :orange[Nötr], :blue[Bilgi].
+    1. **SAYI ZORUNLULUĞU:** Her ana başlık altında EN AZ 20 FARKLI GÖZLEM yaz.
+    2. **SIRALAMA KURALI:** Her bölümün altındaki maddeleri şu sırayla grupla:
+       - Önce :green[POZİTİF / OLUMLU] veriler.
+       - Sonra :blue[BİLGİ] veya :orange[NÖTR] veriler.
+       - En sona :red[NEGATİF / RİSKLİ] veriler.
+    3. **İSTATİSTİK KUTUSU:** Bölüm sonlarına veri sayısını ekle: `📊 ÖZET: ✅ Olumlu: X | 🔸 Nötr: Y | 🔻 Olumsuz: Z`
     
     --- RAPOR FORMATI ---
     
-    ## BÖLÜM 1: 📸 DERİNLİK ANALİZİ (En az 20 Madde)
-    - (Alıcı/Satıcı lot farkları, kademe boşlukları, pasif emirler, spread, tahta hızı vb. hakkında 20 detaylı madde...)
-    - [Bölüm sonuna İstatistik Kutusu Ekle]
+    ## BÖLÜM 1: 📸 DERİNLİK ANALİZİ (20+ Madde, Sıralı)
+    (Yeşil > Mavi > Kırmızı sırasıyla detaylı analiz)
     
-    ## BÖLÜM 2: 🏦 AKD (ARACI KURUM) ANALİZİ (En az 20 Madde)
-    - (Para girişi, İlk 5 kurum, Diğer kalemi, BofA/YF robot hareketleri hakkında 20 detaylı madde...)
-    - [Bölüm sonuna İstatistik Kutusu Ekle]
+    ## BÖLÜM 2: 🏦 AKD (ARACI KURUM) ANALİZİ (20+ Madde, Sıralı)
+    (Para girişi/çıkışı, Kurum maliyetleri, Robot hareketleri)
     
-    ## BÖLÜM 3: 📊 KADEME & HACİM ANALİZİ (En az 20 Madde)
-    - (Bu bölüm çok kritik. Alt Başlıkları Kullan:)
-      * **En Güçlü Kurumsal Alışlar:** (Fiyat ve Lot belirt)
-      * **En Güçlü Kurumsal Satışlar:** (Direnç duvarları)
-      * **Bireysel (Küçük Yatırımcı) Davranışı:**
-      * **Akümülasyon mu Dağıtım mı?:**
-      * **POC (En yoğun hacim) Bölgesi:**
-    - [Bölüm sonuna İstatistik Kutusu Ekle]
+    ## BÖLÜM 3: 📊 KADEME & HACİM ANALİZİ (20+ Madde, Sıralı)
+    - **En Güçlü Kurumsal Alışlar:**
+    - **En Güçlü Kurumsal Satışlar:**
+    - **Bireysel Davranışlar:**
+    - **Akümülasyon/Dağıtım Tespiti:**
+    - **POC Bölgesi:**
     
-    ## BÖLÜM 4: 🌍 TAKAS ANALİZİ (En az 20 Madde)
-    - (Citi/Doçe yabancı payı, haftalık değişim, malın toplu/dağınık olması hakkında 20 detaylı madde...)
-    - [Bölüm sonuna İstatistik Kutusu Ekle]
+    ## BÖLÜM 4: 🌍 TAKAS ANALİZİ (20+ Madde, Sıralı)
+    (Yabancı payı, Saklama analizi)
     
     ## BÖLÜM 5: 🐋 GENEL SENTEZ (BALİNA İZİ)
-    - Kurumsal oyun planı nedir? Tuzak var mı?
+    (Kurumsal oyun planı, Tuzaklar, Büyük resim)
     
     ## BÖLÜM 6: 💯 SKOR KARTI & TRENDMETRE (TABLO)
-    - 5dk, 15dk, 30dk, 60dk, 2s, 4s, Günlük, Haftalık için Tablo.
+    (5dk, 15dk, 30dk, 60dk, 2s, 4s, Günlük, Haftalık Trend Yönü ve Güven Puanı)
     
     ## BÖLÜM 7: 🚀 İŞLEM PLANI
-    - ✅ Giriş, 🛑 Stop, 💰 Kar Al.
+    - ✅ Giriş Seviyesi (Entry)
+    - 🛑 Stop-Loss
+    - 💰 Kar Al (TP)
     """
     
     input_content.append(system_prompt)
@@ -223,11 +223,10 @@ if st.button("🐋 DETAYLI ANALİZİ BAŞLAT", type="primary", use_container_wid
     else:
         try:
             model = genai.GenerativeModel(active_model)
-            with st.spinner(f"Kurumsal analiz yapılıyor... 20+ Madde çıkarılıyor..."):
+            with st.spinner(f"Görseller taranıyor... Hisse kimliği tespit ediliyor..."):
                 response = model.generate_content(input_content)
-                # SONUCU HAFIZAYA KAYDET
                 st.session_state.analysis_result = response.text
-                st.rerun() # Sayfayı yenile ki sonuç ekrana gelsin
+                st.rerun()
         except Exception as e:
             st.error(f"Hata oluştu: {e}")
 
@@ -240,29 +239,32 @@ if st.session_state.analysis_result:
     st.markdown(st.session_state.analysis_result)
     
     st.markdown("---")
-    st.header("💬 Raporla Sohbet Et")
-    st.info("Yukarıdaki rapora dair sorularını sor (Örn: 'Stop-loss sence neden bu kadar yakın?', 'BofA toplamda ne kadar almış?')")
+    
+    # --- SOHBET ---
+    col_header, col_btn = st.columns([8, 2])
+    with col_header:
+        st.header("💬 Raporla Sohbet Et")
+    with col_btn:
+        if st.button("🗑️ Sohbeti Temizle"):
+            st.session_state.messages = []
+            st.rerun()
 
-    # Sohbet Geçmişini Göster
+    st.info("Rapor hakkındaki sorularını sor (Cevaplar temiz metin olarak gelecektir).")
+
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-   # Kullanıcıdan Girdi Al
     if prompt := st.chat_input("Sorunuzu yazın..."):
-        # Kullanıcı mesajını ekle
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # Yapay Zeka Cevabı
         with st.chat_message("assistant"):
             model = genai.GenerativeModel(active_model)
             
-            # Bağlam (Context) Oluşturma
             chat_context = f"""
             Sen bu analizi yapan Borsa uzmanısın.
-            
             ANALİZ RAPORU (BAĞLAM):
             {st.session_state.analysis_result}
             
@@ -270,25 +272,19 @@ if st.session_state.analysis_result:
             {prompt}
             
             Görevin: Sadece rapora ve borsa bilgine dayanarak cevap ver. Kısa, net ve samimi ol.
-            Teknik kod blokları gösterme, sadece metin olarak cevapla.
+            Teknik kod blokları gösterme, temiz metin yaz.
             """
             
-            # --- DÜZELTME BURADA YAPILDI ---
             try:
-                # Stream (Akış) başlatılıyor
                 stream = model.generate_content(chat_context, stream=True)
                 
-                # Gelen karmaşık veriyi (Chunk) sadece METNE (.text) çeviren fonksiyon
                 def stream_parser():
                     for chunk in stream:
                         if chunk.text:
                             yield chunk.text
-                
-                # Ekrana temiz metni yazdır
+                            
                 response_text = st.write_stream(stream_parser)
-                
-                # Cevabı hafızaya ekle
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
                 
             except Exception as e:
-                st.error("Bir hata oluştu, lütfen tekrar deneyin.")
+                st.error("Bir hata oluştu.")
