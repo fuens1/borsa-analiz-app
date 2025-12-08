@@ -101,7 +101,7 @@ if "messages" not in st.session_state:
 # ==========================================
 with st.sidebar:
     st.markdown("---")
-    st.header("🐦 X (#Hashtag) Tarayıcı")
+    st.header("𝕏 X (#Hashtag) Tarayıcı")
     st.caption("Buradaki seçimler ana analizi etkilemez.")
     
     raw_ticker = st.text_input("Hisse Kodu (Örn: THYAO)", "THYAO").upper()
@@ -323,3 +323,4 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
             except Exception as e:
                 st.error("Bir hata oluştu.")
+
