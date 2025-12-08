@@ -8,7 +8,7 @@ from urllib.parse import quote
 # 🔐 GÜVENLİK VE AYARLAR (BULUT VERSİYONU)
 # ==========================================
 
-st.set_page_config(page_title="BIST Analiz Pro V13", layout="wide", page_icon="🐋")
+st.set_page_config(page_title="BIST Analiz Pro V15", layout="wide", page_icon="🐋")
 
 # Görsel stil ayarları
 st.markdown("""
@@ -55,8 +55,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🐋 BIST Pro V13: Bağımsız X Modülü")
-st.info("X Tarayıcısı analizden bağımsız çalışır. Analiz motoru sadece yüklediğiniz görsellerdeki veriyi okur.")
+st.title("🐋 BIST Pro V15: Özet & Detay Modu")
+st.info("İster 20+ maddelik derin analiz alın, ister tek tuşla 'Yönetici Özeti'ne geçiş yapın.")
 
 # --- API KEY KONTROLÜ (SECRETS) ---
 api_key = None
@@ -102,7 +102,7 @@ if "messages" not in st.session_state:
 with st.sidebar:
     st.markdown("---")
     st.header("🐦 X (#Hashtag) Tarayıcı")
-    st.caption("Buradaki seçimler ana analizi etkilemez. Sadece X'te arama yapmak içindir.")
+    st.caption("Buradaki seçimler ana analizi etkilemez.")
     
     raw_ticker = st.text_input("Hisse Kodu (Örn: THYAO)", "THYAO").upper()
     clean_ticker = raw_ticker.replace("#", "").replace("$", "").strip()
@@ -150,61 +150,67 @@ with col2:
     img_takas = st.file_uploader("Takas Ekranı", type=["jpg", "png", "jpeg"], key="t")
 
 # ==========================================
-# 🚀 ANALİZ MOTORU
+# 🚀 ANALİZ MOTORU & ÖZET MODU
 # ==========================================
 st.markdown("---")
-if st.button("🐋 DETAYLI ANALİZİ BAŞLAT", type="primary", use_container_width=True):
+
+# Buton ve Toggle Yan Yana (Columns)
+col_btn, col_summary = st.columns([5, 1])
+
+with col_summary:
+    # Animasyonlu Toggle
+    st.markdown("<br>", unsafe_allow_html=True) # Hafif hizalama
+    is_summary_mode = st.toggle("📝 KISA ÖZET MODU", value=False, help="Aktif edilirse analiz 20 madde yerine kısa maddelerle özetlenir.")
+
+with col_btn:
+    analyze_btn = st.button("🐋 ANALİZİ BAŞLAT", type="primary", use_container_width=True)
+
+if analyze_btn:
     
     st.session_state.messages = [] 
     input_content = []
     
-    # --- PROMPT GÜNCELLENDİ: HEDEF HİSSE KALDIRILDI ---
-    # Artık hisse adı görselden okunacak.
+    # --- PROMPT MİMARİSİ (İKİ FARKLI MOD) ---
     
-    system_prompt = f"""
-    Sen dünyanın en iyi Borsa Fon Yöneticisi ve SMC (Smart Money Concepts) uzmanısın.
-    
-    GÖREV: Yüklenen borsa ekran görüntülerini (Derinlik, AKD, Kademe, Takas) analiz et.
-    
-    🚨 İLK İŞİN: Görsellerin üzerindeki yazılardan hangi hisseye ait olduğunu (Örn: ASELS, GARAN) tespit etmeye çalış. Analizi o hisseye göre yap. Eğer hisse adı görünmüyorsa "HEDEF HİSSE" olarak genel yorumla.
-    
-    ÖNEMLİ KURALLAR:
-    1. **SAYI ZORUNLULUĞU:** Her ana başlık altında EN AZ 20 FARKLI GÖZLEM yaz.
-    2. **SIRALAMA KURALI:** Her bölümün altındaki maddeleri şu sırayla grupla:
-       - Önce :green[POZİTİF / OLUMLU] veriler.
-       - Sonra :blue[BİLGİ] veya :orange[NÖTR] veriler.
-       - En sona :red[NEGATİF / RİSKLİ] veriler.
-    3. **İSTATİSTİK KUTUSU:** Bölüm sonlarına veri sayısını ekle: `📊 ÖZET: ✅ Olumlu: X | 🔸 Nötr: Y | 🔻 Olumsuz: Z`
-    
-    --- RAPOR FORMATI ---
-    
-    ## BÖLÜM 1: 📸 DERİNLİK ANALİZİ (20+ Madde, Sıralı)
-    (Yeşil > Mavi > Kırmızı sırasıyla detaylı analiz)
-    
-    ## BÖLÜM 2: 🏦 AKD (ARACI KURUM) ANALİZİ (20+ Madde, Sıralı)
-    (Para girişi/çıkışı, Kurum maliyetleri, Robot hareketleri)
-    
-    ## BÖLÜM 3: 📊 KADEME & HACİM ANALİZİ (20+ Madde, Sıralı)
-    - **En Güçlü Kurumsal Alışlar:**
-    - **En Güçlü Kurumsal Satışlar:**
-    - **Bireysel Davranışlar:**
-    - **Akümülasyon/Dağıtım Tespiti:**
-    - **POC Bölgesi:**
-    
-    ## BÖLÜM 4: 🌍 TAKAS ANALİZİ (20+ Madde, Sıralı)
-    (Yabancı payı, Saklama analizi)
-    
-    ## BÖLÜM 5: 🐋 GENEL SENTEZ (BALİNA İZİ)
-    (Kurumsal oyun planı, Tuzaklar, Büyük resim)
-    
-    ## BÖLÜM 6: 💯 SKOR KARTI & TRENDMETRE (TABLO)
-    (5dk, 15dk, 30dk, 60dk, 2s, 4s, Günlük, Haftalık Trend Yönü ve Güven Puanı)
-    
-    ## BÖLÜM 7: 🚀 İŞLEM PLANI
-    - ✅ Giriş Seviyesi (Entry)
-    - 🛑 Stop-Loss
-    - 💰 Kar Al (TP)
-    """
+    if is_summary_mode:
+        # --- MOD 1: YÖNETİCİ ÖZETİ (SUMMARY MODE) ---
+        system_prompt = f"""
+        Sen Borsa İstanbul Uzmanısın.
+        GÖREV: Yüklenen görselleri analiz et ama DETAYLARA BOĞULMA.
+        
+        🚨 MOD: "YÖNETİCİ ÖZETİ" (EXECUTIVE SUMMARY)
+        Kullanıcı uzun yazı okumak istemiyor. Her başlık için sadece en kritik, en can alıcı 3-5 maddeyi yaz.
+        
+        FORMAT:
+        1. Hisse Adını Tespit Et.
+        2. Her bölüm (Derinlik, AKD, Kademe, Takas) için kısa, vurucu, "Bullet Point" şeklinde özet geç.
+        3. En alta "SKOR" ve "NİHAİ KARAR" (Tek cümle) ekle.
+        
+        Renkleri kullan: :green[], :red[], :orange[].
+        """
+    else:
+        # --- MOD 2: DERİN ANALİZ (DETAILED MODE) ---
+        system_prompt = f"""
+        Sen dünyanın en iyi Borsa Fon Yöneticisi ve SMC (Smart Money Concepts) uzmanısın.
+        GÖREV: Yüklenen borsa ekran görüntülerini en ince detayına kadar analiz et.
+        
+        🚨 İLK İŞİN: Görselden hisse adını tespit et (Örn: THYAO). Yoksa "HEDEF HİSSE" de.
+        
+        ÖNEMLİ KURALLAR:
+        1. **SAYI ZORUNLULUĞU:** Her ana başlık altında EN AZ 20 FARKLI GÖZLEM yaz.
+        2. **FORMAT:** Bölümleri Pozitif/Nötr/Negatif alt başlıklarına ayır.
+        3. **SIRALAMA:** Önce :green[YEŞİL], sonra :blue[MAVİ], en son :red[KIRMIZI] maddeler gelsin.
+        4. **İSTATİSTİK:** Bölüm sonlarına `📊 ÖZET: ✅ X | 🔸 Y | 🔻 Z` ekle.
+        
+        --- RAPOR FORMATI ---
+        ## BÖLÜM 1: 📸 DERİNLİK ANALİZİ (20+ Madde, Gruplanmış)
+        ## BÖLÜM 2: 🏦 AKD (ARACI KURUM) ANALİZİ (20+ Madde, Gruplanmış)
+        ## BÖLÜM 3: 📊 KADEME & HACİM ANALİZİ (20+ Madde, Gruplanmış)
+        ## BÖLÜM 4: 🌍 TAKAS ANALİZİ (20+ Madde, Gruplanmış)
+        ## BÖLÜM 5: 🐋 GENEL SENTEZ (BALİNA İZİ)
+        ## BÖLÜM 6: 💯 SKOR KARTI & TRENDMETRE (TABLO)
+        ## BÖLÜM 7: 🚀 İŞLEM PLANI (Giriş, Stop, Kar Al)
+        """
     
     input_content.append(system_prompt)
     
@@ -223,7 +229,7 @@ if st.button("🐋 DETAYLI ANALİZİ BAŞLAT", type="primary", use_container_wid
     else:
         try:
             model = genai.GenerativeModel(active_model)
-            with st.spinner(f"Görseller taranıyor... Hisse kimliği tespit ediliyor..."):
+            with st.spinner("Analiz hazırlanıyor..."):
                 response = model.generate_content(input_content)
                 st.session_state.analysis_result = response.text
                 st.rerun()
@@ -236,6 +242,11 @@ if st.button("🐋 DETAYLI ANALİZİ BAŞLAT", type="primary", use_container_wid
 
 if st.session_state.analysis_result:
     st.markdown("## 🐋 Kurumsal Yapay Zeka Raporu")
+    
+    # Uyarı: Hangi modda çalıştı?
+    if is_summary_mode:
+        st.caption("ℹ️ Bu rapor 'ÖZET MODU' ile oluşturulmuştur. Detaylar için anahtarı kapatıp tekrar analiz edin.")
+    
     st.markdown(st.session_state.analysis_result)
     
     st.markdown("---")
@@ -277,14 +288,10 @@ if st.session_state.analysis_result:
             
             try:
                 stream = model.generate_content(chat_context, stream=True)
-                
                 def stream_parser():
                     for chunk in stream:
-                        if chunk.text:
-                            yield chunk.text
-                            
+                        if chunk.text: yield chunk.text     
                 response_text = st.write_stream(stream_parser)
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
-                
             except Exception as e:
                 st.error("Bir hata oluştu.")
