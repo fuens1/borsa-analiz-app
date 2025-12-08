@@ -8,14 +8,15 @@ from urllib.parse import quote
 # 🔐 GÜVENLİK VE AYARLAR (BULUT VERSİYONU)
 # ==========================================
 
-st.set_page_config(page_title="BIST Analiz Pro V9", layout="wide", page_icon="🐋")
+st.set_page_config(page_title="BIST Analiz Pro V10", layout="wide", page_icon="🐋")
 
 # Görsel stil ayarları
 st.markdown("""
 <style>
     .main { background-color: #0e1117; }
     h1 { color: #00d4ff !important; }
-    h3 { color: #ffbd45 !important; }
+    h2 { color: #ffbd45 !important; border-bottom: 2px solid #ffbd45; padding-bottom: 10px;}
+    h3 { color: #00d4ff !important; }
     div[data-testid="stFileUploader"] { margin-bottom: 20px; }
     .stAlert { border-left: 5px solid #ffbd45; }
     
@@ -42,8 +43,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🐋 BIST Pro V9: Balina & X Canlı Akış")
-st.info("Yapay Zeka Analizi + X (Twitter) Zaman Makinesi")
+st.title("🐋 BIST Pro V10: Kurumsal Düzey Derin Analiz")
+st.info("Her veri seti ayrı ayrı yorumlanır, ardından Balina (SMC) sentezi ve detaylı Trendmetre oluşturulur.")
 
 # --- API KEY KONTROLÜ (SECRETS) ---
 api_key = None
@@ -88,7 +89,7 @@ with st.sidebar:
     raw_ticker = st.text_input("Hisse Kodu (Örn: THYAO)", "THYAO").upper()
     clean_ticker = raw_ticker.replace("#", "").replace("$", "").strip()
     
-    # MOD SEÇİMİ (YENİ EKLENDİ)
+    # MOD SEÇİMİ
     search_mode = st.radio(
         "Arama Tipi:",
         ("🔥 En Popüler (Geçmiş)", "⏱️ Son Dakika (Canlı)")
@@ -105,17 +106,14 @@ with st.sidebar:
         # Filtre: Tarih aralığı + En az 5 Fav
         search_query = f"#{clean_ticker} lang:tr until:{next_day} since:{selected_date} min_faves:5"
         encoded_query = quote(search_query)
-        # f=top parametresini ekliyoruz
         x_url = f"https://x.com/search?q={encoded_query}&src=typed_query&f=top"
         btn_text = f"🔥 <b>{selected_date}</b> Tarihli<br>Popüler <b>#{clean_ticker}</b> Tweetleri"
         
     else: # SON DAKİKA MODU
         st.caption("Tarih farketmeksizin, şu an atılan en son tweetleri listeler.")
         
-        # Filtre: Sadece dil ve hashtag (Zaman ve beğeni kısıtı yok)
         search_query = f"#{clean_ticker} lang:tr"
         encoded_query = quote(search_query)
-        # f=live parametresini ekliyoruz (En Yeniler)
         x_url = f"https://x.com/search?q={encoded_query}&src=typed_query&f=live"
         btn_text = f"⏱️ <b>#{clean_ticker}</b> Hakkında<br>Son Dakika Akışını Gör"
 
@@ -137,6 +135,7 @@ with col1:
     img_derinlik = st.file_uploader("Derinlik Görüntüsü", type=["jpg", "png", "jpeg"], key="d")
     
     st.markdown("### 3. Kademe Analizi")
+    st.caption("Fiyat seviyelerine göre hacim dağılımı (Price Ladder)")
     img_kademe = st.file_uploader("Kademe Analiz Ekranı", type=["jpg", "png", "jpeg"], key="e")
 
 with col2:
@@ -150,61 +149,99 @@ with col2:
 # 🚀 ANALİZ MOTORU
 # ==========================================
 st.markdown("---")
-if st.button("🐋 DEV ANALİZİ BAŞLAT (Balina + Giriş Seviyesi)", type="primary", use_container_width=True):
+if st.button("🐋 KURUMSAL ANALİZİ BAŞLAT", type="primary", use_container_width=True):
     
     input_content = []
     
+    # --- PROMPT MİMARİSİ (BEYİN) ---
     system_prompt = f"""
-    Sen dünyanın en iyi Borsa İstanbul 'Quantitative Analyst' ve 'Smart Money' (Akıllı Para) uzmanısın.
-    GÖREV: Yüklenen borsa ekran görüntülerini analiz et.
+    Sen dünyanın en iyi 'Hedge Fund' Yöneticisi ve 'Smart Money' (SMC) uzmanısın.
+    GÖREV: Yüklenen borsa verilerini (Derinlik, AKD, Kademe, Takas) profesyonelce analiz et.
     
-    BAĞLAM:
-    Kullanıcı şu hisse ile ilgileniyor: {clean_ticker} (Eğer görseller başka hisseye aitse görseldekini baz al).
+    HEDEF HİSSE: #{clean_ticker}
     
-    TERMİNOLOJİ KURALLARI:
-    1. "POC (Point of Control)", "Hacim Profili", "VWAP", "Smart Money Concepts (SMC)" terimlerini kullan.
-    2. Çıktı formatın RENKLİ olsun (:green[], :red[], :orange[], :blue[]).
+    KURALLAR:
+    1. Her görseli önce KENDİ BAŞLIĞI altında detaylıca incele.
+    2. Sonra bu parçaları birleştirip BÜYÜK RESMİ (Balina Hareketini) çiz.
+    3. Renk Kodları: :green[Pozitif], :red[Negatif], :orange[Uyarı/Nötr], :blue[Kurumsal Veri].
     
-    RAPOR YAPISI (SIRAYLA VE EKSİKSİZ UYGULA):
+    --- RAPOR ŞABLONU (BU YAPIYI BOZMA) ---
     
-    BÖLÜM 1: 💯 HİSSE SKOR KARTI & TRENDMETRE
-    - 100 üzerinden puanla.
-    - 5dk ile 1 Haftalık periyotlar için bir tahmin tablosu oluştur.
+    ## BÖLÜM 1: 📸 GÖRSEL BAZLI TEKNİK ÇÖZÜMLEME
+    (Sadece yüklenen görseller için aşağıdaki başlıkları aç ve yorumla)
     
-    BÖLÜM 2: 🐋 BALİNA VE KURUMSAL İZ SÜRME (SMC)
-    - Hangi kurumlar (BofA, YF, Citi, Global vb.) tahtada oyun kuruyor?
-    - Balinalar malı topluyor mu (Accumulation), dağıtıyor mu (Distribution)?
-    - **Kurumsal ALIŞ Seviyeleri:** Kurumsalların en güçlü alım yaptığı, duvar ördüğü fiyatları tespit et.
-    - **Kurumsal SATIŞ Seviyeleri:** Kurumsalların satış yığdığı dirençleri yaz.
+    ### 1.1 DERİNLİK ANALİZİ
+    - Alıcı/Satıcı dengesi nasıl? (Lot farkı)
+    - Pasif emirlerde (Alt/Üst kademe) yığılma nerede?
+    - Spread (Makas) durumu ve tahta hızı.
     
-    BÖLÜM 3: 🔍 50 MADDELİK MİKRO ANALİZ
-    - Sayısal veriler, lot farkları, kademe boşlukları üzerine en az 50 madde.
+    ### 1.2 AKD (ARACI KURUM) ANALİZİ
+    - Net Para Girişi/Çıkışı var mı?
+    - İlk 5 Kurum (Takasbank verisi) alıcı mı satıcı mı?
+    - "Diğer" kalemi ne yapıyor? (Küçük yatırımcı mal mı alıyor, mal mı satıyor?)
     
-    BÖLÜM 4: 🚀 İŞLEM PLANI VE GİRİŞ SEVİYELERİ (EN ALTA EKLE)
-    - Burası hayati önem taşıyor. Yatırımcıya net rakamlar ver.
-    - ✅ **En Uygun GİRİŞ Seviyesi (Entry Point):** Fiyat hacimli bölgeye veya kurumsal maliyete nerede temas ediyor?
-    - 🛑 **Zarar Kes (Stop-Loss):** Hangi seviye kırılırsa formasyon bozulur?
-    - 💰 **Kar Al (Take Profit):** İlk direnç ve ana hedef neresi?
-    - **Nihai Karar:** (MALA GİR / DESTEĞE GELMESİNİ BEKLE / SAT KAÇ)
+    ### 1.3 KADEME ANALİZİ (ÇOK DETAYLI OLACAK)
+    - **En Güçlü Kurumsal Alış Seviyeleri:** Hangi fiyatta "Iceberg" veya yüklü blok alım var?
+    - **En Güçlü Kurumsal Satış Seviyeleri:** Direnç olarak çalışan kurumsal duvarlar.
+    - **Bireysel Davranışlar:** Küçük yatırımcı panik mi yapıyor, FOMO'ya mı kapılmış?
+    - **Savaş Alanı (POC):** En çok hacmin döndüğü kritik fiyat seviyesi.
+    - **Trend Sinyali:** Bu yapı bir "Akümülasyon" (Toplama) mı yoksa "Dağıtım" (Mal çakma) mı?
+    
+    ### 1.4 TAKAS ANALİZİ
+    - Yabancı (Citi/Doçe) payı değişimi.
+    - Haftalık/Aylık değişimde mal toplu mu dağınık mı?
+    
+    ---
+    
+    ## BÖLÜM 2: 🐋 BALİNA VE KURUMSAL İZ SÜRME (SMC & SENTEZ)
+    (Burada yukarıdaki tüm verileri birleştirerek yorumla)
+    - Tahtanın "Market Maker"ı (Oyun Kurucusu) kim? BofA, YF, Yatırım Finansman ne yapıyor?
+    - Robotlar hangi algoritmaya göre çalışıyor (Trend follower vs. Mean Reversion)?
+    - Balinaların ayak izleri: Gizli toplama veya fake yükseliş (Bull Trap) var mı?
+    
+    ---
+    
+    ## BÖLÜM 3: 💯 HİSSE SKOR KARTI & DETAYLI TRENDMETRE
+    **GENEL SKOR:** (0-100 Arası Puan ver)
+    
+    **ZAMAN BAZLI TREND ANALİZİ TABLOSU:**
+    Aşağıdaki vadeler için bir tablo oluştur: [Vade | Yön | Güven Oranı | Kısa Yorum]
+    - 5 Dakika
+    - 15 Dakika
+    - 30 Dakika
+    - 60 Dakika
+    - 2 Saat
+    - 4 Saat
+    - 1 Gün (Günlük)
+    - 1 Hafta (Haftalık)
+    *(Not: Derinlik kısa vadeyi, Takas uzun vadeyi etkiler. Buna göre simüle et.)*
+    
+    ---
+    
+    ## BÖLÜM 4: 🚀 PROFESYONEL İŞLEM PLANI
+    - ✅ **Sniper Giriş Seviyesi (Entry):** Nokta atışı fiyat aralığı.
+    - 🛑 **Stop-Loss (Zarar Kes):** İptal seviyesi.
+    - 💰 **Take Profit (Kar Al):** Hedef fiyatlar.
+    - **NİHAİ KARAR:** (Agresif Al / Kademeli Al / İzle / Sat / Açığa Sat)
     """
     
     input_content.append(system_prompt)
     
     loaded_count = 0
     if img_derinlik:
-        input_content.append("\n--- GÖRSEL: DERİNLİK EKRANI ---\n")
+        input_content.append("\n--- RESİM: DERİNLİK EKRANI ---\n")
         input_content.append(Image.open(img_derinlik))
         loaded_count += 1
     if img_akd:
-        input_content.append("\n--- GÖRSEL: AKD (ARACI KURUM) ANALİZİ ---\n")
+        input_content.append("\n--- RESİM: AKD (ARACI KURUM) ANALİZİ ---\n")
         input_content.append(Image.open(img_akd))
         loaded_count += 1
     if img_kademe:
-        input_content.append("\n--- GÖRSEL: KADEME ANALİZİ (HACİM DAĞILIMI) ---\n")
+        input_content.append("\n--- RESİM: KADEME ANALİZİ (PRICE LADDER) ---\n")
         input_content.append(Image.open(img_kademe))
         loaded_count += 1
     if img_takas:
-        input_content.append("\n--- GÖRSEL: TAKAS ANALİZİ ---\n")
+        input_content.append("\n--- RESİM: TAKAS ANALİZİ ---\n")
         input_content.append(Image.open(img_takas))
         loaded_count += 1
         
@@ -213,9 +250,9 @@ if st.button("🐋 DEV ANALİZİ BAŞLAT (Balina + Giriş Seviyesi)", type="prim
     else:
         try:
             model = genai.GenerativeModel(active_model)
-            with st.spinner(f"Balinalar taranıyor... #{clean_ticker} verileri işleniyor..."):
+            with st.spinner(f"Kurumsal veriler işleniyor... #{clean_ticker} için SMC analizi yapılıyor..."):
                 response = model.generate_content(input_content)
-                st.markdown("## 🐋 Yapay Zeka Raporu")
+                st.markdown("## 🐋 Kurumsal Yapay Zeka Raporu")
                 st.write(response.text)
         except Exception as e:
             st.error(f"Hata oluştu: {e}")
