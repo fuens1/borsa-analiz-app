@@ -8,7 +8,7 @@ from urllib.parse import quote
 # 🔐 GÜVENLİK VE AYARLAR (BULUT VERSİYONU)
 # ==========================================
 
-st.set_page_config(page_title="BIST Analiz Pro V15", layout="wide", page_icon="🐋")
+st.set_page_config(page_title="BIST Analiz Pro V17", layout="wide", page_icon="🐋")
 
 # Görsel stil ayarları
 st.markdown("""
@@ -55,8 +55,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🐋 BIST Pro V15: Özet & Detay Modu")
-st.info("İster 20+ maddelik derin analiz alın, ister tek tuşla 'Yönetici Özeti'ne geçiş yapın.")
+st.title("🐋 BIST Pro V17: Dinamik Rapor")
+st.info("Sistem sadece yüklediğiniz görsellerin başlıklarını rapora ekler. Boş başlıklar gösterilmez.")
 
 # --- API KEY KONTROLÜ (SECRETS) ---
 api_key = None
@@ -150,19 +150,21 @@ with col2:
     img_takas = st.file_uploader("Takas Ekranı", type=["jpg", "png", "jpeg"], key="t")
 
 # ==========================================
-# 🚀 ANALİZ MOTORU & ÖZET MODU
+# 🚀 ANALİZ MOTORU & HIZ KONTROLÜ
 # ==========================================
 st.markdown("---")
 
-# Buton ve Toggle Yan Yana (Columns)
-col_btn, col_summary = st.columns([5, 1])
+col_btn, col_settings = st.columns([1, 1])
 
-with col_summary:
-    # Animasyonlu Toggle
-    st.markdown("<br>", unsafe_allow_html=True) # Hafif hizalama
-    is_summary_mode = st.toggle("📝 KISA ÖZET MODU", value=False, help="Aktif edilirse analiz 20 madde yerine kısa maddelerle özetlenir.")
+with col_settings:
+    is_summary_mode = st.toggle("⚡ KISA ÖZET MODU", value=False, help="Aktif edilirse analiz çok hızlı biter, detaylar atlanır.")
+    if not is_summary_mode:
+        max_items = st.slider("Maksimum Analiz Maddesi:", min_value=5, max_value=30, value=20)
+    else:
+        max_items = 5
 
 with col_btn:
+    st.markdown("<br>", unsafe_allow_html=True)
     analyze_btn = st.button("🐋 ANALİZİ BAŞLAT", type="primary", use_container_width=True)
 
 if analyze_btn:
@@ -170,66 +172,92 @@ if analyze_btn:
     st.session_state.messages = [] 
     input_content = []
     
-    # --- PROMPT MİMARİSİ (İKİ FARKLI MOD) ---
+    # --- DİNAMİK BAŞLIK OLUŞTURUCU (YENİ) ---
+    # Sadece yüklenen resimlerin başlıklarını Prompt'a ekleyeceğiz.
+    
+    dynamic_sections_prompt = ""
     
     if is_summary_mode:
-        # --- MOD 1: YÖNETİCİ ÖZETİ (SUMMARY MODE) ---
-        system_prompt = f"""
-        Sen Borsa İstanbul Uzmanısın.
-        GÖREV: Yüklenen görselleri analiz et ama DETAYLARA BOĞULMA.
-        
-        🚨 MOD: "YÖNETİCİ ÖZETİ" (EXECUTIVE SUMMARY)
-        Kullanıcı uzun yazı okumak istemiyor. Her başlık için sadece en kritik, en can alıcı 3-5 maddeyi yaz.
-        
-        FORMAT:
-        1. Hisse Adını Tespit Et.
-        2. Her bölüm (Derinlik, AKD, Kademe, Takas) için kısa, vurucu, "Bullet Point" şeklinde özet geç.
-        3. En alta "SKOR" ve "NİHAİ KARAR" (Tek cümle) ekle.
-        
-        Renkleri kullan: :green[], :red[], :orange[].
-        """
+        # ÖZET MODU İÇİN BAŞLIKLAR
+        if img_derinlik: dynamic_sections_prompt += "## 📸 DERİNLİK ÖZETİ (En Kritik 3-5 Nokta)\n"
+        if img_akd: dynamic_sections_prompt += "## 🏦 AKD ÖZETİ (Para Giriş/Çıkış)\n"
+        if img_kademe: dynamic_sections_prompt += "## 📊 KADEME ÖZETİ (Güçlü Alıcı/Satıcı)\n"
+        if img_takas: dynamic_sections_prompt += "## 🌍 TAKAS ÖZETİ (Yabancı Durumu)\n"
     else:
-        # --- MOD 2: DERİN ANALİZ (DETAILED MODE) ---
-        system_prompt = f"""
-        Sen dünyanın en iyi Borsa Fon Yöneticisi ve SMC (Smart Money Concepts) uzmanısın.
-        GÖREV: Yüklenen borsa ekran görüntülerini en ince detayına kadar analiz et.
-        
-        🚨 İLK İŞİN: Görselden hisse adını tespit et (Örn: THYAO). Yoksa "HEDEF HİSSE" de.
+        # GELİŞMİŞ MOD İÇİN BAŞLIKLAR
+        if img_derinlik: 
+            dynamic_sections_prompt += f"""
+            ## 📸 DERİNLİK ANALİZİ (Maks {max_items} Madde)
+            (Pozitif > Nötr > Negatif Gruplu Formatı Uygula)
+            """
+        if img_akd:
+            dynamic_sections_prompt += f"""
+            ## 🏦 AKD (ARACI KURUM) ANALİZİ (Maks {max_items} Madde)
+            (Pozitif > Nötr > Negatif Gruplu Formatı Uygula)
+            """
+        if img_kademe:
+            dynamic_sections_prompt += f"""
+            ## 📊 KADEME & HACİM ANALİZİ (Maks {max_items} Madde)
+            (Alt Başlıklar: Kurumsal Alış, Kurumsal Satış, Bireysel Davranış, POC)
+            """
+        if img_takas:
+            dynamic_sections_prompt += f"""
+            ## 🌍 TAKAS ANALİZİ (Maks {max_items} Madde)
+            (Pozitif > Nötr > Negatif Gruplu Formatı Uygula)
+            """
+
+    # --- ANA PROMPT BİRLEŞTİRME ---
+    
+    base_prompt = f"""
+    Sen Borsa İstanbul Uzmanısın.
+    GÖREV: Yüklenen görselleri analiz et.
+    
+    🚨 İLK İŞİN: Görselden hisse adını tespit et. Yoksa "HEDEF HİSSE" de.
+    🚨 KURAL: Sadece aşağıda başlığı verilen bölümleri rapora ekle. Yüklenmeyen veriler için başlık açma.
+    
+    --- İSTENEN RAPOR FORMATI ---
+    
+    {dynamic_sections_prompt}
+    
+    --- ORTAK KAPANIŞ BÖLÜMÜ (HER ZAMAN EKLE) ---
+    ## 🐋 GENEL SENTEZ (BALİNA İZİ)
+    ## 💯 SKOR KARTI & TRENDMETRE (TABLO)
+    ## 🚀 İŞLEM PLANI (Giriş, Stop, Kar Al)
+    """
+    
+    # Detay Modu için Ek Kurallar
+    if not is_summary_mode:
+        base_prompt = f"""
+        Sen dünyanın en iyi Borsa Fon Yöneticisi ve SMC uzmanısın.
         
         ÖNEMLİ KURALLAR:
-        1. **SAYI ZORUNLULUĞU:** Her ana başlık altında EN AZ 20 FARKLI GÖZLEM yaz.
-        2. **FORMAT:** Bölümleri Pozitif/Nötr/Negatif alt başlıklarına ayır.
-        3. **SIRALAMA:** Önce :green[YEŞİL], sonra :blue[MAVİ], en son :red[KIRMIZI] maddeler gelsin.
-        4. **İSTATİSTİK:** Bölüm sonlarına `📊 ÖZET: ✅ X | 🔸 Y | 🔻 Z` ekle.
+        1. **SAYI LİMİTİ:** Her başlık için EN FAZLA {max_items} madde.
+        2. **FORMAT:** Pozitif/Nötr/Negatif olarak grupla.
+        3. **SIRALAMA:** Önce :green[YEŞİL], sonra :blue[MAVİ], en son :red[KIRMIZI].
+        4. **İSTATİSTİK:** Bölüm sonuna `📊 ÖZET: ✅ X | 🔸 Y | 🔻 Z` ekle.
         
-        --- RAPOR FORMATI ---
-        ## BÖLÜM 1: 📸 DERİNLİK ANALİZİ (20+ Madde, Gruplanmış)
-        ## BÖLÜM 2: 🏦 AKD (ARACI KURUM) ANALİZİ (20+ Madde, Gruplanmış)
-        ## BÖLÜM 3: 📊 KADEME & HACİM ANALİZİ (20+ Madde, Gruplanmış)
-        ## BÖLÜM 4: 🌍 TAKAS ANALİZİ (20+ Madde, Gruplanmış)
-        ## BÖLÜM 5: 🐋 GENEL SENTEZ (BALİNA İZİ)
-        ## BÖLÜM 6: 💯 SKOR KARTI & TRENDMETRE (TABLO)
-        ## BÖLÜM 7: 🚀 İŞLEM PLANI (Giriş, Stop, Kar Al)
+        {base_prompt}
         """
     
-    input_content.append(system_prompt)
+    input_content.append(base_prompt)
     
+    # Görselleri Ekle
     loaded_count = 0
     if img_derinlik:
-        input_content.append("\n--- DERİNLİK ---\n"); input_content.append(Image.open(img_derinlik)); loaded_count += 1
+        input_content.append("\n--- DERİNLİK GÖRSELİ ---\n"); input_content.append(Image.open(img_derinlik)); loaded_count += 1
     if img_akd:
-        input_content.append("\n--- AKD ---\n"); input_content.append(Image.open(img_akd)); loaded_count += 1
+        input_content.append("\n--- AKD GÖRSELİ ---\n"); input_content.append(Image.open(img_akd)); loaded_count += 1
     if img_kademe:
-        input_content.append("\n--- KADEME ---\n"); input_content.append(Image.open(img_kademe)); loaded_count += 1
+        input_content.append("\n--- KADEME GÖRSELİ ---\n"); input_content.append(Image.open(img_kademe)); loaded_count += 1
     if img_takas:
-        input_content.append("\n--- TAKAS ---\n"); input_content.append(Image.open(img_takas)); loaded_count += 1
+        input_content.append("\n--- TAKAS GÖRSELİ ---\n"); input_content.append(Image.open(img_takas)); loaded_count += 1
         
     if loaded_count == 0:
         st.warning("⚠️ Lütfen analiz için en az 1 adet görsel yükleyiniz.")
     else:
         try:
             model = genai.GenerativeModel(active_model)
-            with st.spinner("Analiz hazırlanıyor..."):
+            with st.spinner("Dinamik rapor oluşturuluyor..."):
                 response = model.generate_content(input_content)
                 st.session_state.analysis_result = response.text
                 st.rerun()
@@ -243,15 +271,15 @@ if analyze_btn:
 if st.session_state.analysis_result:
     st.markdown("## 🐋 Kurumsal Yapay Zeka Raporu")
     
-    # Uyarı: Hangi modda çalıştı?
     if is_summary_mode:
-        st.caption("ℹ️ Bu rapor 'ÖZET MODU' ile oluşturulmuştur. Detaylar için anahtarı kapatıp tekrar analiz edin.")
+        st.caption("⚡ HIZLI ÖZET MODU Aktif.")
+    else:
+        st.caption(f"🧠 GELİŞMİŞ MOD Aktif (Sadece yüklenen {loaded_count} veri seti analiz edildi).")
     
     st.markdown(st.session_state.analysis_result)
     
     st.markdown("---")
     
-    # --- SOHBET ---
     col_header, col_btn = st.columns([8, 2])
     with col_header:
         st.header("💬 Raporla Sohbet Et")
