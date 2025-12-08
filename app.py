@@ -20,8 +20,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🐋 BIST Pro V5: Balina Takibi & Giriş Seviyeleri")
-st.info("Sistem artık Kurumsal (Smart Money) ayak izlerini takip eder ve en uygun giriş yerini söyler.")
+st.title("🐋 BIST Pro V5: Yapay Zeka Hisse Analizi")
+st.info("Gelişmiş Yapay Zeka ile Hisseleri Analiz Et, Gücü Yakala!")
 
 # --- API KEY KONTROLÜ (SECRETS) ---
 api_key = None
@@ -130,13 +130,14 @@ if st.button("🐋 BALİNA ANALİZİNİ BAŞLAT", type="primary", use_container_
         loaded_count += 1
         
     if loaded_count == 0:
-        st.warning("⚠️ Lütfen analiz için en az 1 adet görsel yükleyiniz.")
+        st.warning("⚠️ Lütfen Analiz İçin En Az 1 Adet Görsel Yükleyiniz.")
     else:
         try:
             model = genai.GenerativeModel(active_model)
-            with st.spinner(f"Balinalar taranıyor... Kurumsal seviyeler hesaplanıyor..."):
+            with st.spinner(f"Veriler Analiz Ediliyor. Yapay Zeka Analizi Olup, Yatırım Tavsiyesi İçermez!"):
                 response = model.generate_content(input_content)
-                st.markdown("## 🐋 Yapay Zeka Balina Raporu")
+                st.markdown("## 🐋 Yapay Zeka Raporu")
                 st.write(response.text)
         except Exception as e:
             st.error(f"Hata oluştu: {e}")
+
