@@ -8,7 +8,7 @@ from urllib.parse import quote
 # 🔐 GÜVENLİK VE AYARLAR (BULUT VERSİYONU)
 # ==========================================
 
-st.set_page_config(page_title="BIST Analiz Pro V10", layout="wide", page_icon="🐋")
+st.set_page_config(page_title="BIST Analiz Pro V11", layout="wide", page_icon="🐋")
 
 # Görsel stil ayarları
 st.markdown("""
@@ -19,6 +19,18 @@ st.markdown("""
     h3 { color: #00d4ff !important; }
     div[data-testid="stFileUploader"] { margin-bottom: 20px; }
     .stAlert { border-left: 5px solid #ffbd45; }
+    
+    /* İstatistik Kutusu Stili */
+    .stat-box {
+        background-color: #1e2130;
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid #444;
+        margin-top: 10px;
+        margin-bottom: 20px;
+        font-weight: bold;
+        color: #fff;
+    }
     
     /* X Butonu Stili */
     .x-btn {
@@ -43,8 +55,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🐋 BIST Pro V10: Kurumsal Düzey Derin Analiz")
-st.info("Her veri seti ayrı ayrı yorumlanır, ardından Balina (SMC) sentezi ve detaylı Trendmetre oluşturulur.")
+st.title("🐋 BIST Pro V11: Sohbet & Derin Analiz")
+st.info("20+ Madde Detaylı Yorum, İstatistik Özetleri ve 'Raporla Sohbet' Özelliği.")
 
 # --- API KEY KONTROLÜ (SECRETS) ---
 api_key = None
@@ -78,6 +90,12 @@ if not active_model:
     st.error("Model bağlanamadı. API Key hatalı olabilir.")
     st.stop()
 
+# --- SESSION STATE (SOHBET HAFIZASI) ---
+if "analysis_result" not in st.session_state:
+    st.session_state.analysis_result = None
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
 # ==========================================
 # 🐦 YAN MENÜ: X (TWITTER) TARAYICI
 # ==========================================
@@ -85,11 +103,9 @@ with st.sidebar:
     st.markdown("---")
     st.header("🐦 X (#Hashtag) Tarayıcı")
     
-    # Hisse Kodu Girişi
     raw_ticker = st.text_input("Hisse Kodu (Örn: THYAO)", "THYAO").upper()
     clean_ticker = raw_ticker.replace("#", "").replace("$", "").strip()
     
-    # MOD SEÇİMİ
     search_mode = st.radio(
         "Arama Tipi:",
         ("🔥 En Popüler (Geçmiş)", "⏱️ Son Dakika (Canlı)")
@@ -102,28 +118,19 @@ with st.sidebar:
         st.caption("Belirli bir tarihteki en etkileşimli tweetleri getirir.")
         selected_date = st.date_input("Hangi Tarih?", datetime.date.today())
         next_day = selected_date + datetime.timedelta(days=1)
-        
-        # Filtre: Tarih aralığı + En az 5 Fav
         search_query = f"#{clean_ticker} lang:tr until:{next_day} since:{selected_date} min_faves:5"
         encoded_query = quote(search_query)
         x_url = f"https://x.com/search?q={encoded_query}&src=typed_query&f=top"
         btn_text = f"🔥 <b>{selected_date}</b> Tarihli<br>Popüler <b>#{clean_ticker}</b> Tweetleri"
         
-    else: # SON DAKİKA MODU
+    else: 
         st.caption("Tarih farketmeksizin, şu an atılan en son tweetleri listeler.")
-        
         search_query = f"#{clean_ticker} lang:tr"
         encoded_query = quote(search_query)
         x_url = f"https://x.com/search?q={encoded_query}&src=typed_query&f=live"
         btn_text = f"⏱️ <b>#{clean_ticker}</b> Hakkında<br>Son Dakika Akışını Gör"
 
-    # Butonu Oluştur
-    st.markdown(f"""
-    <a href="{x_url}" target="_blank" class="x-btn">
-       {btn_text}
-    </a>
-    """, unsafe_allow_html=True)
-
+    st.markdown(f"""<a href="{x_url}" target="_blank" class="x-btn">{btn_text}</a>""", unsafe_allow_html=True)
 
 # ==========================================
 # 📤 YÜKLEME ALANLARI
@@ -133,15 +140,13 @@ col1, col2 = st.columns(2)
 with col1:
     st.markdown("### 1. Derinlik Ekranı")
     img_derinlik = st.file_uploader("Derinlik Görüntüsü", type=["jpg", "png", "jpeg"], key="d")
-    
     st.markdown("### 3. Kademe Analizi")
-    st.caption("Fiyat seviyelerine göre hacim dağılımı (Price Ladder)")
+    st.caption("Fiyat seviyelerine göre hacim dağılımı")
     img_kademe = st.file_uploader("Kademe Analiz Ekranı", type=["jpg", "png", "jpeg"], key="e")
 
 with col2:
     st.markdown("### 2. AKD (Aracı Kurum)")
     img_akd = st.file_uploader("AKD Ekranı", type=["jpg", "png", "jpeg"], key="a")
-
     st.markdown("### 4. Takas Analizi")
     img_takas = st.file_uploader("Takas Ekranı", type=["jpg", "png", "jpeg"], key="t")
 
@@ -149,110 +154,126 @@ with col2:
 # 🚀 ANALİZ MOTORU
 # ==========================================
 st.markdown("---")
-if st.button("🐋 KURUMSAL ANALİZİ BAŞLAT", type="primary", use_container_width=True):
+if st.button("🐋 DETAYLI ANALİZİ BAŞLAT", type="primary", use_container_width=True):
     
+    # Yeni analiz başladığında hafızayı temizle
+    st.session_state.messages = [] 
     input_content = []
     
-    # --- PROMPT MİMARİSİ (BEYİN) ---
+    # --- GÜÇLENDİRİLMİŞ PROMPT (20 MADDE + SAYAÇ) ---
     system_prompt = f"""
-    Sen dünyanın en iyi 'Hedge Fund' Yöneticisi ve 'Smart Money' (SMC) uzmanısın.
-    GÖREV: Yüklenen borsa verilerini (Derinlik, AKD, Kademe, Takas) profesyonelce analiz et.
-    
+    Sen dünyanın en iyi Borsa Fon Yöneticisi ve SMC (Smart Money Concepts) uzmanısın.
     HEDEF HİSSE: #{clean_ticker}
     
-    KURALLAR:
-    1. Her görseli önce KENDİ BAŞLIĞI altında detaylıca incele.
-    2. Sonra bu parçaları birleştirip BÜYÜK RESMİ (Balina Hareketini) çiz.
-    3. Renk Kodları: :green[Pozitif], :red[Negatif], :orange[Uyarı/Nötr], :blue[Kurumsal Veri].
+    GÖREV: Yüklenen her görseli mikroskop altında incele.
     
-    --- RAPOR ŞABLONU (BU YAPIYI BOZMA) ---
+    ÖNEMLİ KURALLAR:
+    1. **SAYI ZORUNLULUĞU:** Her ana başlık altında (Derinlik, AKD, Kademe, Takas) madde madde analiz yaparken, **EN AZ 20 FARKLI GÖZLEM** yazacaksın. Kısa kesmek yasak. Gerekirse en küçük lot farkını bile yaz.
+    2. **İSTATİSTİK KUTUSU:** Her bölümün en altına, o bölümdeki verilerin duygu durumunu sayıp şu formatta bir kutu ekle:
+       `📊 VERİ ÖZETİ: ✅ Olumlu: [Sayı] | 🔻 Olumsuz: [Sayı] | 🔸 Nötr: [Sayı]`
+    3. **RENKLER:** :green[Pozitif], :red[Negatif], :orange[Nötr], :blue[Bilgi].
     
-    ## BÖLÜM 1: 📸 GÖRSEL BAZLI TEKNİK ÇÖZÜMLEME
-    (Sadece yüklenen görseller için aşağıdaki başlıkları aç ve yorumla)
+    --- RAPOR FORMATI ---
     
-    ### 1.1 DERİNLİK ANALİZİ
-    - Alıcı/Satıcı dengesi nasıl? (Lot farkı)
-    - Pasif emirlerde (Alt/Üst kademe) yığılma nerede?
-    - Spread (Makas) durumu ve tahta hızı.
+    ## BÖLÜM 1: 📸 DERİNLİK ANALİZİ (En az 20 Madde)
+    - (Alıcı/Satıcı lot farkları, kademe boşlukları, pasif emirler, spread, tahta hızı vb. hakkında 20 detaylı madde...)
+    - [Bölüm sonuna İstatistik Kutusu Ekle]
     
-    ### 1.2 AKD (ARACI KURUM) ANALİZİ
-    - Net Para Girişi/Çıkışı var mı?
-    - İlk 5 Kurum (Takasbank verisi) alıcı mı satıcı mı?
-    - "Diğer" kalemi ne yapıyor? (Küçük yatırımcı mal mı alıyor, mal mı satıyor?)
+    ## BÖLÜM 2: 🏦 AKD (ARACI KURUM) ANALİZİ (En az 20 Madde)
+    - (Para girişi, İlk 5 kurum, Diğer kalemi, BofA/YF robot hareketleri hakkında 20 detaylı madde...)
+    - [Bölüm sonuna İstatistik Kutusu Ekle]
     
-    ### 1.3 KADEME ANALİZİ (ÇOK DETAYLI OLACAK)
-    - **En Güçlü Kurumsal Alış Seviyeleri:** Hangi fiyatta "Iceberg" veya yüklü blok alım var?
-    - **En Güçlü Kurumsal Satış Seviyeleri:** Direnç olarak çalışan kurumsal duvarlar.
-    - **Bireysel Davranışlar:** Küçük yatırımcı panik mi yapıyor, FOMO'ya mı kapılmış?
-    - **Savaş Alanı (POC):** En çok hacmin döndüğü kritik fiyat seviyesi.
-    - **Trend Sinyali:** Bu yapı bir "Akümülasyon" (Toplama) mı yoksa "Dağıtım" (Mal çakma) mı?
+    ## BÖLÜM 3: 📊 KADEME & HACİM ANALİZİ (En az 20 Madde)
+    - (Bu bölüm çok kritik. Alt Başlıkları Kullan:)
+      * **En Güçlü Kurumsal Alışlar:** (Fiyat ve Lot belirt)
+      * **En Güçlü Kurumsal Satışlar:** (Direnç duvarları)
+      * **Bireysel (Küçük Yatırımcı) Davranışı:**
+      * **Akümülasyon mu Dağıtım mı?:**
+      * **POC (En yoğun hacim) Bölgesi:**
+    - [Bölüm sonuna İstatistik Kutusu Ekle]
     
-    ### 1.4 TAKAS ANALİZİ
-    - Yabancı (Citi/Doçe) payı değişimi.
-    - Haftalık/Aylık değişimde mal toplu mu dağınık mı?
+    ## BÖLÜM 4: 🌍 TAKAS ANALİZİ (En az 20 Madde)
+    - (Citi/Doçe yabancı payı, haftalık değişim, malın toplu/dağınık olması hakkında 20 detaylı madde...)
+    - [Bölüm sonuna İstatistik Kutusu Ekle]
     
-    ---
+    ## BÖLÜM 5: 🐋 GENEL SENTEZ (BALİNA İZİ)
+    - Kurumsal oyun planı nedir? Tuzak var mı?
     
-    ## BÖLÜM 2: 🐋 BALİNA VE KURUMSAL İZ SÜRME (SMC & SENTEZ)
-    (Burada yukarıdaki tüm verileri birleştirerek yorumla)
-    - Tahtanın "Market Maker"ı (Oyun Kurucusu) kim? BofA, YF, Yatırım Finansman ne yapıyor?
-    - Robotlar hangi algoritmaya göre çalışıyor (Trend follower vs. Mean Reversion)?
-    - Balinaların ayak izleri: Gizli toplama veya fake yükseliş (Bull Trap) var mı?
+    ## BÖLÜM 6: 💯 SKOR KARTI & TRENDMETRE (TABLO)
+    - 5dk, 15dk, 30dk, 60dk, 2s, 4s, Günlük, Haftalık için Tablo.
     
-    ---
-    
-    ## BÖLÜM 3: 💯 HİSSE SKOR KARTI & DETAYLI TRENDMETRE
-    **GENEL SKOR:** (0-100 Arası Puan ver)
-    
-    **ZAMAN BAZLI TREND ANALİZİ TABLOSU:**
-    Aşağıdaki vadeler için bir tablo oluştur: [Vade | Yön | Güven Oranı | Kısa Yorum]
-    - 5 Dakika
-    - 15 Dakika
-    - 30 Dakika
-    - 60 Dakika
-    - 2 Saat
-    - 4 Saat
-    - 1 Gün (Günlük)
-    - 1 Hafta (Haftalık)
-    *(Not: Derinlik kısa vadeyi, Takas uzun vadeyi etkiler. Buna göre simüle et.)*
-    
-    ---
-    
-    ## BÖLÜM 4: 🚀 PROFESYONEL İŞLEM PLANI
-    - ✅ **Sniper Giriş Seviyesi (Entry):** Nokta atışı fiyat aralığı.
-    - 🛑 **Stop-Loss (Zarar Kes):** İptal seviyesi.
-    - 💰 **Take Profit (Kar Al):** Hedef fiyatlar.
-    - **NİHAİ KARAR:** (Agresif Al / Kademeli Al / İzle / Sat / Açığa Sat)
+    ## BÖLÜM 7: 🚀 İŞLEM PLANI
+    - ✅ Giriş, 🛑 Stop, 💰 Kar Al.
     """
     
     input_content.append(system_prompt)
     
     loaded_count = 0
     if img_derinlik:
-        input_content.append("\n--- RESİM: DERİNLİK EKRANI ---\n")
-        input_content.append(Image.open(img_derinlik))
-        loaded_count += 1
+        input_content.append("\n--- DERİNLİK ---\n"); input_content.append(Image.open(img_derinlik)); loaded_count += 1
     if img_akd:
-        input_content.append("\n--- RESİM: AKD (ARACI KURUM) ANALİZİ ---\n")
-        input_content.append(Image.open(img_akd))
-        loaded_count += 1
+        input_content.append("\n--- AKD ---\n"); input_content.append(Image.open(img_akd)); loaded_count += 1
     if img_kademe:
-        input_content.append("\n--- RESİM: KADEME ANALİZİ (PRICE LADDER) ---\n")
-        input_content.append(Image.open(img_kademe))
-        loaded_count += 1
+        input_content.append("\n--- KADEME ---\n"); input_content.append(Image.open(img_kademe)); loaded_count += 1
     if img_takas:
-        input_content.append("\n--- RESİM: TAKAS ANALİZİ ---\n")
-        input_content.append(Image.open(img_takas))
-        loaded_count += 1
+        input_content.append("\n--- TAKAS ---\n"); input_content.append(Image.open(img_takas)); loaded_count += 1
         
     if loaded_count == 0:
-        st.warning("⚠️ Lütfen Analiz İçin En Az 1 Adet Görsel Yükleyiniz.")
+        st.warning("⚠️ Lütfen analiz için en az 1 adet görsel yükleyiniz.")
     else:
         try:
             model = genai.GenerativeModel(active_model)
-            with st.spinner(f"Kurumsal veriler işleniyor... #{clean_ticker} için SMC analizi yapılıyor..."):
+            with st.spinner(f"Kurumsal analiz yapılıyor... 20+ Madde çıkarılıyor..."):
                 response = model.generate_content(input_content)
-                st.markdown("## 🐋 Kurumsal Yapay Zeka Raporu")
-                st.write(response.text)
+                # SONUCU HAFIZAYA KAYDET
+                st.session_state.analysis_result = response.text
+                st.rerun() # Sayfayı yenile ki sonuç ekrana gelsin
         except Exception as e:
             st.error(f"Hata oluştu: {e}")
+
+# ==========================================
+# 📝 SONUÇ GÖSTERİMİ VE SOHBET
+# ==========================================
+
+if st.session_state.analysis_result:
+    st.markdown("## 🐋 Kurumsal Yapay Zeka Raporu")
+    st.markdown(st.session_state.analysis_result)
+    
+    st.markdown("---")
+    st.header("💬 Raporla Sohbet Et")
+    st.info("Yukarıdaki rapora dair sorularını sor (Örn: 'Stop-loss sence neden bu kadar yakın?', 'BofA toplamda ne kadar almış?')")
+
+    # Sohbet Geçmişini Göster
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # Kullanıcıdan Girdi Al
+    if prompt := st.chat_input("Sorunuzu yazın..."):
+        # Kullanıcı mesajını ekle
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        # Yapay Zeka Cevabı
+        with st.chat_message("assistant"):
+            model = genai.GenerativeModel(active_model)
+            
+            # Bağlam (Context) Oluşturma
+            chat_context = f"""
+            Sen bu analizi yapan Borsa uzmanısın.
+            
+            ANALİZ RAPORU (BAĞLAM):
+            {st.session_state.analysis_result}
+            
+            KULLANICI SORUSU:
+            {prompt}
+            
+            Görevin: Sadece rapora ve borsa bilgine dayanarak cevap ver. Kısa ve net ol.
+            """
+            
+            stream = model.generate_content(chat_context, stream=True)
+            response_text = st.write_stream(stream)
+            
+        # Asistan mesajını ekle
+        st.session_state.messages.append({"role": "assistant", "content": response_text})
