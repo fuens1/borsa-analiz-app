@@ -248,7 +248,7 @@ if st.session_state.analysis_result:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # Kullanıcıdan Girdi Al
+   # Kullanıcıdan Girdi Al
     if prompt := st.chat_input("Sorunuzu yazın..."):
         # Kullanıcı mesajını ekle
         st.session_state.messages.append({"role": "user", "content": prompt})
@@ -269,11 +269,26 @@ if st.session_state.analysis_result:
             KULLANICI SORUSU:
             {prompt}
             
-            Görevin: Sadece rapora ve borsa bilgine dayanarak cevap ver. Kısa ve net ol.
+            Görevin: Sadece rapora ve borsa bilgine dayanarak cevap ver. Kısa, net ve samimi ol.
+            Teknik kod blokları gösterme, sadece metin olarak cevapla.
             """
             
-            stream = model.generate_content(chat_context, stream=True)
-            response_text = st.write_stream(stream)
-            
-        # Asistan mesajını ekle
-        st.session_state.messages.append({"role": "assistant", "content": response_text})
+            # --- DÜZELTME BURADA YAPILDI ---
+            try:
+                # Stream (Akış) başlatılıyor
+                stream = model.generate_content(chat_context, stream=True)
+                
+                # Gelen karmaşık veriyi (Chunk) sadece METNE (.text) çeviren fonksiyon
+                def stream_parser():
+                    for chunk in stream:
+                        if chunk.text:
+                            yield chunk.text
+                
+                # Ekrana temiz metni yazdır
+                response_text = st.write_stream(stream_parser)
+                
+                # Cevabı hafızaya ekle
+                st.session_state.messages.append({"role": "assistant", "content": response_text})
+                
+            except Exception as e:
+                st.error("Bir hata oluştu, lütfen tekrar deneyin.")
