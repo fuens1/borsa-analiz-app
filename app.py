@@ -89,7 +89,7 @@ with st.sidebar:
     # X Arama Formatı: $THYAO until:2023-12-02 since:2023-12-01 min_faves:10
     next_day = selected_date + datetime.timedelta(days=1)
     
-    search_query = f"${ticker} lang:tr until:{next_day} since:{selected_date}"
+    search_query = f"#{ticker} lang:tr until:{next_day} since:{selected_date}"
     x_url = f"https://x.com/search?q={search_query}&src=typed_query&f=top"
     
     st.markdown(f"""
@@ -191,3 +191,4 @@ if st.button("🐋 DEV ANALİZİ BAŞLAT (Balina + Giriş Seviyesi)", type="prim
                 st.write(response.text)
         except Exception as e:
             st.error(f"Hata oluştu: {e}")
+
