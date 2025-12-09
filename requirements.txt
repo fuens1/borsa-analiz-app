@@ -5,3 +5,4 @@ requests
 pandas
 streamlit-paste-button
 feedparser
+firebase-admin
