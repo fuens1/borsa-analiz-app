@@ -8,7 +8,7 @@ from urllib.parse import quote
 # 🔐 GÜVENLİK VE AYARLAR (BULUT VERSİYONU)
 # ==========================================
 
-st.set_page_config(page_title="BIST Analiz Pro V17", layout="wide", page_icon="🐋")
+st.set_page_config(page_title="BIST Analiz Pro V18", layout="wide", page_icon="🐋")
 
 # Görsel stil ayarları
 st.markdown("""
@@ -55,8 +55,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🐋 BIST Pro V17: Dinamik Rapor")
-st.info("Sistem sadece yüklediğiniz görsellerin başlıklarını rapora ekler. Boş başlıklar gösterilmez.")
+st.title("🐋 BIST Pro V18: Hata Giderilmiş Sürüm")
+st.info("Sistem sadece yüklediğiniz görsellerin başlıklarını rapora ekler. Stabil çalışır.")
 
 # --- API KEY KONTROLÜ (SECRETS) ---
 api_key = None
@@ -95,13 +95,16 @@ if "analysis_result" not in st.session_state:
     st.session_state.analysis_result = None
 if "messages" not in st.session_state:
     st.session_state.messages = []
+# --- DÜZELTME: Yüklenen dosya sayısını hafızada tut ---
+if "loaded_count" not in st.session_state:
+    st.session_state.loaded_count = 0
 
 # ==========================================
 # 🐦 YAN MENÜ: X (TWITTER) TARAYICI (BAĞIMSIZ)
 # ==========================================
 with st.sidebar:
     st.markdown("---")
-    st.header("𝕏 (#Hashtag) Tarayıcı")
+    st.header("🐦 X (#Hashtag) Tarayıcı")
     st.caption("Buradaki seçimler ana analizi etkilemez.")
     
     raw_ticker = st.text_input("Hisse Kodu (Örn: THYAO)", "THYAO").upper()
@@ -172,19 +175,15 @@ if analyze_btn:
     st.session_state.messages = [] 
     input_content = []
     
-    # --- DİNAMİK BAŞLIK OLUŞTURUCU (YENİ) ---
-    # Sadece yüklenen resimlerin başlıklarını Prompt'a ekleyeceğiz.
-    
+    # --- DİNAMİK BAŞLIK OLUŞTURUCU ---
     dynamic_sections_prompt = ""
     
     if is_summary_mode:
-        # ÖZET MODU İÇİN BAŞLIKLAR
         if img_derinlik: dynamic_sections_prompt += "## 📸 DERİNLİK ÖZETİ (En Kritik 3-5 Nokta)\n"
         if img_akd: dynamic_sections_prompt += "## 🏦 AKD ÖZETİ (Para Giriş/Çıkış)\n"
         if img_kademe: dynamic_sections_prompt += "## 📊 KADEME ÖZETİ (Güçlü Alıcı/Satıcı)\n"
         if img_takas: dynamic_sections_prompt += "## 🌍 TAKAS ÖZETİ (Yabancı Durumu)\n"
     else:
-        # GELİŞMİŞ MOD İÇİN BAŞLIKLAR
         if img_derinlik: 
             dynamic_sections_prompt += f"""
             ## 📸 DERİNLİK ANALİZİ (Maks {max_items} Madde)
@@ -206,8 +205,7 @@ if analyze_btn:
             (Pozitif > Nötr > Negatif Gruplu Formatı Uygula)
             """
 
-    # --- ANA PROMPT BİRLEŞTİRME ---
-    
+    # --- ANA PROMPT ---
     base_prompt = f"""
     Sen Borsa İstanbul Uzmanısın.
     GÖREV: Yüklenen görselleri analiz et.
@@ -225,7 +223,6 @@ if analyze_btn:
     ## 🚀 İŞLEM PLANI (Giriş, Stop, Kar Al)
     """
     
-    # Detay Modu için Ek Kurallar
     if not is_summary_mode:
         base_prompt = f"""
         Sen dünyanın en iyi Borsa Fon Yöneticisi ve SMC uzmanısın.
@@ -241,25 +238,27 @@ if analyze_btn:
     
     input_content.append(base_prompt)
     
-    # Görselleri Ekle
-    loaded_count = 0
+    # Görselleri Ekle ve Say
+    local_loaded_count = 0
     if img_derinlik:
-        input_content.append("\n--- DERİNLİK GÖRSELİ ---\n"); input_content.append(Image.open(img_derinlik)); loaded_count += 1
+        input_content.append("\n--- DERİNLİK GÖRSELİ ---\n"); input_content.append(Image.open(img_derinlik)); local_loaded_count += 1
     if img_akd:
-        input_content.append("\n--- AKD GÖRSELİ ---\n"); input_content.append(Image.open(img_akd)); loaded_count += 1
+        input_content.append("\n--- AKD GÖRSELİ ---\n"); input_content.append(Image.open(img_akd)); local_loaded_count += 1
     if img_kademe:
-        input_content.append("\n--- KADEME GÖRSELİ ---\n"); input_content.append(Image.open(img_kademe)); loaded_count += 1
+        input_content.append("\n--- KADEME GÖRSELİ ---\n"); input_content.append(Image.open(img_kademe)); local_loaded_count += 1
     if img_takas:
-        input_content.append("\n--- TAKAS GÖRSELİ ---\n"); input_content.append(Image.open(img_takas)); loaded_count += 1
+        input_content.append("\n--- TAKAS GÖRSELİ ---\n"); input_content.append(Image.open(img_takas)); local_loaded_count += 1
         
-    if loaded_count == 0:
+    if local_loaded_count == 0:
         st.warning("⚠️ Lütfen analiz için en az 1 adet görsel yükleyiniz.")
     else:
         try:
             model = genai.GenerativeModel(active_model)
             with st.spinner("Dinamik rapor oluşturuluyor..."):
                 response = model.generate_content(input_content)
+                # Sonucu ve dosya sayısını hafızaya kaydet
                 st.session_state.analysis_result = response.text
+                st.session_state.loaded_count = local_loaded_count
                 st.rerun()
         except Exception as e:
             st.error(f"Hata oluştu: {e}")
@@ -274,7 +273,8 @@ if st.session_state.analysis_result:
     if is_summary_mode:
         st.caption("⚡ HIZLI ÖZET MODU Aktif.")
     else:
-        st.caption(f"🧠 GELİŞMİŞ MOD Aktif (Sadece yüklenen {loaded_count} veri seti analiz edildi).")
+        # DÜZELTME: Artık hafızadaki sayıyı kullanıyoruz, hata vermez.
+        st.caption(f"🧠 GELİŞMİŞ MOD Aktif (Sadece yüklenen {st.session_state.loaded_count} veri seti analiz edildi).")
     
     st.markdown(st.session_state.analysis_result)
     
@@ -323,5 +323,3 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
             except Exception as e:
                 st.error("Bir hata oluştu.")
-
-
