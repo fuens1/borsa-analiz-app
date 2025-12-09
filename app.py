@@ -195,13 +195,13 @@ if st.session_state.api_depth_data is not None or st.session_state.api_akd_data 
         if st.session_state.api_depth_data:
             st.success("DERİNLİK VERİSİ 🟢")
         else:
-            st.error("DERİNLİK VERİSİ 🔴 (Çekilemedi)")
+            st.error("DERİNLİK VERİSİ 🔴")
             
     with stat_col2:
         if st.session_state.api_akd_data:
             st.success("AKD VERİSİ 🟢")
         else:
-            st.error("AKD VERİSİ 🔴 (Çekilemedi)")
+            st.error("AKD VERİSİ 🔴")
 
 # --- INIT KEYS ---
 api_keys = []
@@ -463,3 +463,4 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role":"assistant", "content":resp})
             except: st.error("Hata.")
+
