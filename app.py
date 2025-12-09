@@ -261,21 +261,44 @@ if not valid_model_name:
     st.error("❌ Aktif Model Bulunamadı.")
     st.stop()
 
-def make_request(content, keys):
-    if working_key in keys:
-        keys.remove(working_key)
-        keys.insert(0, working_key)
-    for k in keys:
+# --- MISSING FUNCTION ADDED HERE ---
+def make_resilient_request(content_input, keys_list):
+    """
+    Anahtarları sırayla dener. 
+    429 (Kota) hatası alırsa diğer anahtara geçer.
+    """
+    last_error = None
+    
+    # Çalışan anahtarı başa al (Optimize)
+    if working_key in keys_list:
+        keys_list.remove(working_key)
+        keys_list.insert(0, working_key)
+        
+    for index, key in enumerate(keys_list):
         try:
-            genai.configure(api_key=k)
-            model = genai.GenerativeModel(valid_model_name)
-            resp = model.generate_content(content)
-            st.session_state.active_working_key = k
-            return resp.text
+            genai.configure(api_key=key)
+            model_instance = genai.GenerativeModel(valid_model_name)
+            response = model_instance.generate_content(content_input)
+            
+            # Başarılı olursa global anahtarı güncelle
+            st.session_state.active_working_key = key
+            return response.text
+
         except Exception as e:
-            if "429" in str(e) or "quota" in str(e).lower(): continue
-            else: raise e
-    raise Exception("Tüm kotalar dolu.")
+            err_str = str(e)
+            # Hata Kota (429) ise yut ve devam et
+            if "429" in err_str or "quota" in err_str.lower() or "resource" in err_str.lower():
+                print(f"Anahtar {index+1} kotası doldu. Sıradakine geçiliyor...")
+                continue
+            else:
+                # Başka hataysa (örn: resim bozuk) döngüyü kır
+                last_error = e
+                break
+    
+    if last_error:
+        raise last_error
+    else:
+        raise Exception("Tüm anahtarların kotası dolu! Biraz bekleyin.")
 
 # --- UPLOAD SECTION ---
 file_key_suffix = str(st.session_state.reset_counter)
