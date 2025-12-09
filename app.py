@@ -236,16 +236,6 @@ if fetch_btn:
     except Exception as e:
         st.error(f"Bağlantı Hatası: {e}")
 
-# Alınan Verilerin Önizlemesi (Varsa Göster)
-if st.session_state.api_depth_data or st.session_state.api_akd_data:
-    with st.expander("📊 Çekilen API Verilerini Görüntüle", expanded=True):
-        d_col, a_col = st.columns(2)
-        with d_col:
-            st.markdown("**Derinlik (Ham Veri):**")
-            st.json(st.session_state.api_depth_data)
-        with a_col:
-            st.markdown("**AKD (Ham Veri):**")
-            st.json(st.session_state.api_akd_data)
 
 # --- INIT VARIABLES ---
 api_keys = []
@@ -521,3 +511,4 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role":"assistant", "content":resp})
             except: st.error("Hata.")
+
