@@ -327,13 +327,13 @@ with col1:
     handle_paste("Derinlik")
     show_images("Derinlik")
     
-    st.markdown("### 3. Kademe 📊")
+    st.markdown("### 2. Kademe 📊")
     img_k = st.file_uploader("Yükle", type=["jpg","png","jpeg"], key=f"k_{file_key_suffix}", accept_multiple_files=True)
     handle_paste("Kademe")
     show_images("Kademe")
 
 with col2:
-    st.markdown("### 2. AKD 🤵")
+    st.markdown("### 3. AKD 🤵")
     img_a = st.file_uploader("Yükle", type=["jpg","png","jpeg"], key=f"a_{file_key_suffix}", accept_multiple_files=True)
     handle_paste("AKD")
     show_images("AKD")
@@ -458,3 +458,4 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role":"assistant", "content":resp})
             except: st.error("Hata.")
+
