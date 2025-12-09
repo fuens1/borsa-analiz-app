@@ -91,7 +91,7 @@ with st.sidebar:
     st.sidebar.markdown("---")
     st.sidebar.subheader("🔍 Durum Kontrolü")
     
-    if st.sidebar.button("Anahtarları Test Et"):
+    if st.sidebar.button("🔄İstemci Verilerini Kontrol Et"):
         st.sidebar.info("Bağlantı kontrol ediliyor...")
         progress_bar = st.sidebar.progress(0)
         
@@ -419,7 +419,7 @@ if analyze_btn:
     if local_loaded_count == 0:
         st.warning("⚠️ Lütfen analiz için en az 1 adet görsel yükleyin veya yapıştırın.")
     else:
-        with st.spinner(f"Veriler {len(api_keys)} adet API anahtarı üzerinden işleniyor..."):
+        with st.spinner(f"Rapor Hazırlanıyor. Analiz Adedine Göre Değişiklik Gösterir. SAYFAYI YENİLEMEYİNİZ!"):
             try:
                 final_text = make_resilient_request(input_content, api_keys)
                 st.session_state.analysis_result = final_text
@@ -488,5 +488,6 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
             except Exception as e:
                 st.error("Sohbet sırasında hata oluştu.")
+
 
 
