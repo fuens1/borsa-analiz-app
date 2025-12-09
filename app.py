@@ -21,19 +21,6 @@ st.markdown("""
     div[data-testid="stFileUploader"] { margin-bottom: 20px; }
     .stAlert { border-left: 5px solid #ffbd45; }
     
-    /* İstatistik Kutusu Stili */
-    .stat-box {
-        background-color: #1e2130;
-        padding: 15px;
-        border-radius: 10px;
-        border: 1px solid #444;
-        margin-top: 10px;
-        margin-bottom: 20px;
-        font-weight: bold;
-        color: #fff;
-    }
-    
-    /* X Butonu Stili */
     .x-btn {
         display: inline-block;
         background-color: #000000;
@@ -50,7 +37,7 @@ st.markdown("""
     }
     .x-btn:hover {
         background-color: #1a1a1a;
-        border-color: #1d9bf0; /* X Mavisi */
+        border-color: #1d9bf0;
         color: #1d9bf0 !important;
     }
 </style>
@@ -76,9 +63,10 @@ with st.sidebar:
     if not api_keys:
         st.warning("⚠️ Secrets dosyasında anahtar bulunamadı.")
         
-    user_input = st.text_area(
+    # DÜZELTME BURADA YAPILDI: text_area -> text_input
+    user_input = st.text_input(
         "Google API Key(s) Giriniz:", 
-        help="Birden fazla anahtarı virgül (,) ile ayırarak veya alt alta yazabilirsiniz.",
+        help="Birden fazla anahtarı virgül (,) ile ayırarak yapıştırabilirsiniz.",
         placeholder="AIzaSy... , AIzaSy...",
         type="password"
     )
@@ -248,7 +236,7 @@ if analyze_btn:
     st.session_state.messages = [] 
     input_content = []
     
-    # --- DİNAMİK BAŞLIK OLUŞTURUCU ---
+    # --- DİNAMİK BAŞLIK ---
     dynamic_sections_prompt = ""
     
     if is_summary_mode:
@@ -329,11 +317,9 @@ if analyze_btn:
         Sen dünyanın en iyi Borsa Fon Yöneticisi ve SMC uzmanısın.
         
         ÖNEMLİ KURALLAR:
-        1. **SAYI LİMİTİ:** Her başlık için EN FAZLA {max_items} madde.
-        2. **FORMAT:** Pozitif/Nötr/Negatif olarak grupla.
-        3. **SIRALAMA:** Önce :green[YEŞİL], sonra :blue[MAVİ], en son :red[KIRMIZI] sırala.
-        4. **İSTATİSTİK:** Bölüm sonuna `📊 ÖZET: ✅ X | 🔸 Y | 🔻 Z` ekle.
-        5. **BALİNA İZİ VE SKOR KARTI KISMINI KESİNLİKLE PARAGRAF YAPMA, MADDE MADDE LİSTELE VE RENKLENDİR.**
+        1. **ANALİZ BÖLÜMLERİ:** Her başlık için EN FAZLA {max_items} madde. Pozitif/Nötr/Negatif olarak grupla. Önce :green[YEŞİL], sonra :blue[MAVİ], en son :red[KIRMIZI] sırala. Bölüm sonuna `📊 ÖZET: ✅ X | 🔸 Y | 🔻 Z` ekle.
+        2. **GENEL SENTEZ:** Paragraf şeklinde yaz. Akıcı olsun.
+        3. **TRENDMETRE:** Kesinlikle MARKDOWN TABLOSU olarak yap. (| Periyot | Yön | Yorum |)
         
         {base_prompt}
         """
