@@ -84,21 +84,25 @@ if not api_keys:
 else:
     st.sidebar.success(f"✅ {len(api_keys)} Adet Anahtar Yüklendi")
 
-    # --- ANAHTAR TEST MODÜLÜ (YENİ) ---
+    # --- ANAHTAR TEST MODÜLÜ (GÜNCELLENDİ) ---
     st.sidebar.markdown("---")
     st.sidebar.subheader("🔍 Durum Kontrolü")
     
     if st.sidebar.button("Anahtarları Test Et"):
-        st.sidebar.info("Anahtarlar kontrol ediliyor...")
+        st.sidebar.info("Bağlantı kontrol ediliyor...")
         progress_bar = st.sidebar.progress(0)
         
         for i, key in enumerate(api_keys):
             try:
-                # Test bağlantısı
+                # Test bağlantısı: Sadece yetki kontrolü yap (Liste Çek)
+                # Bu yöntem kota yemez ve daha garantidir.
                 genai.configure(api_key=key)
-                # En hafif modeli seçip 'Ping' atıyoruz
-                model = genai.GenerativeModel('gemini-1.5-flash') 
-                response = model.generate_content("Test", generation_config={"max_output_tokens": 1})
+                
+                # Sadece modelleri listele, hata vermezse key sağlamdır.
+                models = list(genai.list_models())
+                
+                if not models:
+                    raise Exception("Model listesi boş döndü.")
                 
                 # Başarılı
                 masked_key = f"{key[:4]}...{key[-4:]}"
@@ -110,7 +114,9 @@ else:
                 if "429" in err_msg or "quota" in err_msg.lower():
                     st.sidebar.markdown(f"🔑 `{masked_key}` : <span class='key-status-limit'>🛑 KOTA DOLU</span>", unsafe_allow_html=True)
                 else:
-                    st.sidebar.markdown(f"🔑 `{masked_key}` : <span class='key-status-fail'>❌ HATALI</span>", unsafe_allow_html=True)
+                    # Detaylı hata (debug için konsola basılabilir ama kullanıcıya sade gösterelim)
+                    print(f"Hata detayı ({masked_key}): {err_msg}")
+                    st.sidebar.markdown(f"🔑 `{masked_key}` : <span class='key-status-fail'>❌ BAĞLANTI YOK</span>", unsafe_allow_html=True)
             
             progress_bar.progress((i + 1) / len(api_keys))
         st.sidebar.success("Kontrol Tamamlandı.")
@@ -123,6 +129,8 @@ def get_model_name(key):
     try:
         genai.configure(api_key=key)
         models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        
+        # Kararlı sürüm öncelikli
         for m in models:
             if "gemini-1.5-flash" in m and "002" in m: return m
         for m in models:
@@ -142,7 +150,7 @@ for k in api_keys:
         break
 
 if not valid_model_name:
-    st.error("❌ Hiçbir anahtar ile modele bağlanılamadı.")
+    st.error("❌ Hiçbir anahtar ile modele bağlanılamadı. Anahtarlarınızı kontrol edin.")
     st.stop()
 
 # --- 3. FAILOVER İSTEK FONKSİYONU ---
@@ -271,6 +279,7 @@ if analyze_btn:
         if img_kademe: dynamic_sections_prompt += "## 📊 KADEME ÖZETİ (Güçlü Alıcı/Satıcı)\n"
         if img_takas: dynamic_sections_prompt += "## 🌍 TAKAS ÖZETİ (Yabancı Durumu)\n"
     else:
+        # GELİŞMİŞ MOD: RENKLİ LİSTE FORMATI
         if img_derinlik: 
             dynamic_sections_prompt += f"""
             ## 📸 DERİNLİK ANALİZİ (Maks {max_items} Madde)
@@ -311,14 +320,12 @@ if analyze_btn:
     
     **🟢 POZİTİF / OLUMLU SENTEZ:**
     1. [Balina izi madde 1]
-    2. [Balina izi madde 2]
     
     **🔵 BİLGİ / NÖTR SENTEZ:**
     1. [Bilgi madde 1]
     
     **🔴 NEGATİF / RİSKLİ SENTEZ:**
     1. [Riskli durum madde 1]
-    2. [Riskli durum madde 2]
 
     ## 💯 SKOR KARTI & TRENDMETRE (DETAYLI)
     
@@ -368,9 +375,7 @@ if analyze_btn:
     else:
         with st.spinner(f"Veriler {len(api_keys)} adet API anahtarı üzerinden işleniyor..."):
             try:
-                # FAILOVER FONKSİYONUNU ÇAĞIR
                 final_text = make_resilient_request(input_content, api_keys)
-                
                 st.session_state.analysis_result = final_text
                 st.session_state.loaded_count = local_loaded_count
                 st.rerun()
@@ -413,7 +418,6 @@ if st.session_state.analysis_result:
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
-            # SOHBETTE DE AKTİF ANAHTARI KULLAN
             genai.configure(api_key=st.session_state.active_working_key)
             model = genai.GenerativeModel(valid_model_name)
             
