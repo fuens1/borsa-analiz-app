@@ -1,5 +1,7 @@
 streamlit
 google-generativeai
-pillow
+Pillow
+requests
+pandas
 streamlit-paste-button
-
+feedparser
