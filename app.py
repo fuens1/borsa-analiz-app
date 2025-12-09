@@ -2,10 +2,11 @@ import streamlit as st
 from PIL import Image
 import google.generativeai as genai
 import datetime
+import time
 from urllib.parse import quote
 
 # ==========================================
-# 🔐 GÜVENLİK VE AYARLAR (BULUT VERSİYONU)
+# 🔐 GÜVENLİK VE AYARLAR
 # ==========================================
 
 st.set_page_config(page_title="BIST Yapay Zeka Analiz PRO", layout="wide", page_icon="🐋")
@@ -55,52 +56,125 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🐋 BIST Yapay Zeka Analiz PRO")
+st.title("🐋 BIST Yapay Zeka Analiz PRO (Multi-Key)")
 st.info("Küçük Yatırımcı'nın Büyüdüğü Bir Evren..")
 
-# --- API KEY KONTROLÜ (SECRETS) ---
-api_key = None
+# --- 1. API KEY HAVUZU YÖNETİMİ ---
+api_keys = []
+
+# Secrets'tan al
 if "GOOGLE_API_KEY" in st.secrets:
-    api_key = st.secrets["GOOGLE_API_KEY"]
-else:
-    with st.sidebar:
-        st.header("🔑 Ayarlar")
-        st.warning("⚠️ API Key Bulunamadı.")
-        api_key = st.text_input("Google API Key Giriniz", type="password")
+    raw_secret = st.secrets["GOOGLE_API_KEY"]
+    if "," in raw_secret:
+        api_keys = [k.strip() for k in raw_secret.split(",") if k.strip()]
+    else:
+        api_keys = [raw_secret]
 
-if not api_key:
-    st.error("Lütfen API Anahtarını sisteme tanıtın.")
+# Sidebar'dan al
+with st.sidebar:
+    st.header("🔑 Anahtar Havuzu")
+    if not api_keys:
+        st.warning("⚠️ Secrets dosyasında anahtar bulunamadı.")
+        
+    user_input = st.text_area(
+        "Google API Key(s) Giriniz:", 
+        help="Birden fazla anahtarı virgül (,) ile ayırarak veya alt alta yazabilirsiniz.",
+        placeholder="AIzaSy... , AIzaSy...",
+        type="password"
+    )
+    
+    if user_input:
+        processed_input = user_input.replace("\n", ",").split(",")
+        manual_keys = [k.strip() for k in processed_input if k.strip()]
+        api_keys.extend(manual_keys)
+
+# Tekrarlayanları temizle
+api_keys = list(set(api_keys))
+
+if not api_keys:
+    st.error("Lütfen en az bir API Anahtarı girin.")
     st.stop()
+else:
+    st.sidebar.success(f"✅ {len(api_keys)} Adet Anahtar Yüklendi")
 
-# --- MODEL BULMA (OTOMATİK) ---
-def get_best_model(api_key):
-    genai.configure(api_key=api_key)
+# --- 2. BAŞLANGIÇ MODEL SEÇİMİ ---
+valid_model_name = None
+working_key = None
+
+def get_model_name(key):
+    """Verilen key için en uygun modeli döner"""
     try:
+        genai.configure(api_key=key)
         models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        # Kararlı sürüm öncelikli
         for m in models:
-            if "gemini-1.5-flash" in m and "latest" in m: return m
+            if "gemini-1.5-flash" in m and "002" in m: return m
+        for m in models:
+            if "gemini-1.5-flash" in m and "latest" not in m: return m
         for m in models:
             if "gemini-1.5-flash" in m: return m
         return models[0] if models else None
     except:
         return None
 
-active_model = get_best_model(api_key)
-if not active_model:
-    st.error("Model bağlanamadı. API Key hatalı olabilir.")
+# İlk çalışan anahtarı ve modeli bul
+for k in api_keys:
+    mod = get_model_name(k)
+    if mod:
+        valid_model_name = mod
+        working_key = k
+        break
+
+if not valid_model_name:
+    st.error("❌ Hiçbir anahtar ile modele bağlanılamadı.")
     st.stop()
 
-# --- SESSION STATE (SOHBET HAFIZASI) ---
+# --- 3. FAILOVER İSTEK FONKSİYONU ---
+def make_resilient_request(content_input, keys_list):
+    """Anahtarları sırayla dener, 429 hatasında diğerine geçer."""
+    last_error = None
+    
+    # Çalışan anahtarı başa al
+    if working_key in keys_list:
+        keys_list.remove(working_key)
+        keys_list.insert(0, working_key)
+        
+    for index, key in enumerate(keys_list):
+        try:
+            genai.configure(api_key=key)
+            model_instance = genai.GenerativeModel(valid_model_name)
+            response = model_instance.generate_content(content_input)
+            
+            # Başarılı olursa sohbet için anahtarı kaydet
+            st.session_state.active_working_key = key
+            return response.text
+
+        except Exception as e:
+            err_str = str(e)
+            if "429" in err_str or "quota" in err_str.lower() or "resource" in err_str.lower():
+                print(f"Anahtar {index+1} kotası doldu. Sıradakine geçiliyor...")
+                continue
+            else:
+                last_error = e
+                break
+    
+    if last_error:
+        raise last_error
+    else:
+        raise Exception("Tüm anahtarların kotası dolu! Biraz bekleyin.")
+
+# --- SESSION STATE ---
 if "analysis_result" not in st.session_state:
     st.session_state.analysis_result = None
 if "messages" not in st.session_state:
     st.session_state.messages = []
-# --- DÜZELTME: Yüklenen dosya sayısını hafızada tut ---
 if "loaded_count" not in st.session_state:
     st.session_state.loaded_count = 0
+if "active_working_key" not in st.session_state:
+    st.session_state.active_working_key = working_key
 
 # ==========================================
-# 🐦 YAN MENÜ: X (TWITTER) TARAYICI (BAĞIMSIZ)
+# 🐦 YAN MENÜ: X (TWITTER) TARAYICI
 # ==========================================
 with st.sidebar:
     st.markdown("---")
@@ -186,12 +260,12 @@ if analyze_btn:
         if img_derinlik: 
             dynamic_sections_prompt += f"""
             ## 📸 DERİNLİK ANALİZİ (Maks {max_items} Madde)
-            (Pozitif > Nötr > Negatif Gruplu Formatı Uygula)
+            (Pozitif > Nötr > Negatif Şeklinde GRUPLA ve RENKLENDİR)
             """
         if img_akd:
             dynamic_sections_prompt += f"""
             ## 🏦 AKD (ARACI KURUM) ANALİZİ (Maks {max_items} Madde)
-            (Pozitif > Nötr > Negatif Gruplu Formatı Uygula)
+            (Pozitif > Nötr > Negatif Şeklinde GRUPLA ve RENKLENDİR)
             """
         if img_kademe:
             dynamic_sections_prompt += f"""
@@ -201,7 +275,7 @@ if analyze_btn:
         if img_takas:
             dynamic_sections_prompt += f"""
             ## 🌍 TAKAS ANALİZİ (Maks {max_items} Madde)
-            (Pozitif > Nötr > Negatif Gruplu Formatı Uygula)
+            (Pozitif > Nötr > Negatif Şeklinde GRUPLA ve RENKLENDİR)
             """
 
     # --- ANA PROMPT ---
@@ -252,12 +326,12 @@ if analyze_btn:
     
     if not is_summary_mode:
         base_prompt = f"""
-        Her zaman "Sevgili Küçük Yatırımcı" olarak hitap kullan.
+        Sen dünyanın en iyi Borsa Fon Yöneticisi ve SMC uzmanısın.
         
         ÖNEMLİ KURALLAR:
         1. **SAYI LİMİTİ:** Her başlık için EN FAZLA {max_items} madde.
         2. **FORMAT:** Pozitif/Nötr/Negatif olarak grupla.
-        3. **SIRALAMA:** Önce :green[YEŞİL], sonra :blue[MAVİ], en son :red[KIRMIZI].
+        3. **SIRALAMA:** Önce :green[YEŞİL], sonra :blue[MAVİ], en son :red[KIRMIZI] sırala.
         4. **İSTATİSTİK:** Bölüm sonuna `📊 ÖZET: ✅ X | 🔸 Y | 🔻 Z` ekle.
         5. **BALİNA İZİ VE SKOR KARTI KISMINI KESİNLİKLE PARAGRAF YAPMA, MADDE MADDE LİSTELE VE RENKLENDİR.**
         
@@ -280,16 +354,16 @@ if analyze_btn:
     if local_loaded_count == 0:
         st.warning("⚠️ Lütfen analiz için en az 1 adet görsel yükleyiniz.")
     else:
-        try:
-            model = genai.GenerativeModel(active_model)
-            with st.spinner("Yapay Zeka Raporu Oluşturuluyor. Analiz Sayısına ve Analiz Adedine Göre Sonuçların Gösterilmesi Değişiklik Gösterir."):
-                response = model.generate_content(input_content)
-                # Sonucu ve dosya sayısını hafızaya kaydet
-                st.session_state.analysis_result = response.text
+        with st.spinner(f"Veriler {len(api_keys)} adet API anahtarı üzerinden işleniyor..."):
+            try:
+                # FAILOVER FONKSİYONUNU ÇAĞIR
+                final_text = make_resilient_request(input_content, api_keys)
+                
+                st.session_state.analysis_result = final_text
                 st.session_state.loaded_count = local_loaded_count
                 st.rerun()
-        except Exception as e:
-            st.error(f"Hata Oluştu: {e}")
+            except Exception as e:
+                st.error(f"HATA: {e}")
 
 # ==========================================
 # 📝 SONUÇ GÖSTERİMİ VE SOHBET
@@ -301,7 +375,6 @@ if st.session_state.analysis_result:
     if is_summary_mode:
         st.caption("⚡ HIZLI ÖZET MODU Aktif.")
     else:
-        # DÜZELTME: Artık hafızadaki sayıyı kullanıyoruz, hata vermez.
         st.caption(f"🧠 GELİŞMİŞ MOD Aktif (Sadece Yüklenen {st.session_state.loaded_count} Veri Seti Analiz Edildi).")
     
     st.markdown(st.session_state.analysis_result)
@@ -328,7 +401,9 @@ if st.session_state.analysis_result:
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
-            model = genai.GenerativeModel(active_model)
+            # SOHBETTE DE AKTİF ANAHTARI KULLAN
+            genai.configure(api_key=st.session_state.active_working_key)
+            model = genai.GenerativeModel(valid_model_name)
             
             chat_context = f"""
             Sen bu analizi yapan Borsa uzmanısın.
@@ -350,5 +425,4 @@ if st.session_state.analysis_result:
                 response_text = st.write_stream(stream_parser)
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
             except Exception as e:
-                st.error("Bir Hata Oluştu.")
-
+                st.error("Sohbet sırasında hata oluştu.")
