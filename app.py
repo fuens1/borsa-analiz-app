@@ -217,8 +217,36 @@ if analyze_btn:
     {dynamic_sections_prompt}
     
     --- ORTAK KAPANIŞ BÖLÜMÜ (HER ZAMAN EKLE) ---
+    
     ## 🐋 GENEL SENTEZ (BALİNA İZİ)
-    ## 💯 SKOR KARTI & TRENDMETRE (TABLO)
+    BU BÖLÜMÜ PARAGRAF ŞEKLİNDE YAZMA. AŞAĞIDAKİ GİBİ MADDE MADDE SIRALA:
+    
+    **🟢 POZİTİF / OLUMLU SENTEZ:**
+    1. [Balina izi madde 1]
+    2. [Balina izi madde 2]
+    
+    **🔵 BİLGİ / NÖTR SENTEZ:**
+    1. [Bilgi madde 1]
+    
+    **🔴 NEGATİF / RİSKLİ SENTEZ:**
+    1. [Riskli durum madde 1]
+    2. [Riskli durum madde 2]
+
+    ## 💯 SKOR KARTI & TRENDMETRE (DETAYLI)
+    
+    **GENEL SKOR:** [0-100 Puan]
+    
+    **ZAMAN BAZLI TREND TABLOSU (Listeleme):**
+    AŞAĞIDAKİLERİ TEK TEK RENKLİ MADDE OLARAK YAZ (TABLO YAPMA):
+    * **5 Dakika:** [Yön] - [Yorum] (Renkli: :green[] veya :red[])
+    * **15 Dakika:** [Yön] - [Yorum]
+    * **30 Dakika:** [Yön] - [Yorum]
+    * **60 Dakika:** [Yön] - [Yorum]
+    * **2 Saat:** [Yön] - [Yorum]
+    * **4 Saat:** [Yön] - [Yorum]
+    * **Günlük:** [Yön] - [Yorum]
+    * **Haftalık:** [Yön] - [Yorum]
+
     ## 🚀 İŞLEM PLANI (Giriş, Stop, Kar Al)
     """
     
@@ -231,6 +259,7 @@ if analyze_btn:
         2. **FORMAT:** Pozitif/Nötr/Negatif olarak grupla.
         3. **SIRALAMA:** Önce :green[YEŞİL], sonra :blue[MAVİ], en son :red[KIRMIZI].
         4. **İSTATİSTİK:** Bölüm sonuna `📊 ÖZET: ✅ X | 🔸 Y | 🔻 Z` ekle.
+        5. **BALİNA İZİ VE SKOR KARTI KISMINI KESİNLİKLE PARAGRAF YAPMA, MADDE MADDE LİSTELE VE RENKLENDİR.**
         
         {base_prompt}
         """
