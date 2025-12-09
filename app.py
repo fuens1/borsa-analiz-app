@@ -8,7 +8,7 @@ from urllib.parse import quote
 # 🔐 GÜVENLİK VE AYARLAR (BULUT VERSİYONU)
 # ==========================================
 
-st.set_page_config(page_title="BIST Analiz Pro V18", layout="wide", page_icon="🐋")
+st.set_page_config(page_title="BIST Yapay Zeka Analiz PRO", layout="wide", page_icon="🐋")
 
 # Görsel stil ayarları
 st.markdown("""
@@ -55,8 +55,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🐋 BIST Pro V18: Hata Giderilmiş Sürüm")
-st.info("Sistem sadece yüklediğiniz görsellerin başlıklarını rapora ekler. Stabil çalışır.")
+st.title("🐋 BIST Yapay Zeka Analiz PRO")
+st.info("Küçük Yatırımcı'nın Büyüdüğü Bir Evren..")
 
 # --- API KEY KONTROLÜ (SECRETS) ---
 api_key = None
@@ -104,8 +104,8 @@ if "loaded_count" not in st.session_state:
 # ==========================================
 with st.sidebar:
     st.markdown("---")
-    st.header("🐦 X (#Hashtag) Tarayıcı")
-    st.caption("Buradaki seçimler ana analizi etkilemez.")
+    st.header("𝕏 (#Hashtag) Tarayıcı")
+    st.caption("💬 Gündemi Takip Et 💬")
     
     raw_ticker = st.text_input("Hisse Kodu (Örn: THYAO)", "THYAO").upper()
     clean_ticker = raw_ticker.replace("#", "").replace("$", "").strip()
@@ -140,17 +140,16 @@ with st.sidebar:
 col1, col2 = st.columns(2)
 
 with col1:
-    st.markdown("### 1. Derinlik Ekranı")
-    img_derinlik = st.file_uploader("Derinlik Görüntüsü", type=["jpg", "png", "jpeg"], key="d")
-    st.markdown("### 3. Kademe Analizi")
-    st.caption("Fiyat seviyelerine göre hacim dağılımı")
-    img_kademe = st.file_uploader("Kademe Analiz Ekranı", type=["jpg", "png", "jpeg"], key="e")
+    st.markdown("### 1. Derinlik Ekranı 💹")
+    img_derinlik = st.file_uploader("Derinlik Görüntüsü 💹", type=["jpg", "png", "jpeg"], key="d")
+    st.markdown("### 3. Kademe Analizi 📊")
+    img_kademe = st.file_uploader("Kademe Analiz Ekranı 📊", type=["jpg", "png", "jpeg"], key="e")
 
 with col2:
-    st.markdown("### 2. AKD (Aracı Kurum)")
-    img_akd = st.file_uploader("AKD Ekranı", type=["jpg", "png", "jpeg"], key="a")
-    st.markdown("### 4. Takas Analizi")
-    img_takas = st.file_uploader("Takas Ekranı", type=["jpg", "png", "jpeg"], key="t")
+    st.markdown("### 2. AKD (Aracı Kurum) 🤵")
+    img_akd = st.file_uploader("AKD Ekranı 🤵", type=["jpg", "png", "jpeg"], key="a")
+    st.markdown("### 4. Takas Analizi 🌍")
+    img_takas = st.file_uploader("Takas Ekranı 🌍", type=["jpg", "png", "jpeg"], key="t")
 
 # ==========================================
 # 🚀 ANALİZ MOTORU & HIZ KONTROLÜ
@@ -179,8 +178,8 @@ if analyze_btn:
     dynamic_sections_prompt = ""
     
     if is_summary_mode:
-        if img_derinlik: dynamic_sections_prompt += "## 📸 DERİNLİK ÖZETİ (En Kritik 3-5 Nokta)\n"
-        if img_akd: dynamic_sections_prompt += "## 🏦 AKD ÖZETİ (Para Giriş/Çıkış)\n"
+        if img_derinlik: dynamic_sections_prompt += "## 💹 DERİNLİK ÖZETİ (En Kritik 3-5 Nokta)\n"
+        if img_akd: dynamic_sections_prompt += "## 🤵 AKD ÖZETİ (Para Giriş/Çıkış)\n"
         if img_kademe: dynamic_sections_prompt += "## 📊 KADEME ÖZETİ (Güçlü Alıcı/Satıcı)\n"
         if img_takas: dynamic_sections_prompt += "## 🌍 TAKAS ÖZETİ (Yabancı Durumu)\n"
     else:
@@ -254,14 +253,14 @@ if analyze_btn:
     else:
         try:
             model = genai.GenerativeModel(active_model)
-            with st.spinner("Dinamik rapor oluşturuluyor..."):
+            with st.spinner("Yapay Zeka Raporu Oluşturuluyor. Analiz Sayısına ve Analiz Adedine Göre Sonuçların Gösterilmesi Değişiklik Gösterir."):
                 response = model.generate_content(input_content)
                 # Sonucu ve dosya sayısını hafızaya kaydet
                 st.session_state.analysis_result = response.text
                 st.session_state.loaded_count = local_loaded_count
                 st.rerun()
         except Exception as e:
-            st.error(f"Hata oluştu: {e}")
+            st.error(f"Hata Oluştu: {e}")
 
 # ==========================================
 # 📝 SONUÇ GÖSTERİMİ VE SOHBET
@@ -274,7 +273,7 @@ if st.session_state.analysis_result:
         st.caption("⚡ HIZLI ÖZET MODU Aktif.")
     else:
         # DÜZELTME: Artık hafızadaki sayıyı kullanıyoruz, hata vermez.
-        st.caption(f"🧠 GELİŞMİŞ MOD Aktif (Sadece yüklenen {st.session_state.loaded_count} veri seti analiz edildi).")
+        st.caption(f"🧠 GELİŞMİŞ MOD Aktif (Sadece Yüklenen {st.session_state.loaded_count} Veri Seti Analiz Edildi).")
     
     st.markdown(st.session_state.analysis_result)
     
@@ -288,7 +287,7 @@ if st.session_state.analysis_result:
             st.session_state.messages = []
             st.rerun()
 
-    st.info("Rapor hakkındaki sorularını sor (Cevaplar temiz metin olarak gelecektir).")
+    st.info("Rapor Hakkındaki Sorularını Sor.")
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
@@ -322,4 +321,4 @@ if st.session_state.analysis_result:
                 response_text = st.write_stream(stream_parser)
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
             except Exception as e:
-                st.error("Bir hata oluştu.")
+                st.error("Bir Hata Oluştu.")
