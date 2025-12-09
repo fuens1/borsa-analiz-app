@@ -3,7 +3,15 @@ from PIL import Image
 import google.generativeai as genai
 import datetime
 import time
+import io
 from urllib.parse import quote
+
+# Kopyala-Yapıştır Kütüphanesi Kontrolü
+try:
+    from streamlit_paste_button import paste_image_button
+    PASTE_ENABLED = True
+except ImportError:
+    PASTE_ENABLED = False
 
 # ==========================================
 # 🔐 GÜVENLİK VE AYARLAR
@@ -18,8 +26,13 @@ st.markdown("""
     h1 { color: #00d4ff !important; }
     h2 { color: #ffbd45 !important; border-bottom: 2px solid #ffbd45; padding-bottom: 10px;}
     h3 { color: #00d4ff !important; }
-    div[data-testid="stFileUploader"] { margin-bottom: 20px; }
+    div[data-testid="stFileUploader"] { margin-bottom: 10px; }
     .stAlert { border-left: 5px solid #ffbd45; }
+    
+    /* Reset Butonu */
+    div.stButton > button:first-child {
+        font-weight: bold;
+    }
     
     .x-btn {
         display: inline-block;
@@ -41,17 +54,26 @@ st.markdown("""
         color: #1d9bf0 !important;
     }
     
-    /* Key Status */
     .key-status-pass { color: #00ff00; font-weight: bold; }
     .key-status-fail { color: #ff4444; font-weight: bold; }
     .key-status-limit { color: #ffbd45; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🐋 BIST Yapay Zeka Analiz PRO")
-st.info("Küçük Yatırımcının Büyüdüğü Bir Evren..")
+# --- ÜST BAR: BAŞLIK VE RESET BUTONU ---
+col_title, col_reset = st.columns([5, 1])
 
-# --- 1. API KEY HAVUZU YÖNETİMİ (SADECE SECRETS) ---
+with col_title:
+    st.title("🐋 BIST Yapay Zeka Analiz PRO")
+    st.info("Küçük Yatırımcı'nın Büyüdüğü Bir Evren..")
+
+with col_reset:
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("🔄 SİSTEMİ SIFIRLA", type="secondary", help="Tüm verileri siler ve sayfayı yeniler."):
+        st.session_state.clear()
+        st.rerun()
+
+# --- 1. API KEY HAVUZU YÖNETİMİ ---
 api_keys = []
 
 if "GOOGLE_API_KEY" in st.secrets:
@@ -60,46 +82,58 @@ if "GOOGLE_API_KEY" in st.secrets:
         api_keys = [k.strip() for k in raw_secret.split(",") if k.strip()]
     else:
         api_keys = [raw_secret]
-else:
-    st.error("🚨 HATA: Secrets dosyasında 'GOOGLE_API_KEY' bulunamadı.")
-    st.stop()
+
+with st.sidebar:
+    st.header("🔑 Anahtar Havuzu")
+    user_input = st.text_area(
+        "Google API Key'leri Yapıştır:", 
+        help="Her satıra bir tane gelecek şekilde veya virgülle ayırarak yapıştırabilirsiniz.",
+        placeholder="AIzaSy...\nAIzaSy...\nAIzaSy...",
+        height=150 
+    )
+    
+    if user_input:
+        processed_input = user_input.replace(",", "\n").split("\n")
+        manual_keys = [k.strip() for k in processed_input if k.strip()]
+        api_keys.extend(manual_keys)
 
 api_keys = list(set(api_keys))
 
 if not api_keys:
-    st.error("Secrets dosyasındaki anahtar listesi boş.")
+    st.error("Lütfen en az bir API Anahtarı girin.")
     st.stop()
+else:
+    st.sidebar.success(f"✅ {len(api_keys)} Adet Anahtar Yüklendi")
 
-# --- YAN MENÜ ---
-with st.sidebar:
-    st.header("🔑 Anahtar Yönetimi")
-    st.success(f"✅ Sistemde **{len(api_keys)}** adet anahtar yüklü.")
-    st.caption("Anahtarlar güvenli alandan (Secrets) çekiliyor.")
+    # --- ANAHTAR TEST MODÜLÜ ---
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("🔍 Durum Kontrolü")
     
-    st.markdown("---")
-    
-    if st.button("🔍 Anahtarları Test Et"):
-        st.info("Bağlantı kontrol ediliyor...")
-        progress_bar = st.progress(0)
+    if st.sidebar.button("Anahtarları Test Et"):
+        st.sidebar.info("Bağlantı kontrol ediliyor...")
+        progress_bar = st.sidebar.progress(0)
         
         for i, key in enumerate(api_keys):
             try:
                 genai.configure(api_key=key)
                 models = list(genai.list_models())
                 if not models: raise Exception("Liste boş")
+                
                 masked_key = f"{key[:4]}...{key[-4:]}"
-                st.markdown(f"🔑 `{masked_key}` : <span class='key-status-pass'>✅ AKTİF</span>", unsafe_allow_html=True)
+                st.sidebar.markdown(f"🔑 `{masked_key}` : <span class='key-status-pass'>✅ AKTİF</span>", unsafe_allow_html=True)
+                
             except Exception as e:
                 masked_key = f"{key[:4]}...{key[-4:]}"
                 err_msg = str(e)
                 if "429" in err_msg or "quota" in err_msg.lower():
-                    st.markdown(f"🔑 `{masked_key}` : <span class='key-status-limit'>🛑 KOTA DOLU</span>", unsafe_allow_html=True)
+                    st.sidebar.markdown(f"🔑 `{masked_key}` : <span class='key-status-limit'>🛑 KOTA DOLU</span>", unsafe_allow_html=True)
                 else:
-                    st.markdown(f"🔑 `{masked_key}` : <span class='key-status-fail'>❌ HATALI</span>", unsafe_allow_html=True)
+                    st.sidebar.markdown(f"🔑 `{masked_key}` : <span class='key-status-fail'>❌ BAĞLANTI YOK</span>", unsafe_allow_html=True)
+            
             progress_bar.progress((i + 1) / len(api_keys))
-        st.success("Kontrol Tamamlandı.")
+        st.sidebar.success("Kontrol Tamamlandı.")
 
-# --- 2. MODEL SEÇİMİ ---
+# --- 2. BAŞLANGIÇ MODEL SEÇİMİ ---
 valid_model_name = None
 working_key = None
 
@@ -150,8 +184,9 @@ def make_resilient_request(content_input, keys_list):
             else:
                 last_error = e
                 break
+    
     if last_error: raise last_error
-    else: raise Exception("Tüm anahtarların kotası dolu!")
+    else: raise Exception("Tüm anahtarların kotası dolu! Biraz bekleyin.")
 
 # --- SESSION STATE ---
 if "analysis_result" not in st.session_state:
@@ -162,6 +197,11 @@ if "loaded_count" not in st.session_state:
     st.session_state.loaded_count = 0
 if "active_working_key" not in st.session_state:
     st.session_state.active_working_key = working_key
+
+# Paste hafızası
+for cat in ["Derinlik", "AKD", "Kademe", "Takas"]:
+    if f"pasted_{cat}" not in st.session_state:
+        st.session_state[f"pasted_{cat}"] = []
 
 # ==========================================
 # 🐦 YAN MENÜ: X (TWITTER) TARAYICI
@@ -195,24 +235,64 @@ with st.sidebar:
     st.markdown(f"""<a href="{x_url}" target="_blank" class="x-btn">{btn_text}</a>""", unsafe_allow_html=True)
 
 # ==========================================
-# 📤 YÜKLEME ALANLARI (MULTI-UPLOAD GÜNCELLEMESİ)
+# 📤 YÜKLEME VE YAPIŞTIRMA ALANLARI
 # ==========================================
+
+# Yardımcı Fonksiyon: Yapıştırılan Resmi Ekle
+def handle_paste(category):
+    if PASTE_ENABLED:
+        paste_result = paste_image_button(
+            label=f"📋 Panodan Yapıştır ({category})",
+            background_color="#1E2130",
+            hover_background_color="#333",
+            key=f"btn_paste_{category}"
+        )
+        if paste_result.image_data is not None:
+            # Resmi hafızaya ekle (Eğer daha önce eklenmediyse)
+            # Basit bir kontrol: Son eklenen ile aynı mı?
+            img = paste_result.image_data
+            if len(st.session_state[f"pasted_{category}"]) == 0 or \
+               st.session_state[f"pasted_{category}"][-1] != img:
+                st.session_state[f"pasted_{category}"].append(img)
+    else:
+        st.warning(f"Yapıştırma özelliği için: `pip install streamlit-paste-button`")
+
+# Yardımcı Fonksiyon: Yapıştırılanları Göster
+def show_pasted_images(category):
+    if st.session_state[f"pasted_{category}"]:
+        st.caption(f"📌 Panodan Eklenenler ({len(st.session_state[f'pasted_{category}'])}):")
+        cols = st.columns(3)
+        for i, img in enumerate(st.session_state[f"pasted_{category}"]):
+            with cols[i % 3]:
+                st.image(img, width=100)
+
 col1, col2 = st.columns(2)
 
 with col1:
     st.markdown("### 1. Derinlik Ekranı 💹")
-    # accept_multiple_files=True EKLENDİ
-    img_derinlik_list = st.file_uploader("Derinlik Görüntüsü (Birden fazla seçilebilir)", type=["jpg", "png", "jpeg"], key="d", accept_multiple_files=True)
+    img_derinlik_list = st.file_uploader("Derinlik Yükle", type=["jpg", "png", "jpeg"], key="d", accept_multiple_files=True)
+    handle_paste("Derinlik")
+    show_pasted_images("Derinlik")
+    
+    st.markdown("---")
     
     st.markdown("### 3. Kademe Analizi 📊")
-    img_kademe_list = st.file_uploader("Kademe Analiz Ekranı (Birden fazla seçilebilir)", type=["jpg", "png", "jpeg"], key="e", accept_multiple_files=True)
+    img_kademe_list = st.file_uploader("Kademe Yükle", type=["jpg", "png", "jpeg"], key="e", accept_multiple_files=True)
+    handle_paste("Kademe")
+    show_pasted_images("Kademe")
 
 with col2:
     st.markdown("### 2. AKD (Aracı Kurum) 🤵")
-    img_akd_list = st.file_uploader("AKD Ekranı (Birden fazla seçilebilir)", type=["jpg", "png", "jpeg"], key="a", accept_multiple_files=True)
+    img_akd_list = st.file_uploader("AKD Yükle", type=["jpg", "png", "jpeg"], key="a", accept_multiple_files=True)
+    handle_paste("AKD")
+    show_pasted_images("AKD")
+    
+    st.markdown("---")
     
     st.markdown("### 4. Takas Analizi 🌍")
-    img_takas_list = st.file_uploader("Takas Ekranı (Birden fazla seçilebilir)", type=["jpg", "png", "jpeg"], key="t", accept_multiple_files=True)
+    img_takas_list = st.file_uploader("Takas Yükle", type=["jpg", "png", "jpeg"], key="t", accept_multiple_files=True)
+    handle_paste("Takas")
+    show_pasted_images("Takas")
 
 # ==========================================
 # 🚀 ANALİZ MOTORU & HIZ KONTROLÜ
@@ -237,32 +317,37 @@ if analyze_btn:
     st.session_state.messages = [] 
     input_content = []
     
-    # --- DİNAMİK BAŞLIK OLUŞTURUCU (LİSTE KONTROLÜ) ---
+    # --- DİNAMİK BAŞLIK OLUŞTURUCU ---
+    # Hem yüklenen hem yapıştırılanları kontrol et
+    has_derinlik = bool(img_derinlik_list) or bool(st.session_state["pasted_Derinlik"])
+    has_akd = bool(img_akd_list) or bool(st.session_state["pasted_AKD"])
+    has_kademe = bool(img_kademe_list) or bool(st.session_state["pasted_Kademe"])
+    has_takas = bool(img_takas_list) or bool(st.session_state["pasted_Takas"])
+    
     dynamic_sections_prompt = ""
     
-    # Listeler boş değilse başlık ekle
     if is_summary_mode:
-        if img_derinlik_list: dynamic_sections_prompt += "## 💹 DERİNLİK ÖZETİ (En Kritik 3-5 Nokta)\n"
-        if img_akd_list: dynamic_sections_prompt += "## 🤵 AKD ÖZETİ (Para Giriş/Çıkış)\n"
-        if img_kademe_list: dynamic_sections_prompt += "## 📊 KADEME ÖZETİ (Güçlü Alıcı/Satıcı)\n"
-        if img_takas_list: dynamic_sections_prompt += "## 🌍 TAKAS ÖZETİ (Yabancı Durumu)\n"
+        if has_derinlik: dynamic_sections_prompt += "## 💹 DERİNLİK ÖZETİ (En Kritik 3-5 Nokta)\n"
+        if has_akd: dynamic_sections_prompt += "## 🤵 AKD ÖZETİ (Para Giriş/Çıkış)\n"
+        if has_kademe: dynamic_sections_prompt += "## 📊 KADEME ÖZETİ (Güçlü Alıcı/Satıcı)\n"
+        if has_takas: dynamic_sections_prompt += "## 🌍 TAKAS ÖZETİ (Yabancı Durumu)\n"
     else:
-        if img_derinlik_list: 
+        if has_derinlik: 
             dynamic_sections_prompt += f"""
             ## 📸 DERİNLİK ANALİZİ (Maks {max_items} Madde)
             (Pozitif > Nötr > Negatif Şeklinde GRUPLA ve RENKLENDİR)
             """
-        if img_akd_list:
+        if has_akd:
             dynamic_sections_prompt += f"""
             ## 🏦 AKD (ARACI KURUM) ANALİZİ (Maks {max_items} Madde)
             (Pozitif > Nötr > Negatif Şeklinde GRUPLA ve RENKLENDİR)
             """
-        if img_kademe_list:
+        if has_kademe:
             dynamic_sections_prompt += f"""
             ## 📊 KADEME & HACİM ANALİZİ (Maks {max_items} Madde)
             (Alt Başlıklar: Kurumsal Alış, Kurumsal Satış, Bireysel Davranış, POC)
             """
-        if img_takas_list:
+        if has_takas:
             dynamic_sections_prompt += f"""
             ## 🌍 TAKAS ANALİZİ (Maks {max_items} Madde)
             (Pozitif > Nötr > Negatif Şeklinde GRUPLA ve RENKLENDİR)
@@ -287,17 +372,14 @@ if analyze_btn:
     
     **🟢 POZİTİF / OLUMLU SENTEZ:**
     1. [Balina izi madde 1]
-    2. [Balina izi madde 2]
     
     **🔵 BİLGİ / NÖTR SENTEZ:**
     1. [Bilgi madde 1]
     
     **🔴 NEGATİF / RİSKLİ SENTEZ:**
     1. [Riskli durum madde 1]
-    2. [Riskli durum madde 2]
 
     ## 💯 SKOR KARTI & TRENDMETRE (DETAYLI)
-    
     **GENEL SKOR:** [0-100 Puan]
     
     **ZAMAN BAZLI TREND TABLOSU (Listeleme):**
@@ -328,39 +410,32 @@ if analyze_btn:
     
     input_content.append(base_prompt)
     
-    # --- GÖRSELLERİ EKLEME DÖNGÜSÜ (MULTI-UPLOAD DESTEĞİ) ---
+    # --- GÖRSELLERİ EKLEME (UPLOAD + PASTE) ---
     local_loaded_count = 0
     
-    # Derinlik Listesi
-    if img_derinlik_list:
-        input_content.append("\n--- DERİNLİK GÖRSELLERİ ---\n")
-        for img_file in img_derinlik_list:
-            input_content.append(Image.open(img_file))
-        local_loaded_count += 1
+    def add_images_to_content(file_list, paste_list, label):
+        count = 0
+        if file_list or paste_list:
+            input_content.append(f"\n--- {label} GÖRSELLERİ ---\n")
+            # Dosyadan yüklenenler
+            if file_list:
+                for f in file_list:
+                    input_content.append(Image.open(f))
+                    count += 1
+            # Yapıştırılanlar
+            if paste_list:
+                for p_img in paste_list:
+                    input_content.append(p_img)
+                    count += 1
+        return count
 
-    # AKD Listesi
-    if img_akd_list:
-        input_content.append("\n--- AKD GÖRSELLERİ ---\n")
-        for img_file in img_akd_list:
-            input_content.append(Image.open(img_file))
-        local_loaded_count += 1
-
-    # Kademe Listesi
-    if img_kademe_list:
-        input_content.append("\n--- KADEME GÖRSELLERİ ---\n")
-        for img_file in img_kademe_list:
-            input_content.append(Image.open(img_file))
-        local_loaded_count += 1
-
-    # Takas Listesi
-    if img_takas_list:
-        input_content.append("\n--- TAKAS GÖRSELLERİ ---\n")
-        for img_file in img_takas_list:
-            input_content.append(Image.open(img_file))
-        local_loaded_count += 1
+    local_loaded_count += add_images_to_content(img_derinlik_list, st.session_state["pasted_Derinlik"], "DERİNLİK")
+    local_loaded_count += add_images_to_content(img_akd_list, st.session_state["pasted_AKD"], "AKD")
+    local_loaded_count += add_images_to_content(img_kademe_list, st.session_state["pasted_Kademe"], "KADEME")
+    local_loaded_count += add_images_to_content(img_takas_list, st.session_state["pasted_Takas"], "TAKAS")
         
     if local_loaded_count == 0:
-        st.warning("⚠️ Lütfen analiz için en az 1 adet görsel yükleyiniz.")
+        st.warning("⚠️ Lütfen analiz için en az 1 adet görsel yükleyin veya yapıştırın.")
     else:
         with st.spinner(f"Analiz Süresi, Seçilen İşlem Sayısına Göre Değişkenlik Gösterir..."):
             try:
@@ -431,4 +506,3 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
             except Exception as e:
                 st.error("Sohbet sırasında hata oluştu.")
-
