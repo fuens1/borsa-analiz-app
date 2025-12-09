@@ -28,14 +28,13 @@ def load_global_config():
                 return json.load(f)
         except:
             return {"beta_active": True}
-    return {"beta_active": True} # Varsayılan: Açık
+    return {"beta_active": True}
 
 def save_global_config(config):
-    """Ayarları dosyaya kaydeder (Herkes için değişir)"""
+    """Ayarları dosyaya kaydeder"""
     with open(CONFIG_FILE, "w") as f:
         json.dump(config, f)
 
-# Başlangıçta konfigürasyonu yükle
 global_config = load_global_config()
 
 # ==========================================
@@ -80,6 +79,8 @@ st.markdown("""
         border-color: #1d9bf0;
         color: #1d9bf0 !important;
     }
+    /* İstenmeyen JSON/List çıktılarını gizle (Genel önlem) */
+    .element-container:has(> .stJson) { display: none; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -92,7 +93,6 @@ if "reset_counter" not in st.session_state: st.session_state.reset_counter = 0
 query_params = st.query_params
 admin_secret = st.secrets.get("ADMIN_KEY", "admin123") 
 
-# URL Admin Bypass
 if query_params.get("admin") == admin_secret:
     st.session_state.authenticated = True
     st.session_state.is_admin = True
@@ -106,13 +106,11 @@ def check_password():
 
     input_pass = st.session_state.get("password_input", "")
     
-    # 1. Admin Şifresi mi? (Her zaman girer)
     if input_pass == admin_secret:
         st.session_state.authenticated = True
         st.session_state.is_admin = True
         return
 
-    # 2. Normal Şifre mi? (Sadece Beta Açıksa girer)
     if input_pass == correct_password:
         if global_config["beta_active"]:
             st.session_state.authenticated = True
@@ -122,25 +120,20 @@ def check_password():
     elif input_pass:
         st.error("❌ Hatalı Kod!")
 
-# --- GİRİŞ EKRANI (Login Screen) ---
+# --- LOGIN SCREEN ---
 if not st.session_state.authenticated:
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown("<div class='login-box'>", unsafe_allow_html=True)
         st.title("🔒 Beta Erişim Kapısı")
         
-        # DURUM 1: BETA AÇIK
         if global_config["beta_active"]:
             st.info("Lütfen davetiye kodunuzu giriniz.")
             st.text_input("Giriş Kodu:", type="password", key="password_input", on_change=check_password)
             if st.button("Giriş Yap"): check_password()
-            
-        # DURUM 2: BETA KAPALI
         else:
             st.warning("⚠️ SİSTEM BAKIMDA / ERİŞİME KAPALI")
             st.markdown("Şu an sadece yöneticiler giriş yapabilir.")
-            
-            # Gizli Admin Girişi
             with st.expander("Yönetici Girişi"):
                 st.text_input("Admin Anahtarı:", type="password", key="password_input", on_change=check_password)
                 if st.button("Yönetici Olarak Gir"): check_password()
@@ -149,10 +142,9 @@ if not st.session_state.authenticated:
     st.stop() 
 
 # ==========================================
-# 🚀 ANA UYGULAMA (GİRİŞ BAŞARILI)
+# 🚀 ANA UYGULAMA
 # ==========================================
 
-# --- RESET LOGIC ---
 col_title, col_reset = st.columns([5, 1])
 with col_title:
     st.title("🐋 BIST Yapay Zeka Analiz PRO")
@@ -184,11 +176,10 @@ if "messages" not in st.session_state: st.session_state.messages = []
 if "loaded_count" not in st.session_state: st.session_state.loaded_count = 0
 if "active_working_key" not in st.session_state: st.session_state.active_working_key = None
 
-# Init paste buffers if not exists
 for cat in ["Derinlik", "AKD", "Kademe", "Takas"]:
     if f"pasted_{cat}" not in st.session_state: st.session_state[f"pasted_{cat}"] = []
 
-# --- SIDEBAR: KEY MANAGEMENT ---
+# --- SIDEBAR ---
 with st.sidebar:
     st.header("🔑 Anahtar Havuzu")
     
@@ -210,58 +201,36 @@ with st.sidebar:
         st.session_state.authenticated = False
         st.rerun()
 
-    # --- ADMIN PANEL (DOSYA TABANLI GLOBAL KONTROL) ---
     if st.session_state.is_admin:
         st.markdown("---")
         st.subheader("⚙️ Yönetici Paneli (Global)")
-        
-        # Mevcut durumu dosyadan oku
         current_status = global_config["beta_active"]
-        
-        # Toggle Switch
         new_status = st.toggle("Beta Girişlerini Aç", value=current_status)
         
-        # Değişiklik varsa dosyaya yaz ve yenile
         if new_status != current_status:
             global_config["beta_active"] = new_status
             save_global_config(global_config)
             st.rerun()
             
-        if not new_status:
-            st.caption("🔴 Şu an kullanıcılar şifre bilseler de giremezler.")
-        else:
-            st.caption("🟢 Kullanıcılar şifre ile giriş yapabilir.")
+        if not new_status: st.caption("🔴 Şu an kullanıcılar şifre bilseler de giremezler.")
+        else: st.caption("🟢 Kullanıcılar şifre ile giriş yapabilir.")
 
-# --- X BROWSER (SADECE MANUEL GİRİŞ) ---
 with st.sidebar:
     st.markdown("---")
     st.header("𝕏 (#Hashtag) Tarayıcı")
-    
     raw_ticker = st.text_input("Hisse Kodu (Örn: THYAO)", "THYAO").upper()
     clean_ticker = raw_ticker.replace("#", "").replace("$", "").strip()
     
-    st.markdown("---")
-    st.caption("💬 Gündemi Takip Et 💬")
+    search_mode = st.radio("Tip:", ("🔥 Geçmiş", "⏱️ Canlı"))
+    if search_mode == "🔥 Geçmiş":
+        s_date = st.date_input("Tarih", datetime.date.today())
+        url = f"https://x.com/search?q={quote(f'#{clean_ticker} lang:tr until:{s_date + datetime.timedelta(days=1)} since:{s_date} min_faves:5')}&src=typed_query&f=top"
+        btn_txt = f"🔥 <b>{s_date}</b> Popüler"
+    else:
+        url = f"https://x.com/search?q={quote(f'#{clean_ticker} lang:tr')}&src=typed_query&f=live"
+        btn_txt = f"⏱️ Son Dakika"
     
-    search_mode = st.radio("Arama Tipi:", ("🔥 En Popüler (Geçmiş)", "⏱️ Son Dakika (Canlı)"))
-    
-    x_url = ""
-    btn_text = ""
-    
-    if search_mode == "🔥 En Popüler (Geçmiş)":
-        selected_date = st.date_input("Hangi Tarih?", datetime.date.today())
-        next_day = selected_date + datetime.timedelta(days=1)
-        search_query = f"#{clean_ticker} lang:tr until:{next_day} since:{selected_date} min_faves:5"
-        encoded_query = quote(search_query)
-        x_url = f"https://x.com/search?q={encoded_query}&src=typed_query&f=top"
-        btn_text = f"🔥 <b>{selected_date}</b> Tarihli<br>Popüler <b>#{clean_ticker}</b> Tweetleri"
-    else: 
-        search_query = f"#{clean_ticker} lang:tr"
-        encoded_query = quote(search_query)
-        x_url = f"https://x.com/search?q={encoded_query}&src=typed_query&f=live"
-        btn_text = f"⏱️ <b>#{clean_ticker}</b> Hakkında<br>Son Dakika Akışını Gör"
-
-    st.markdown(f"""<a href="{x_url}" target="_blank" class="x-btn">{btn_text}</a>""", unsafe_allow_html=True)
+    st.markdown(f"""<a href="{url}" target="_blank" class="x-btn">{btn_txt}</a>""", unsafe_allow_html=True)
 
 # --- FUNCTIONS ---
 valid_model_name = None
@@ -287,33 +256,23 @@ if not valid_model_name:
     st.error("❌ Aktif Model Bulunamadı.")
     st.stop()
 
-def make_resilient_request(content_input, keys_list):
-    last_error = None
-    if working_key in keys_list:
-        keys_list.remove(working_key)
-        keys_list.insert(0, working_key)
-        
-    for index, key in enumerate(keys_list):
+def make_request(content, keys):
+    if working_key in keys:
+        keys.remove(working_key)
+        keys.insert(0, working_key)
+    for k in keys:
         try:
-            genai.configure(api_key=key)
-            model_instance = genai.GenerativeModel(valid_model_name)
-            response = model_instance.generate_content(content_input)
-            st.session_state.active_working_key = key
-            return response.text
+            genai.configure(api_key=k)
+            model = genai.GenerativeModel(valid_model_name)
+            resp = model.generate_content(content)
+            st.session_state.active_working_key = k
+            return resp.text
         except Exception as e:
-            err_str = str(e)
-            if "429" in err_str or "quota" in err_str.lower() or "resource" in err_str.lower():
-                print(f"Anahtar {index+1} kotası doldu. Sıradakine geçiliyor...")
-                continue
-            else:
-                last_error = e
-                break
-    
-    if last_error: raise last_error
-    else: raise Exception("Tüm anahtarların kotası dolu! Biraz bekleyin.")
+            if "429" in str(e) or "quota" in str(e).lower(): continue
+            else: raise e
+    raise Exception("Tüm kotalar dolu.")
 
 # --- UPLOAD SECTION ---
-# Key'e reset_counter ekleyerek zorla yeniliyoruz (Dosyaları siler)
 file_key_suffix = str(st.session_state.reset_counter)
 
 def handle_paste(cat):
@@ -321,10 +280,9 @@ def handle_paste(cat):
         res = paste_image_button(
             label=f"📋 Yapıştır", 
             background_color="#1E2130", hover_background_color="#333",
-            key=f"paste_{cat}_{file_key_suffix}" # Resetlenince ID değişir, hafıza silinir
+            key=f"paste_{cat}_{file_key_suffix}"
         )
         if res.image_data is not None:
-            # Sadece yeni resimse ekle
             if not st.session_state[f"pasted_{cat}"] or st.session_state[f"pasted_{cat}"][-1] != res.image_data:
                 st.session_state[f"pasted_{cat}"].append(res.image_data)
 
@@ -369,7 +327,6 @@ with c1:
     if st.button("🐋 ANALİZİ BAŞLAT", type="primary", use_container_width=True):
         input_data = []
         
-        # Dynamic Prompt Logic
         has_d = bool(img_d) or bool(st.session_state["pasted_Derinlik"])
         has_a = bool(img_a) or bool(st.session_state["pasted_AKD"])
         has_k = bool(img_k) or bool(st.session_state["pasted_Kademe"])
@@ -403,8 +360,7 @@ with c1:
         --- GENEL (HER ZAMAN) ---
         ## 🐋 GENEL SENTEZ (BALİNA İZİ) (Paragraf)
         ## 💯 SKOR KARTI & TRENDMETRE (Tablo)
-        ## 🔮 GÜN SONU FİYAT TAHMİNİ VE OLASILIKLAR
-        (Aşağıdaki senaryoların gerçekleşme ihtimalini eldeki verilere dayanarak YÜZDELİK (%) olarak tahmin et ve NEDENİNİ açıkla.)
+        ## 🔮 GÜN SONU TAHMİNİ (% Olasılıklar ve Nedenleri)
         * **🚀 TAVAN POTANSİYELİ:** % [Oran] - [Neden?]
         * **📈 %5 ÜZERİ KAPANIŞ:** % [Oran] - [Neden?]
         * **🟢 POZİTİF KAPANIŞ:** % [Oran] - [Neden?]
@@ -428,11 +384,11 @@ with c1:
         if add_imgs(img_t, st.session_state["pasted_Takas"]): input_data.append("\nTAKAS\n"); count+=1
         
         if count == 0:
-            st.warning("⚠️ Lütfen analiz için en az 1 adet görsel yükleyin veya yapıştırın.")
+            st.warning("⚠️ Görsel yükleyiniz.")
         else:
             with st.spinner("Analiz yapılıyor..."):
                 try:
-                    res = make_resilient_request(input_data, api_keys)
+                    res = make_request(input_data, api_keys)
                     st.session_state.analysis_result = res
                     st.session_state.loaded_count = count
                     st.rerun()
@@ -459,7 +415,6 @@ if st.session_state.analysis_result:
                 model = genai.GenerativeModel(valid_model_name)
                 stream = model.generate_content(f"Context: {st.session_state.analysis_result}\nUser: {q}", stream=True)
                 
-                # Stream parser
                 def parser():
                     for ch in stream: 
                         if ch.text: yield ch.text
