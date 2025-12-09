@@ -36,7 +36,7 @@ except ImportError:
 # 🔐 AYARLAR VE FIREBASE BAĞLANTISI
 # ==========================================
 CONFIG_FILE = "site_config.json"
-# BURAYA KENDİ FIREBASE ADRESİNİ YAPIŞTIR (bridge.py'deki ile aynı olmalı)
+# BURAYA KENDİ FIREBASE ADRESİNİ YAPIŞTIR
 FIREBASE_DB_URL = 'https://borsakopru-default-rtdb.firebaseio.com/' 
 
 def init_firebase():
@@ -576,7 +576,13 @@ with c1:
         input_data.append(prompt)
         
         # Eğer ne görsel ne API yoksa
-        if count == 0 and not context_str and not (has_d or has_a or has_k or has_t):
+        count = 0
+        if has_d: count += 1
+        if has_a: count += 1
+        if has_k: count += 1
+        if has_t: count += 1
+        
+        if count == 0 and not context_str:
             st.warning("⚠️ Lütfen analiz için veri yükleyin (Görsel, API veya Telegram).")
         else:
             with st.spinner("Analiz yapılıyor... (Veriler harmanlanıyor)"):
