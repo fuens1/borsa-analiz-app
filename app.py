@@ -91,8 +91,8 @@ if not st.session_state.authenticated:
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown("<div class='login-box'>", unsafe_allow_html=True)
-        st.title("🔒 Beta Erişim Kapısı")
-        st.markdown("### Davetiye Usulü Giriş")
+        st.title("🔒 Beta Erişim")
+        st.markdown("### Davet Kodu ile Erişim")
         st.info("Bu uygulama şu an kapalı beta test aşamasındadır.")
         
         st.text_input("Giriş Kodu:", type="password", key="password_input", on_change=check_password)
@@ -543,3 +543,4 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
             except Exception as e:
                 st.error("Sohbet sırasında hata oluştu.")
+
