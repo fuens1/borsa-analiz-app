@@ -14,7 +14,7 @@ except ImportError:
     PASTE_ENABLED = False
 
 # ==========================================
-# 🔐 GÜVENLİK VE AYARLAR
+# 🔐 GÜVENLİK VE AYARLAR (BULUT VERSİYONU)
 # ==========================================
 
 st.set_page_config(page_title="BIST Yapay Zeka Analiz PRO", layout="wide", page_icon="🐋")
@@ -70,7 +70,10 @@ with col_title:
 with col_reset:
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("🔄 SİSTEMİ SIFIRLA", type="secondary", help="Tüm verileri siler ve sayfayı yeniler."):
+        # BUG FIX: Reset sayacını artırarak butonları zorla yeniliyoruz
+        new_count = st.session_state.get("reset_counter", 0) + 1
         st.session_state.clear()
+        st.session_state["reset_counter"] = new_count
         st.rerun()
 
 # --- 1. API KEY HAVUZU YÖNETİMİ ---
@@ -86,12 +89,11 @@ if "GOOGLE_API_KEY" in st.secrets:
 with st.sidebar:
     st.header("🔑 Anahtar Havuzu")
 
-
     # --- ANAHTAR TEST MODÜLÜ ---
     st.sidebar.markdown("---")
     st.sidebar.subheader("🔍 Durum Kontrolü")
     
-    if st.sidebar.button("🔄İstemci Verilerini Kontrol Et"):
+    if st.sidebar.button("🔄 İstemci Verilerini Kontrol Et"):
         st.sidebar.info("Bağlantı kontrol ediliyor...")
         progress_bar = st.sidebar.progress(0)
         
@@ -179,6 +181,8 @@ if "loaded_count" not in st.session_state:
     st.session_state.loaded_count = 0
 if "active_working_key" not in st.session_state:
     st.session_state.active_working_key = working_key
+if "reset_counter" not in st.session_state:
+    st.session_state.reset_counter = 0
 
 # Paste hafızası
 for cat in ["Derinlik", "AKD", "Kademe", "Takas"]:
@@ -186,7 +190,7 @@ for cat in ["Derinlik", "AKD", "Kademe", "Takas"]:
         st.session_state[f"pasted_{cat}"] = []
 
 # ==========================================
-# 🐦 YAN MENÜ: X (TWITTER) TARAYICI
+# 🐦 YAN MENÜ: X (TWITTER) TARAYICI (BAĞIMSIZ)
 # ==========================================
 with st.sidebar:
     st.markdown("---")
@@ -196,7 +200,10 @@ with st.sidebar:
     raw_ticker = st.text_input("Hisse Kodu (Örn: THYAO)", "THYAO").upper()
     clean_ticker = raw_ticker.replace("#", "").replace("$", "").strip()
     
-    search_mode = st.radio("Arama Tipi:", ("🔥 En Popüler (Geçmiş)", "⏱️ Son Dakika (Canlı)"))
+    search_mode = st.radio(
+        "Arama Tipi:",
+        ("🔥 En Popüler (Geçmiş)", "⏱️ Son Dakika (Canlı)")
+    )
     
     x_url = ""
     btn_text = ""
@@ -208,6 +215,7 @@ with st.sidebar:
         encoded_query = quote(search_query)
         x_url = f"https://x.com/search?q={encoded_query}&src=typed_query&f=top"
         btn_text = f"🔥 <b>{selected_date}</b> Tarihli<br>Popüler <b>#{clean_ticker}</b> Tweetleri"
+        
     else: 
         search_query = f"#{clean_ticker} lang:tr"
         encoded_query = quote(search_query)
@@ -223,15 +231,15 @@ with st.sidebar:
 # Yardımcı Fonksiyon: Yapıştırılan Resmi Ekle
 def handle_paste(category):
     if PASTE_ENABLED:
+        # Key'e reset_counter ekleyerek cache'i kırıyoruz
+        unique_key = f"btn_paste_{category}_{st.session_state.reset_counter}"
         paste_result = paste_image_button(
             label=f"📋 Panodan Yapıştır ({category})",
             background_color="#1E2130",
             hover_background_color="#333",
-            key=f"btn_paste_{category}"
+            key=unique_key
         )
         if paste_result.image_data is not None:
-            # Resmi hafızaya ekle (Eğer daha önce eklenmediyse)
-            # Basit bir kontrol: Son eklenen ile aynı mı?
             img = paste_result.image_data
             if len(st.session_state[f"pasted_{category}"]) == 0 or \
                st.session_state[f"pasted_{category}"][-1] != img:
@@ -252,27 +260,27 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.markdown("### 1. Derinlik Ekranı 💹")
-    img_derinlik_list = st.file_uploader("Derinlik Yükle", type=["jpg", "png", "jpeg"], key="d", accept_multiple_files=True)
+    img_derinlik_list = st.file_uploader("Derinlik Görüntüsü 💹", type=["jpg", "png", "jpeg"], key="d", accept_multiple_files=True)
     handle_paste("Derinlik")
     show_pasted_images("Derinlik")
     
     st.markdown("---")
     
     st.markdown("### 3. Kademe Analizi 📊")
-    img_kademe_list = st.file_uploader("Kademe Yükle", type=["jpg", "png", "jpeg"], key="e", accept_multiple_files=True)
+    img_kademe_list = st.file_uploader("Kademe Analiz Ekranı 📊", type=["jpg", "png", "jpeg"], key="e", accept_multiple_files=True)
     handle_paste("Kademe")
     show_pasted_images("Kademe")
 
 with col2:
     st.markdown("### 2. AKD (Aracı Kurum) 🤵")
-    img_akd_list = st.file_uploader("AKD Yükle", type=["jpg", "png", "jpeg"], key="a", accept_multiple_files=True)
+    img_akd_list = st.file_uploader("AKD Ekranı 🤵", type=["jpg", "png", "jpeg"], key="a", accept_multiple_files=True)
     handle_paste("AKD")
     show_pasted_images("AKD")
     
     st.markdown("---")
     
     st.markdown("### 4. Takas Analizi 🌍")
-    img_takas_list = st.file_uploader("Takas Yükle", type=["jpg", "png", "jpeg"], key="t", accept_multiple_files=True)
+    img_takas_list = st.file_uploader("Takas Ekranı 🌍", type=["jpg", "png", "jpeg"], key="t", accept_multiple_files=True)
     handle_paste("Takas")
     show_pasted_images("Takas")
 
@@ -317,12 +325,12 @@ if analyze_btn:
         if has_derinlik: 
             dynamic_sections_prompt += f"""
             ## 📸 DERİNLİK ANALİZİ (Maks {max_items} Madde)
-            (Pozitif > Nötr > Negatif Şeklinde GRUPLA ve RENKLENDİR)
+            (Pozitif > Nötr > Negatif Gruplu Formatı Uygula)
             """
         if has_akd:
             dynamic_sections_prompt += f"""
             ## 🏦 AKD (ARACI KURUM) ANALİZİ (Maks {max_items} Madde)
-            (Pozitif > Nötr > Negatif Şeklinde GRUPLA ve RENKLENDİR)
+            (Pozitif > Nötr > Negatif Gruplu Formatı Uygula)
             """
         if has_kademe:
             dynamic_sections_prompt += f"""
@@ -332,7 +340,7 @@ if analyze_btn:
         if has_takas:
             dynamic_sections_prompt += f"""
             ## 🌍 TAKAS ANALİZİ (Maks {max_items} Madde)
-            (Pozitif > Nötr > Negatif Şeklinde GRUPLA ve RENKLENDİR)
+            (Pozitif > Nötr > Negatif Gruplu Formatı Uygula)
             """
 
     # --- ANA PROMPT ---
@@ -354,14 +362,17 @@ if analyze_btn:
     
     **🟢 POZİTİF / OLUMLU SENTEZ:**
     1. [Balina izi madde 1]
+    2. [Balina izi madde 2]
     
     **🔵 BİLGİ / NÖTR SENTEZ:**
     1. [Bilgi madde 1]
     
     **🔴 NEGATİF / RİSKLİ SENTEZ:**
     1. [Riskli durum madde 1]
+    2. [Riskli durum madde 2]
 
     ## 💯 SKOR KARTI & TRENDMETRE (DETAYLI)
+    
     **GENEL SKOR:** [0-100 Puan]
     
     **ZAMAN BAZLI TREND TABLOSU (Listeleme):**
@@ -383,9 +394,11 @@ if analyze_btn:
         Sen dünyanın en iyi Borsa Fon Yöneticisi ve SMC uzmanısın.
         
         ÖNEMLİ KURALLAR:
-        1. **ANALİZ BÖLÜMLERİ:** Her başlık için EN FAZLA {max_items} madde. Pozitif/Nötr/Negatif olarak grupla. Önce :green[YEŞİL], sonra :blue[MAVİ], en son :red[KIRMIZI] sırala. Bölüm sonuna `📊 ÖZET: ✅ X | 🔸 Y | 🔻 Z` ekle.
-        2. **GENEL SENTEZ:** Paragraf şeklinde yaz. Akıcı olsun.
-        3. **TRENDMETRE:** Kesinlikle MARKDOWN TABLOSU olarak yap. (| Periyot | Yön | Yorum |)
+        1. **SAYI LİMİTİ:** Her başlık için EN FAZLA {max_items} madde.
+        2. **FORMAT:** Pozitif/Nötr/Negatif olarak grupla.
+        3. **SIRALAMA:** Önce :green[YEŞİL], sonra :blue[MAVİ], en son :red[KIRMIZI].
+        4. **İSTATİSTİK:** Bölüm sonuna `📊 ÖZET: ✅ X | 🔸 Y | 🔻 Z` ekle.
+        5. **BALİNA İZİ VE SKOR KARTI KISMINI KESİNLİKLE PARAGRAF YAPMA, MADDE MADDE LİSTELE VE RENKLENDİR.**
         
         {base_prompt}
         """
@@ -399,12 +412,10 @@ if analyze_btn:
         count = 0
         if file_list or paste_list:
             input_content.append(f"\n--- {label} GÖRSELLERİ ---\n")
-            # Dosyadan yüklenenler
             if file_list:
                 for f in file_list:
                     input_content.append(Image.open(f))
                     count += 1
-            # Yapıştırılanlar
             if paste_list:
                 for p_img in paste_list:
                     input_content.append(p_img)
@@ -488,6 +499,3 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
             except Exception as e:
                 st.error("Sohbet sırasında hata oluştu.")
-
-
-
