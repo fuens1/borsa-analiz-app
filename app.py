@@ -10,7 +10,7 @@ import requests
 import pandas as pd
 from urllib.parse import quote
 
-# Ekstra Kütüphaneler (Hata vermemesi için try-except bloğu)
+# Ekstra Kütüphaneler
 try:
     import yfinance as yf
     import feedparser
@@ -60,12 +60,6 @@ st.markdown("""
     .stAlert { border-left: 5px solid #ffbd45; }
     div.stButton > button:first-child { font-weight: bold; }
     
-    /* Özel Metrik Kutuları */
-    div[data-testid="stMetricValue"] {
-        font-size: 24px;
-        color: #00d4ff;
-    }
-    
     .x-btn, .live-data-btn {
         display: inline-block;
         padding: 12px 20px;
@@ -85,6 +79,10 @@ st.markdown("""
     .live-data-btn { background-color: #d90429; border: 1px solid #ef233c; }
     .live-data-btn:hover { background-color: #ef233c; }
 
+    .key-status-pass { color: #00ff00; font-weight: bold; }
+    .key-status-fail { color: #ff4444; font-weight: bold; }
+    .key-status-limit { color: #ffbd45; font-weight: bold; }
+
     .element-container:has(> .stJson) { display: none; }
 </style>
 """, unsafe_allow_html=True)
@@ -95,7 +93,6 @@ if "is_admin" not in st.session_state: st.session_state.is_admin = False
 if "reset_counter" not in st.session_state: st.session_state.reset_counter = 0
 if "api_depth_data" not in st.session_state: st.session_state.api_depth_data = None
 if "api_akd_data" not in st.session_state: st.session_state.api_akd_data = None
-# Yeni Özellikler için State
 if "news_data" not in st.session_state: st.session_state.news_data = []
 if "sector_data" not in st.session_state: st.session_state.sector_data = None
 
@@ -173,25 +170,21 @@ with col_reset:
 
 # --- YENİ FONKSİYONLAR (HABER & SEKTÖR) ---
 def get_google_news(ticker):
-    """Google News RSS üzerinden haber çeker"""
     if not LIB_STATUS: return []
     try:
-        # BIST sembolü için RSS linki (Örn: THYAO site:kap.org.tr veya genel haberler)
         rss_url = f"https://news.google.com/rss/search?q={ticker}+Borsa+Istanbul&hl=tr&gl=TR&ceid=TR:tr"
         feed = feedparser.parse(rss_url)
         news = []
-        for entry in feed.entries[:5]: # Son 5 haber
+        for entry in feed.entries[:5]: 
             news.append(f"- {entry.title} ({entry.published})")
         return news
     except:
         return []
 
 def get_sector_data(ticker):
-    """Yfinance ile basit sektör verisi çeker (BIST gecikmeli)"""
     if not LIB_STATUS: return None
     try:
-        # Basit bir eşleştirme (Gerçekte daha kapsamlı bir DB gerekir)
-        # Örnek olarak birkaç ana sektörü manuel tanımlıyoruz
+        # Örnek sektörler (Genişletilebilir)
         sectors = {
             "THYAO": ["PGSUS.IS", "TAVHL.IS", "CLEBI.IS"],
             "AKBNK": ["GARAN.IS", "ISCTR.IS", "YKBNK.IS"],
@@ -199,9 +192,8 @@ def get_sector_data(ticker):
             "SASA": ["HEKTS.IS", "GUBRF.IS"],
             "ASELS": ["OTKAR.IS", "SDTTR.IS"]
         }
-        
         peers = sectors.get(ticker, [])
-        if not peers: return None # Sektör bulunamadı
+        if not peers: return None
         
         data_str = "SEKTÖR RAKİPLERİ (Gecikmeli):\n"
         for peer in peers:
@@ -244,7 +236,7 @@ if fetch_btn:
     except Exception as e:
         st.error(f"API Hatası: {e}")
 
-    # 2. Haberler ve Sektör (Yeni Özellikler)
+    # 2. Haberler ve Sektör
     if LIB_STATUS:
         with st.spinner("Haberler ve Sektör Analizi Toplanıyor..."):
             st.session_state.news_data = get_google_news(api_ticker_input)
@@ -336,7 +328,7 @@ with st.sidebar:
 with st.sidebar:
     st.markdown("---")
     st.header("𝕏 Tarayıcı")
-    raw_ticker = st.text_input("Kod:", api_ticker_input).upper() # Yukarıdaki inputla senkronize
+    raw_ticker = st.text_input("Kod:", api_ticker_input).upper()
     clean_ticker = raw_ticker.replace("#", "").strip()
     
     search_mode = st.radio("Tip:", ("🔥 Geçmiş", "⏱️ Canlı"))
@@ -446,16 +438,14 @@ with c1:
     if st.button("🐋 ANALİZİ BAŞLAT", type="primary", use_container_width=True):
         input_data = []
         
-        # --- BİRLEŞTİRİLMİŞ VERİ SETİ OLUŞTURMA (API + HABER + GÖRSEL) ---
+        # --- BİRLEŞTİRİLMİŞ VERİ SETİ ---
         context_str = ""
-        
-        # 1. API Verileri
+        # 1. API
         if st.session_state.api_depth_data:
-            context_str += f"\n\n--- CANLI DERİNLİK VERİSİ (HissePlus) ---\n{json.dumps(st.session_state.api_depth_data, indent=2, ensure_ascii=False)}"
+            context_str += f"\n\n--- CANLI DERİNLİK API VERİSİ (HissePlus) ---\n{json.dumps(st.session_state.api_depth_data, indent=2, ensure_ascii=False)}"
         if st.session_state.api_akd_data:
-            context_str += f"\n\n--- CANLI AKD VERİSİ (HissePlus) ---\n{json.dumps(st.session_state.api_akd_data, indent=2, ensure_ascii=False)}"
-            
-        # 2. Haberler & Sektör
+            context_str += f"\n\n--- CANLI AKD API VERİSİ (HissePlus) ---\n{json.dumps(st.session_state.api_akd_data, indent=2, ensure_ascii=False)}"
+        # 2. Haber & Sektör
         if st.session_state.news_data:
             context_str += "\n\n--- SON DAKİKA HABERLERİ ---\n" + "\n".join(st.session_state.news_data)
         if st.session_state.sector_data:
@@ -494,17 +484,15 @@ with c1:
         --- İSTENEN RAPOR FORMATI ---
         {sections}
         
-        --- EKSTRA BÖLÜMLER ---
-        ## 📰 HABER VE SEKTÖR YORUMU
-        (Son haberlerin ve sektörel rakiplerin durumunun hisseye olası etkilerini yorumla.)
-        
-        ## 🌡️ PİYASA DUYGU ÖLÇER (SENTIMENT)
-        (Mevcut verilere göre yatırımcı psikolojisini puanla: 0=Aşırı Korku, 100=Aşırı Açgözlülük. Sebebini yaz.)
-        
+        --- ÖZEL BÖLÜM (MADDE SINIRI YOK) ---
         ## 🛡️ GÜÇLÜ/ZAYIF DESTEK VE DİRENÇ ANALİZİ
         (Madde sınırı yok. Tüm seviyeleri yaz.)
         * Destekler :green[YEŞİL], Dirençler :red[KIRMIZI]
-        * Yorumlar stratejik olsun.
+        * Yorumlar: "Bu direnç kırılırsa tavana (9.90) gidebilir" gibi stratejik ve net olsun.
+        
+        --- GENEL (HER ZAMAN) ---
+        ## 🌡️ PİYASA DUYGU ÖLÇER (SEKTÖREL SENTIMENT)
+        (Analizi yapılan hissenin ait olduğu sektöre göre yatırımcı ilgisini puanla: 0=Sektöre İlgi Yok, 100=Sektörde İlgi Çok Fazla. Sebebini yaz.)
         
         ## 🐋 GENEL SENTEZ (BALİNA İZİ) (Paragraf)
         ## 💯 SKOR KARTI & TRENDMETRE (Tablo)
