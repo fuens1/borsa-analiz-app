@@ -358,7 +358,7 @@ if analyze_btn:
     if local_loaded_count == 0:
         st.warning("⚠️ Lütfen analiz için en az 1 adet görsel yükleyiniz.")
     else:
-        with st.spinner(f"Veriler {len(api_keys)} adet API anahtarı üzerinden işleniyor..."):
+        with st.spinner(f"Analiz Süresi, İşlem Sayısına Göre Değişiklik Gösterir. Sonuçlar, Yatırım Tavsiyesi İçermez."):
             try:
                 # FAILOVER FONKSİYONUNU ÇAĞIR
                 final_text = make_resilient_request(input_content, api_keys)
@@ -430,3 +430,4 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
             except Exception as e:
                 st.error("Sohbet sırasında hata oluştu.")
+
