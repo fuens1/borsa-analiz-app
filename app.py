@@ -252,7 +252,7 @@ if analyze_btn:
     
     if not is_summary_mode:
         base_prompt = f"""
-        Sen dünyanın en iyi Borsa Fon Yöneticisi ve SMC uzmanısın.
+        Her zaman "Sevgili Küçük Yatırımcı" olarak hitap kullan.
         
         ÖNEMLİ KURALLAR:
         1. **SAYI LİMİTİ:** Her başlık için EN FAZLA {max_items} madde.
@@ -351,3 +351,4 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
             except Exception as e:
                 st.error("Bir Hata Oluştu.")
+
