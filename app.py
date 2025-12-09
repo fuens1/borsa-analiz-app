@@ -40,6 +40,11 @@ st.markdown("""
         border-color: #1d9bf0;
         color: #1d9bf0 !important;
     }
+    
+    /* Key Status */
+    .key-status-pass { color: #00ff00; font-weight: bold; }
+    .key-status-fail { color: #ff4444; font-weight: bold; }
+    .key-status-limit { color: #ffbd45; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -49,7 +54,6 @@ st.info("Küçük Yatırımcı'nın Büyüdüğü Bir Evren..")
 # --- 1. API KEY HAVUZU YÖNETİMİ ---
 api_keys = []
 
-# Secrets'tan al
 if "GOOGLE_API_KEY" in st.secrets:
     raw_secret = st.secrets["GOOGLE_API_KEY"]
     if "," in raw_secret:
@@ -57,13 +61,8 @@ if "GOOGLE_API_KEY" in st.secrets:
     else:
         api_keys = [raw_secret]
 
-# Sidebar'dan al
 with st.sidebar:
     st.header("🔑 Anahtar Havuzu")
-    if not api_keys:
-        st.warning("⚠️ Secrets dosyasında anahtar bulunamadı.")
-        
-    # DÜZELTME BURADA YAPILDI: text_area -> text_input
     user_input = st.text_input(
         "Google API Key(s) Giriniz:", 
         help="Birden fazla anahtarı virgül (,) ile ayırarak yapıştırabilirsiniz.",
@@ -85,16 +84,45 @@ if not api_keys:
 else:
     st.sidebar.success(f"✅ {len(api_keys)} Adet Anahtar Yüklendi")
 
+    # --- ANAHTAR TEST MODÜLÜ (YENİ) ---
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("🔍 Durum Kontrolü")
+    
+    if st.sidebar.button("Anahtarları Test Et"):
+        st.sidebar.info("Anahtarlar kontrol ediliyor...")
+        progress_bar = st.sidebar.progress(0)
+        
+        for i, key in enumerate(api_keys):
+            try:
+                # Test bağlantısı
+                genai.configure(api_key=key)
+                # En hafif modeli seçip 'Ping' atıyoruz
+                model = genai.GenerativeModel('gemini-1.5-flash') 
+                response = model.generate_content("Test", generation_config={"max_output_tokens": 1})
+                
+                # Başarılı
+                masked_key = f"{key[:4]}...{key[-4:]}"
+                st.sidebar.markdown(f"🔑 `{masked_key}` : <span class='key-status-pass'>✅ AKTİF</span>", unsafe_allow_html=True)
+                
+            except Exception as e:
+                masked_key = f"{key[:4]}...{key[-4:]}"
+                err_msg = str(e)
+                if "429" in err_msg or "quota" in err_msg.lower():
+                    st.sidebar.markdown(f"🔑 `{masked_key}` : <span class='key-status-limit'>🛑 KOTA DOLU</span>", unsafe_allow_html=True)
+                else:
+                    st.sidebar.markdown(f"🔑 `{masked_key}` : <span class='key-status-fail'>❌ HATALI</span>", unsafe_allow_html=True)
+            
+            progress_bar.progress((i + 1) / len(api_keys))
+        st.sidebar.success("Kontrol Tamamlandı.")
+
 # --- 2. BAŞLANGIÇ MODEL SEÇİMİ ---
 valid_model_name = None
 working_key = None
 
 def get_model_name(key):
-    """Verilen key için en uygun modeli döner"""
     try:
         genai.configure(api_key=key)
         models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        # Kararlı sürüm öncelikli
         for m in models:
             if "gemini-1.5-flash" in m and "002" in m: return m
         for m in models:
@@ -105,7 +133,7 @@ def get_model_name(key):
     except:
         return None
 
-# İlk çalışan anahtarı ve modeli bul
+# İlk çalışan anahtarı bul
 for k in api_keys:
     mod = get_model_name(k)
     if mod:
@@ -119,7 +147,6 @@ if not valid_model_name:
 
 # --- 3. FAILOVER İSTEK FONKSİYONU ---
 def make_resilient_request(content_input, keys_list):
-    """Anahtarları sırayla dener, 429 hatasında diğerine geçer."""
     last_error = None
     
     # Çalışan anahtarı başa al
@@ -133,7 +160,6 @@ def make_resilient_request(content_input, keys_list):
             model_instance = genai.GenerativeModel(valid_model_name)
             response = model_instance.generate_content(content_input)
             
-            # Başarılı olursa sohbet için anahtarı kaydet
             st.session_state.active_working_key = key
             return response.text
 
