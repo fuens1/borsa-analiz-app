@@ -6,8 +6,8 @@ import time
 import io
 import json
 import os
-import requests # API istekleri için
-import pandas as pd # Veri tablosu için
+import requests
+import pandas as pd
 from urllib.parse import quote
 
 # Paste Button Check
@@ -100,7 +100,7 @@ st.markdown("""
         box-shadow: 0 0 10px #ef233c;
     }
     
-    .element-container:has(> .stJson) { display: none; }
+    /* JSON GİZLEME KODU KALDIRILDI */
 </style>
 """, unsafe_allow_html=True)
 
@@ -192,7 +192,7 @@ with col_reset:
             st.session_state[f"pasted_{cat}"] = []
         st.rerun()
 
-# --- 🆕 API DATA FETCH SECTION (EN BAŞTA) ---
+# --- 🆕 API DATA FETCH SECTION ---
 st.markdown("---")
 st.subheader("📡 Canlı Veri Çek (HissePlus API)")
 
@@ -212,7 +212,7 @@ if fetch_btn:
         
         with st.spinner(f"{api_ticker_input} için veriler çekiliyor..."):
             # 1. Derinlik İsteği
-            url_depth = f"https://webapi.hisseplus.com/api/v1/derinlik?sembol={api_ticker_input}"
+            url_depth = f"https://webapi.hisseplus.com/api/v1/kademe?sembol={api_ticker_input}"
             r_depth = requests.get(url_depth, headers=headers)
             
             # 2. AKD İsteği
@@ -236,16 +236,49 @@ if fetch_btn:
     except Exception as e:
         st.error(f"Bağlantı Hatası: {e}")
 
-# Alınan Verilerin Önizlemesi (Varsa Göster)
+# Alınan Verilerin Önizlemesi (Görsel ve Tablo Olarak)
 if st.session_state.api_depth_data or st.session_state.api_akd_data:
     with st.expander("📊 Çekilen API Verilerini Görüntüle", expanded=True):
-        d_col, a_col = st.columns(2)
-        with d_col:
-            st.markdown("**Derinlik (Ham Veri):**")
-            st.json(st.session_state.api_depth_data)
-        with a_col:
-            st.markdown("**AKD (Ham Veri):**")
-            st.json(st.session_state.api_akd_data)
+        tab1, tab2 = st.tabs(["📋 Tablo Görünümü", "🔍 Ham JSON Verisi"])
+        
+        with tab1:
+            d_col, a_col = st.columns(2)
+            with d_col:
+                st.markdown("**📉 Derinlik Tablosu**")
+                if st.session_state.api_depth_data:
+                    # JSON'ı DataFrame'e çevirmeyi dene (Veri yapısına göre değişebilir)
+                    try:
+                        # Eğer liste ise direkt, sözlük ise uygun key'i bul
+                        data_source = st.session_state.api_depth_data
+                        if isinstance(data_source, dict) and 'data' in data_source:
+                            data_source = data_source['data']
+                        st.dataframe(pd.DataFrame(data_source), use_container_width=True)
+                    except:
+                        st.json(st.session_state.api_depth_data) # Çeviremezse JSON göster
+                else:
+                    st.info("Veri Yok")
+
+            with a_col:
+                st.markdown("**🏦 AKD Tablosu**")
+                if st.session_state.api_akd_data:
+                    try:
+                        data_source_akd = st.session_state.api_akd_data
+                        if isinstance(data_source_akd, dict) and 'data' in data_source_akd:
+                            data_source_akd = data_source_akd['data']
+                        st.dataframe(pd.DataFrame(data_source_akd), use_container_width=True)
+                    except:
+                        st.json(st.session_state.api_akd_data)
+                else:
+                    st.info("Veri Yok")
+                    
+        with tab2:
+            d_col_j, a_col_j = st.columns(2)
+            with d_col_j:
+                st.markdown("**Derinlik JSON:**")
+                st.json(st.session_state.api_depth_data)
+            with a_col_j:
+                st.markdown("**AKD JSON:**")
+                st.json(st.session_state.api_akd_data)
 
 # --- INIT VARIABLES ---
 api_keys = []
@@ -264,7 +297,6 @@ for cat in ["Derinlik", "AKD", "Kademe", "Takas"]:
 # --- SIDEBAR ---
 with st.sidebar:
     st.header("🔑 Anahtar Havuzu")
-    
     if st.button("🔄 Anahtarları Test Et"):
         st.info("Kontrol ediliyor...")
         prog = st.progress(0)
@@ -285,22 +317,20 @@ with st.sidebar:
 
     if st.session_state.is_admin:
         st.markdown("---")
-        st.subheader("⚙️ Yönetici Paneli (Global)")
-        current_status = global_config["beta_active"]
-        new_status = st.toggle("Beta Girişlerini Aç", value=current_status)
-        
-        if new_status != current_status:
-            global_config["beta_active"] = new_status
+        st.subheader("⚙️ Yönetici Paneli")
+        curr = global_config["beta_active"]
+        new_s = st.toggle("Beta Girişlerini Aç", value=curr)
+        if new_s != curr:
+            global_config["beta_active"] = new_s
             save_global_config(global_config)
             st.rerun()
-            
-        if not new_status: st.caption("🔴 Şu an kullanıcılar şifre bilseler de giremezler.")
-        else: st.caption("🟢 Kullanıcılar şifre ile giriş yapabilir.")
+        if not new_s: st.caption("🔴 Beta Kapalı.")
+        else: st.caption("🟢 Beta Açık.")
 
 with st.sidebar:
     st.markdown("---")
-    st.header("𝕏 (#Hashtag) Tarayıcı")
-    raw_ticker = st.text_input("Hisse Kodu (Örn: THYAO)", "THYAO").upper()
+    st.header("𝕏 Tarayıcı")
+    raw_ticker = st.text_input("Hisse Kodu:", "THYAO").upper()
     clean_ticker = raw_ticker.replace("#", "").replace("$", "").strip()
     
     search_mode = st.radio("Tip:", ("🔥 Geçmiş", "⏱️ Canlı"))
@@ -313,9 +343,6 @@ with st.sidebar:
         btn_txt = f"⏱️ Son Dakika"
     
     st.markdown(f"""<a href="{url}" target="_blank" class="x-btn">{btn_txt}</a>""", unsafe_allow_html=True)
-    
-    live_url = "https://borsaplatformturkiye.com/"
-    st.markdown(f"""<a href="{live_url}" target="_blank" class="live-data-btn">🔴 CANLI DERİNLİK & AKD<br>(Harici Site)</a>""", unsafe_allow_html=True)
 
 # --- FUNCTIONS ---
 valid_model_name = None
@@ -347,7 +374,6 @@ def make_resilient_request(content, keys):
     if working_key in local_keys:
         local_keys.remove(working_key)
         local_keys.insert(0, working_key)
-    
     for k in local_keys:
         try:
             genai.configure(api_key=k)
@@ -387,7 +413,6 @@ with col1:
     img_d = st.file_uploader("Yükle", type=["jpg","png","jpeg"], key=f"d_{file_key_suffix}", accept_multiple_files=True)
     handle_paste("Derinlik")
     show_images("Derinlik")
-    
     st.markdown("### 3. Kademe 📊")
     img_k = st.file_uploader("Yükle", type=["jpg","png","jpeg"], key=f"k_{file_key_suffix}", accept_multiple_files=True)
     handle_paste("Kademe")
@@ -398,7 +423,6 @@ with col2:
     img_a = st.file_uploader("Yükle", type=["jpg","png","jpeg"], key=f"a_{file_key_suffix}", accept_multiple_files=True)
     handle_paste("AKD")
     show_images("AKD")
-    
     st.markdown("### 4. Takas 🌍")
     img_t = st.file_uploader("Yükle", type=["jpg","png","jpeg"], key=f"t_{file_key_suffix}", accept_multiple_files=True)
     handle_paste("Takas")
@@ -416,7 +440,7 @@ with c1:
     if st.button("🐋 ANALİZİ BAŞLAT", type="primary", use_container_width=True):
         input_data = []
         
-        # --- API VERİLERİNİ LLM PROMPTUNA EKLE ---
+        # API Verilerini Ekle
         api_context_str = ""
         if st.session_state.api_depth_data:
             api_context_str += f"\n\n--- CANLI DERİNLİK API VERİSİ ---\n{json.dumps(st.session_state.api_depth_data, indent=2, ensure_ascii=False)}"
@@ -441,8 +465,8 @@ with c1:
             if has_t: sections += f"## 🌍 TAKAS ANALİZİ (Maks {max_items}, Gruplu, Renkli)\n"
 
         prompt = f"""
-        Sen Borsa Uzmanısın. GÖREV: Verilen Görselleri ve varsa CANLI API VERİLERİNİ analiz et.
-        🚨 Hisse kodunu görselden veya API verisinden bul.
+        Sen Borsa Uzmanısın. GÖREV: Verilen Görselleri ve CANLI API VERİLERİNİ analiz et.
+        🚨 Hisse kodunu bul.
         
         ÖNEMLİ FORMAT KURALLARI:
         1. Başlıkları madde madde listele. ASLA paragraf yapma.
@@ -481,11 +505,10 @@ with c1:
         if add_imgs(img_k, st.session_state["pasted_Kademe"]): input_data.append("\nKADEME GÖRSELİ\n"); count+=1
         if add_imgs(img_t, st.session_state["pasted_Takas"]): input_data.append("\nTAKAS GÖRSELİ\n"); count+=1
         
-        # Eğer ne görsel ne de API verisi varsa uyarı ver
         if count == 0 and not st.session_state.api_depth_data and not st.session_state.api_akd_data:
-            st.warning("⚠️ Lütfen analiz için en az 1 adet görsel yükleyin veya API'den veri çekin.")
+            st.warning("⚠️ Veri yok (Görsel yükle veya API'den çek).")
         else:
-            with st.spinner("Analiz yapılıyor... (API + Görseller harmanlanıyor)"):
+            with st.spinner("Analiz yapılıyor..."):
                 try:
                     res = make_resilient_request(input_data, api_keys)
                     st.session_state.analysis_result = res
@@ -500,7 +523,6 @@ if st.session_state.analysis_result:
     st.markdown(st.session_state.analysis_result)
     st.markdown("---")
     
-    # Chat
     for m in st.session_state.messages:
         with st.chat_message(m["role"]): st.markdown(m["content"])
         
@@ -513,12 +535,9 @@ if st.session_state.analysis_result:
                 genai.configure(api_key=st.session_state.active_working_key)
                 model = genai.GenerativeModel(valid_model_name)
                 stream = model.generate_content(f"Context: {st.session_state.analysis_result}\nUser: {q}", stream=True)
-                
                 def parser():
                     for ch in stream: 
                         if ch.text: yield ch.text
-                
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role":"assistant", "content":resp})
             except: st.error("Hata.")
-
