@@ -2,3 +2,4 @@ streamlit
 google-generativeai
 pillow
 streamlit-paste-button
+install yfinance feedparser
