@@ -36,7 +36,7 @@ except ImportError:
 # 🔐 AYARLAR VE FIREBASE BAĞLANTISI
 # ==========================================
 CONFIG_FILE = "site_config.json"
-# BURAYA KENDİ FIREBASE ADRESİNİ YAPIŞTIR
+# KENDİ URL'İNİ KONTROL ET
 FIREBASE_DB_URL = 'https://borsakopru-default-rtdb.firebaseio.com/' 
 
 def init_firebase():
@@ -356,20 +356,6 @@ with st.sidebar:
             save_global_config(global_config)
             st.rerun()
 
-# --- TELEGRAM GÖRSELLERİNİ GÖSTERME ---
-if any([st.session_state.tg_img_derinlik, st.session_state.tg_img_akd, st.session_state.tg_img_kademe, st.session_state.tg_img_takas]):
-    st.info("📲 Telegram'dan Gelen Veriler")
-    gc1, gc2, gc3, gc4 = st.columns(4)
-    with gc1:
-        if st.session_state.tg_img_derinlik: st.image(st.session_state.tg_img_derinlik, caption="Derinlik", width=200)
-    with gc2:
-        if st.session_state.tg_img_akd: st.image(st.session_state.tg_img_akd, caption="AKD", width=200)
-    with gc3:
-        if st.session_state.tg_img_kademe: st.image(st.session_state.tg_img_kademe, caption="Kademe", width=200)
-    with gc4:
-        if st.session_state.tg_img_takas: st.image(st.session_state.tg_img_takas, caption="Takas", width=200)
-    st.markdown("---")
-
 with st.sidebar:
     st.markdown("---")
     st.header("𝕏 Tarayıcı")
@@ -448,7 +434,7 @@ def fetch_stock_news(symbol):
     except Exception as e:
         return f"Haber çekme hatası: {str(e)}"
 
-# --- UPLOAD SECTION ---
+# --- UPLOAD SECTION (OTOMATİK GÖSTERİM EKLENDİ) ---
 file_key_suffix = str(st.session_state.reset_counter)
 
 def handle_paste(cat):
@@ -471,20 +457,35 @@ def show_images(cat):
 col1, col2 = st.columns(2)
 with col1:
     st.markdown("### 1. Derinlik 💹")
+    # Telegram Resmi Varsa Göster
+    if st.session_state.tg_img_derinlik:
+        st.image(st.session_state.tg_img_derinlik, caption="📲 Telegram'dan Alındı", width=200)
+    
     img_d = st.file_uploader("Yükle", type=["jpg","png","jpeg"], key=f"d_{file_key_suffix}", accept_multiple_files=True)
     handle_paste("Derinlik")
     show_images("Derinlik")
+    
     st.markdown("### 3. Kademe 📊")
+    if st.session_state.tg_img_kademe:
+        st.image(st.session_state.tg_img_kademe, caption="📲 Telegram'dan Alındı", width=200)
+        
     img_k = st.file_uploader("Yükle", type=["jpg","png","jpeg"], key=f"k_{file_key_suffix}", accept_multiple_files=True)
     handle_paste("Kademe")
     show_images("Kademe")
 
 with col2:
     st.markdown("### 2. AKD 🤵")
+    if st.session_state.tg_img_akd:
+        st.image(st.session_state.tg_img_akd, caption="📲 Telegram'dan Alındı", width=200)
+        
     img_a = st.file_uploader("Yükle", type=["jpg","png","jpeg"], key=f"a_{file_key_suffix}", accept_multiple_files=True)
     handle_paste("AKD")
     show_images("AKD")
+    
     st.markdown("### 4. Takas 🌍")
+    if st.session_state.tg_img_takas:
+        st.image(st.session_state.tg_img_takas, caption="📲 Telegram'dan Alındı", width=200)
+        
     img_t = st.file_uploader("Yükle", type=["jpg","png","jpeg"], key=f"t_{file_key_suffix}", accept_multiple_files=True)
     handle_paste("Takas")
     show_images("Takas")
