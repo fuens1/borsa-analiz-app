@@ -6,7 +6,7 @@ import time
 import io
 from urllib.parse import quote
 
-# Kopyala-Yapıştır Kütüphanesi Kontrolü
+# Check for Paste Button Library
 try:
     from streamlit_paste_button import paste_image_button
     PASTE_ENABLED = True
@@ -14,12 +14,12 @@ except ImportError:
     PASTE_ENABLED = False
 
 # ==========================================
-# 🔐 GÜVENLİK VE AYARLAR
+# 🔐 SECURITY & SETTINGS
 # ==========================================
 
 st.set_page_config(page_title="BIST Yapay Zeka Analiz PRO", layout="wide", page_icon="🐋")
 
-# Görsel stil ayarları
+# Styling
 st.markdown("""
 <style>
     .main { background-color: #0e1117; }
@@ -54,10 +54,57 @@ st.markdown("""
     .key-status-pass { color: #00ff00; font-weight: bold; }
     .key-status-fail { color: #ff4444; font-weight: bold; }
     .key-status-limit { color: #ffbd45; font-weight: bold; }
+    
+    /* Login Box Style */
+    .login-box {
+        border: 2px solid #00d4ff;
+        padding: 40px;
+        border-radius: 15px;
+        background-color: #1E2130;
+        text-align: center;
+        margin-top: 50px;
+        box-shadow: 0 4px 15px rgba(0, 212, 255, 0.2);
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# --- ÜST BAR VE RESET BUTONU ---
+# --- AUTHENTICATION CHECK ---
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+def check_password():
+    """Checks the entered password against the secret."""
+    if "APP_PASSWORD" in st.secrets:
+        correct_password = st.secrets["APP_PASSWORD"]
+    else:
+        st.error("🚨 CONFIG ERROR: 'APP_PASSWORD' is missing in secrets.toml!")
+        st.stop()
+
+    if st.session_state["password_input"] == correct_password:
+        st.session_state.authenticated = True
+        del st.session_state["password_input"] 
+    else:
+        st.error("❌ Hatalı Giriş Kodu!")
+
+# --- LOGIN SCREEN ---
+if not st.session_state.authenticated:
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("<div class='login-box'>", unsafe_allow_html=True)
+        st.title("🔒 Beta Erişim Kapısı")
+        st.markdown("### Davetiye Usulü Giriş")
+        st.info("Bu uygulama şu an kapalı beta test aşamasındadır.")
+        
+        st.text_input("Giriş Kodu:", type="password", key="password_input", on_change=check_password)
+        st.button("Giriş Yap", on_click=check_password)
+        st.markdown("</div>", unsafe_allow_html=True)
+    st.stop() 
+
+# ==========================================
+# 🚀 MAIN APPLICATION (Only runs if Authenticated)
+# ==========================================
+
+# --- HEADER & HARD RESET ---
 col_title, col_reset = st.columns([5, 1])
 
 with col_title:
@@ -67,12 +114,14 @@ with col_title:
 with col_reset:
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("🔄 SİSTEMİ SIFIRLA", type="secondary", help="Tüm verileri siler ve sayfayı yeniler."):
+        # Increment counter to force-refresh paste buttons
         new_count = st.session_state.get("reset_counter", 0) + 1
         st.session_state.clear()
         st.session_state["reset_counter"] = new_count
+        st.session_state["authenticated"] = True # Keep logged in after reset
         st.rerun()
 
-# --- 1. API KEY HAVUZU YÖNETİMİ ---
+# --- 1. API KEY POOL MANAGEMENT ---
 api_keys = []
 
 if "GOOGLE_API_KEY" in st.secrets:
@@ -82,8 +131,10 @@ if "GOOGLE_API_KEY" in st.secrets:
     else:
         api_keys = [raw_secret]
 
+with st.sidebar:
+    st.header("🔑 Anahtar Havuzu")
 
-    # --- ANAHTAR TEST MODÜLÜ ---
+    # --- KEY HEALTH CHECK ---
     st.sidebar.markdown("---")
     st.sidebar.subheader("🔍 Durum Kontrolü")
     
@@ -98,20 +149,26 @@ if "GOOGLE_API_KEY" in st.secrets:
                 if not models: raise Exception("Liste boş")
                 
                 masked_key = f"{key[:4]}...{key[-4:]}"
-                st.sidebar.markdown(f"<span class='key-status-pass'>✅ AKTİF</span>", unsafe_allow_html=True)
+                st.sidebar.markdown(f"🔑 `{masked_key}` : <span class='key-status-pass'>✅ AKTİF</span>", unsafe_allow_html=True)
                 
             except Exception as e:
                 masked_key = f"{key[:4]}...{key[-4:]}"
                 err_msg = str(e)
                 if "429" in err_msg or "quota" in err_msg.lower():
-                    st.sidebar.markdown(f"<span class='key-status-limit'>🛑 KOTA DOLU</span>", unsafe_allow_html=True)
+                    st.sidebar.markdown(f"🔑 `{masked_key}` : <span class='key-status-limit'>🛑 KOTA DOLU</span>", unsafe_allow_html=True)
                 else:
-                    st.sidebar.markdown(f"<span class='key-status-fail'>❌ BAĞLANTI YOK</span>", unsafe_allow_html=True)
+                    st.sidebar.markdown(f"🔑 `{masked_key}` : <span class='key-status-fail'>❌ BAĞLANTI YOK</span>", unsafe_allow_html=True)
             
             progress_bar.progress((i + 1) / len(api_keys))
         st.sidebar.success("Kontrol Tamamlandı.")
+    
+    # --- LOGOUT BUTTON ---
+    st.sidebar.markdown("---")
+    if st.sidebar.button("🚪 Çıkış Yap"):
+        st.session_state.authenticated = False
+        st.rerun()
 
-# --- 2. BAŞLANGIÇ MODEL SEÇİMİ ---
+# --- 2. INITIAL MODEL SELECTION ---
 valid_model_name = None
 working_key = None
 
@@ -140,7 +197,7 @@ if not valid_model_name:
     st.error("❌ Hiçbir anahtar ile modele bağlanılamadı.")
     st.stop()
 
-# --- 3. FAILOVER İSTEK FONKSİYONU ---
+# --- 3. FAILOVER REQUEST FUNCTION ---
 def make_resilient_request(content_input, keys_list):
     last_error = None
     if working_key in keys_list:
@@ -178,82 +235,20 @@ if "active_working_key" not in st.session_state:
 if "reset_counter" not in st.session_state:
     st.session_state.reset_counter = 0
 
+# Paste memory init
 for cat in ["Derinlik", "AKD", "Kademe", "Takas"]:
     if f"pasted_{cat}" not in st.session_state:
         st.session_state[f"pasted_{cat}"] = []
 
 # ==========================================
-# 🐦 YAN MENÜ: X (TWITTER) TARAYICI
+# 🐦 SIDEBAR: X (TWITTER) BROWSER (MANUAL ONLY)
 # ==========================================
 with st.sidebar:
     st.markdown("---")
     st.header("𝕏 (#Hashtag) Tarayıcı")
     
-    # --- BIST TÜM LİSTESİ (Alfabetik) ---
-    bist_tum = sorted([
-        "A1CAP", "ACSEL", "ADEL", "ADESE", "ADGYO", "AEFES", "AFYON", "AGESA", "AGHOL", "AGROT", "AGYO", 
-        "AHGAZ", "AKBNK", "AKCNS", "AKENR", "AKFGY", "AKFYE", "AKGRT", "AKMGY", "AKSA", "AKSEN", "AKSGY", 
-        "AKSUE", "AKYHO", "ALARK", "ALBRK", "ALCAR", "ALCTL", "ALFAS", "ALGYO", "ALKA", "ALKIM", "ALMAD", 
-        "ALTNY", "ANELE", "ANGEN", "ANHYT", "ANSGR", "ARASE", "ARCLK", "ARDYZ", "ARENA", "ARSAN", "ARTMS", 
-        "ARZUM", "ASELS", "ASGYO", "ASTOR", "ASUZU", "ATAGY", "ATAKP", "ATATP", "ATEKS", "ATLAS", "ATSYH", 
-        "AVGYO", "AVHOL", "AVOD", "AVPGY", "AYCES", "AYDEM", "AYEN", "AYES", "AYGAZ", "AZTEK", "BAGFS", 
-        "BAKAB", "BALAT", "BANVT", "BARMA", "BASCM", "BASGZ", "BAYRK", "BEGYO", "BERA", "BEYAZ", "BFREN", 
-        "BIENY", "BIGCH", "BIMAS", "BINHO", "BIOEN", "BIZIM", "BJKAS", "BLCYT", "BMSCH", "BMSTL", "BNTAS", 
-        "BOBET", "BOSSA", "BRISA", "BRKO", "BRKSN", "BRKVY", "BRLSM", "BRMEN", "BRSAN", "BRYAT", "BSOKE", 
-        "BTCIM", "BUCIM", "BURCE", "BURVA", "BVSAN", "BYDNR", "CANTE", "CASA", "CATES", "CCOLA", "CELHA", 
-        "CEMAS", "CEMTS", "CEOEM", "CIMSA", "CLEBI", "CMBTN", "CMENT", "CONSE", "COSMO", "CRDFA", "CRFSA", 
-        "CUSAN", "CVKMD", "CWENE", "DAGHL", "DAGI", "DAPGM", "DARDL", "DENGE", "DERHL", "DERIM", "DESA", 
-        "DESPC", "DEVA", "DGATE", "DGGYO", "DGNMO", "DIRIT", "DITAS", "DMSAS", "DNISI", "DOAS", "DOBUR", 
-        "DOCO", "DOGUB", "DOHOL", "DOKTA", "DURDO", "DYOBY", "DZGYO", "EBEBK", "ECILC", "ECZYT", "EDATA", 
-        "EDIP", "EGEEN", "EGGUB", "EGPRO", "EGSER", "EKGYO", "EKIZ", "EKOS", "EKSUN", "ELITE", "EMKEL", 
-        "EMNIS", "ENERY", "ENJSA", "ENKAI", "ENSRI", "EPLAS", "ERBOS", "ERCB", "EREGL", "ERSU", "ESCAR", 
-        "ESCOM", "ESEN", "ETILR", "ETYAT", "EUHOL", "EUKYO", "EUPWR", "EUREN", "EUYO", "EYGYO", "FADE", 
-        "FENER", "FLAP", "FMIZP", "FONET", "FORMT", "FORTE", "FRIGO", "FROTO", "FZLGY", "GARAN", "GARFA", 
-        "GEDIK", "GEDZA", "GENIL", "GENTS", "GEREL", "GESAN", "GLBMD", "GLCVY", "GLRYH", "GLYHO", "GMTAS", 
-        "GOKNR", "GOLTS", "GOODY", "GOZDE", "GRNYO", "GRSEL", "GSDDE", "GSDHO", "GSRAY", "GUBRF", "GWIND", 
-        "GZNMI", "HALKB", "HATEK", "HDFGS", "HEDEF", "HEKTS", "HKTM", "HLGYO", "HTTBT", "HUBVC", "HUNER", 
-        "HURGZ", "ICBCT", "IDEAS", "IDGYO", "IEYHO", "IHAAS", "IHEVA", "IHGZT", "IHLAS", "IHLGM", "IHYAY", 
-        "IMASM", "INDES", "INFO", "INGRM", "INTEM", "INVEO", "INVES", "IPEKE", "ISATR", "ISBIR", "ISBTR", 
-        "ISCTR", "ISDMR", "ISFIN", "ISGSY", "ISGYO", "ISKPL", "ISKUR", "ISMEN", "ISSEN", "ISYAT", "ITTFH", 
-        "IZENR", "IZFAS", "IZINV", "IZMDC", "JANTS", "KAPLM", "KAREL", "KARSN", "KARTN", "KARYE", "KATMR", 
-        "KAYSE", "KCAER", "KCHOL", "KENT", "KERVN", "KERVT", "KFEIN", "KGYO", "KIMMR", "KLGYO", "KLKIM", 
-        "KLMSN", "KLNMA", "KLRHO", "KLSER", "KMPUR", "KNFRT", "KONKA", "KONTR", "KONYA", "KOPOL", "KORDS", 
-        "KOZAA", "KOZAL", "KRDMA", "KRDMB", "KRDMD", "KRGYO", "KRONT", "KRPLS", "KRSTL", "KRTEK", "KRVGD", 
-        "KSTUR", "KTLEV", "KTSKR", "KUTPO", "KUVVA", "KUYAS", "KZBGY", "KZGYO", "LIDER", "LIDFA", "LINK", 
-        "LKMNH", "LOGO", "LUKSK", "MAALT", "MACKO", "MAGEN", "MAKIM", "MAKTK", "MANAS", "MARBL", "MARKA", 
-        "MARTI", "MAVI", "MEDTR", "MEGAP", "MEGMT", "MEKAG", "MEPET", "MERCN", "MERIT", "MERKO", "METRO", 
-        "METUR", "MGROS", "MIATK", "MIPAZ", "MMCAS", "MNDRS", "MNDTR", "MOBTL", "MPARK", "MRGYO", "MRSHL", 
-        "MSGYO", "MTRKS", "MTRYO", "MZHLD", "NATEN", "NETAS", "NIBAS", "NTGAZ", "NTHOL", "NUGYO", "NUHCM", 
-        "OBASE", "ODAS", "OFSYM", "ONCSM", "ORCAY", "ORGE", "ORMA", "OSMEN", "OSTIM", "OTKAR", "OTTO", 
-        "OYAKC", "OYAYO", "OYLUM", "OYYAT", "OZGYO", "OZKGY", "OZRDN", "OZSUB", "PAGYO", "PAMEL", "PAPIL", 
-        "PARSN", "PASEU", "PCILT", "PEGYO", "PEKGY", "PENGD", "PENTA", "PETKM", "PETUN", "PGSUS", "PINSU", 
-        "PKART", "PKENT", "PLTUR", "PNLSN", "PNSUT", "POLHO", "POLTK", "PRDGS", "PRKAB", "PRKME", "PRZMA", 
-        "PSDTC", "PSGYO", "QNBFB", "QNBFL", "QUAGR", "RALYH", "RAYSG", "REEDR", "RNPOL", "RODRG", "ROYAL", 
-        "RTALB", "RUBNS", "RYGYO", "RYSAS", "SAFKR", "SAHOL", "SAMAT", "SANEL", "SANFM", "SANKO", "SARKY", 
-        "SASA", "SAYAS", "SDTTR", "SEKFK", "SEKUR", "SELEC", "SELGD", "SELVA", "SEYKM", "SILVR", "SISE", 
-        "SKBNK", "SKTAS", "SMART", "SMRTG", "SNGYO", "SNKRN", "SNPAM", "SODSN", "SOKE", "SOKM", "SONME", 
-        "SRVGY", "SUMAS", "SUNGW", "SURGY", "SUWEN", "TABGD", "TATGD", "TAVHL", "TBORG", "TCELL", "TDGYO", 
-        "TEKTU", "TERA", "TETMT", "TEZOL", "TGSAS", "THYAO", "TKFEN", "TKNSA", "TLMAN", "TMPOL", "TMSN", 
-        "TNZTP", "TOASO", "TRCAS", "TRGYO", "TRILC", "TSGYO", "TSKB", "TSPOR", "TTKOM", "TTRAK", "TUCLK", 
-        "TUKAS", "TUPRS", "TUREX", "TURGG", "TURSG", "UFUK", "ULAS", "ULKER", "ULUFA", "ULUSE", "ULUUN", 
-        "UMPAS", "UNLU", "USAK", "UZERB", "VAKBN", "VAKFN", "VAKKO", "VANGD", "VBTYZ", "VERTU", "VERUS", 
-        "VESBE", "VESTL", "VKFYO", "VKGYO", "VKING", "YAPRK", "YATAS", "YAYLA", "YEOTK", "YESIL", "YGGYO", 
-        "YGYO", "YKBNK", "YKSLN", "YONGA", "YUNSA", "YYAPI", "ZEDUR", "ZOREN", "ZRGYO"
-    ])
-    
-    st.subheader("🔥 BIST TÜM LİSTESİ")
-    selected_stock = st.selectbox(
-        "Hisse Seçiniz:", 
-        ["Manuel Giriş Yap"] + bist_tum,
-        index=0
-    )
-    
-    if selected_stock != "Manuel Giriş Yap":
-        raw_ticker = selected_stock
-        st.caption(f"✅ **{selected_stock}** seçildi.")
-    else:
-        raw_ticker = st.text_input("Hisse Kodu (Örn: REEDR)", "THYAO").upper()
-
+    # --- MANUAL ENTRY ONLY ---
+    raw_ticker = st.text_input("Hisse Kodu Giriniz (Örn: THYAO)", "THYAO").upper()
     clean_ticker = raw_ticker.replace("#", "").replace("$", "").strip()
     
     st.markdown("---")
@@ -280,7 +275,7 @@ with st.sidebar:
     st.markdown(f"""<a href="{x_url}" target="_blank" class="x-btn">{btn_text}</a>""", unsafe_allow_html=True)
 
 # ==========================================
-# 📤 YÜKLEME VE YAPIŞTIRMA ALANLARI
+# 📤 UPLOAD & PASTE AREAS
 # ==========================================
 
 def handle_paste(category):
@@ -337,7 +332,7 @@ with col2:
     show_pasted_images("Takas")
 
 # ==========================================
-# 🚀 ANALİZ MOTORU & HIZ KONTROLÜ
+# 🚀 ANALYSIS ENGINE & SETTINGS
 # ==========================================
 st.markdown("---")
 
@@ -359,7 +354,8 @@ if analyze_btn:
     st.session_state.messages = [] 
     input_content = []
     
-    # --- DİNAMİK BAŞLIK OLUŞTURUCU ---
+    # --- DYNAMIC PROMPT BUILDER ---
+    # Check uploads from both file and paste buffers
     has_derinlik = bool(img_derinlik_list) or bool(st.session_state["pasted_Derinlik"])
     has_akd = bool(img_akd_list) or bool(st.session_state["pasted_AKD"])
     has_kademe = bool(img_kademe_list) or bool(st.session_state["pasted_Kademe"])
@@ -394,7 +390,7 @@ if analyze_btn:
             (Pozitif > Nötr > Negatif Şeklinde GRUPLA ve RENKLENDİR)
             """
 
-    # --- ANA PROMPT ---
+    # --- MAIN PROMPT ---
     base_prompt = f"""
     Sen Borsa İstanbul Uzmanısın.
     GÖREV: Yüklenen görselleri analiz et.
@@ -413,12 +409,14 @@ if analyze_btn:
     
     **🟢 POZİTİF / OLUMLU SENTEZ:**
     1. [Balina izi madde 1]
+    2. [Balina izi madde 2]
     
     **🔵 BİLGİ / NÖTR SENTEZ:**
     1. [Bilgi madde 1]
     
     **🔴 NEGATİF / RİSKLİ SENTEZ:**
     1. [Riskli durum madde 1]
+    2. [Riskli durum madde 2]
 
     ## 💯 SKOR KARTI & TRENDMETRE (DETAYLI)
     **GENEL SKOR:** [0-100 Puan]
@@ -451,7 +449,7 @@ if analyze_btn:
     
     input_content.append(base_prompt)
     
-    # --- GÖRSELLERİ EKLEME (UPLOAD + PASTE) ---
+    # --- ADD IMAGES LOOP (FILE + PASTE) ---
     local_loaded_count = 0
     
     def add_images_to_content(file_list, paste_list, label):
@@ -486,7 +484,7 @@ if analyze_btn:
                 st.error(f"HATA: {e}")
 
 # ==========================================
-# 📝 SONUÇ GÖSTERİMİ VE SOHBET
+# 📝 RESULTS & CHAT
 # ==========================================
 
 if st.session_state.analysis_result:
@@ -545,6 +543,3 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
             except Exception as e:
                 st.error("Sohbet sırasında hata oluştu.")
-
-
-
