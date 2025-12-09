@@ -17,7 +17,7 @@ try:
 except ImportError:
     PASTE_ENABLED = False
 
-# Haber Kütüphanesi Kontrolü (Yeni)
+# Haber Kütüphanesi Kontrolü
 try:
     import feedparser
     NEWS_ENABLED = True
@@ -304,13 +304,15 @@ def make_resilient_request(content, keys):
             else: raise e
     raise Exception("Tüm kotalar dolu.")
 
-# --- YENİ HABER ÇEKME FONKSİYONU ---
+# --- YENİ HABER ÇEKME FONKSİYONU (SON 24 SAAT FİLTRELİ) ---
 def fetch_stock_news(symbol):
-    """Google News RSS üzerinden haber çeker"""
+    """Google News RSS üzerinden SON 24 SAATLİK haberleri çeker"""
     if not NEWS_ENABLED: return "Haber modülü aktif değil (feedparser eksik)."
     try:
-        # RSS URL: Hisse Kodu + Borsa + KAP
-        rss_url = f"https://news.google.com/rss/search?q={symbol}+Borsa+KAP&hl=tr&gl=TR&ceid=TR:tr"
+        # 'when:1d' parametresi ile son 1 gün filtresi
+        query = f"{symbol} Borsa KAP when:1d"
+        rss_url = f"https://news.google.com/rss/search?q={quote(query)}&hl=tr&gl=TR&ceid=TR:tr"
+        
         feed = feedparser.parse(rss_url)
         
         news_list = []
@@ -319,7 +321,7 @@ def fetch_stock_news(symbol):
             date_str = time.strftime("%d.%m.%Y %H:%M", published) if published else "Tarih Yok"
             news_list.append(f"- {entry.title} ({date_str})")
         
-        if not news_list: return "Bu hisse ile ilgili güncel haber bulunamadı."
+        if not news_list: return "Son 24 saat içinde bu hisse ile ilgili önemli bir haber akışı tespit edilmedi."
         return "\n".join(news_list)
     except Exception as e:
         return f"Haber çekme hatası: {str(e)}"
@@ -392,7 +394,7 @@ with c1:
         
         # 2. Haberler (Otomatik Çek)
         if NEWS_ENABLED:
-            with st.spinner("Son dakika haberleri taranıyor..."):
+            with st.spinner("Son 24 saatteki haberler taranıyor..."):
                 news_text = fetch_stock_news(raw_ticker) # Kullanıcı inputundan hisseyi al
                 context_str += f"\n\n--- SON DAKİKA HABERLERİ ({raw_ticker}) ---\n{news_text}"
         
