@@ -17,7 +17,7 @@ except ImportError:
 # 🔐 GÜVENLİK VE AYARLAR
 # ==========================================
 
-st.set_page_config(page_title="BIST Yapay Zeka Analiz PRO2", layout="wide", page_icon="🐋")
+st.set_page_config(page_title="BIST Yapay Zeka Analiz PRO", layout="wide", page_icon="🐋")
 
 # Görsel stil ayarları
 st.markdown("""
@@ -545,5 +545,6 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
             except Exception as e:
                 st.error("Sohbet sırasında hata oluştu.")
+
 
 
