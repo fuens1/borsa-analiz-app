@@ -68,27 +68,36 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- GİRİŞ KONTROLÜ (AUTH - DÜZELTİLDİ) ---
+# --- GİRİŞ KONTROLÜ (AUTH) ---
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
+# --- ADMIN BYPASS KONTROLÜ (YENİ) ---
+# Eğer URL'de ?admin=SENIN_SIFREN varsa direkt içeri al
+query_params = st.query_params
+admin_secret = st.secrets.get("ADMIN_KEY", None) # Secrets'a eklemen gerek
+
+if admin_secret and query_params.get("admin") == admin_secret:
+    st.session_state.authenticated = True
+    # Güvenlik: URL'deki şifreyi temizle (Opsiyonel ama şık durur)
+    # st.query_params.clear() 
+
 def check_password():
-    """Şifre kontrolü yapar (Hata korumalı)"""
+    """Şifre kontrolü yapar"""
     if "APP_PASSWORD" in st.secrets:
         correct_password = st.secrets["APP_PASSWORD"]
     else:
         st.error("🚨 HATA: Secrets dosyasında 'APP_PASSWORD' tanımlanmamış!")
         st.stop()
 
-    # --- DÜZELTME: .get() kullanarak KeyError önlendi ---
     input_password = st.session_state.get("password_input", "")
     
     if input_password == correct_password:
         st.session_state.authenticated = True
-    elif input_password: # Sadece bir şey yazıldıysa hata ver
+    elif input_password:
         st.error("❌ Hatalı Giriş Kodu!")
 
-# --- GİRİŞ EKRANI ---
+# --- GİRİŞ EKRANI (Admin Değilse ve Giriş Yapılmadıysa) ---
 if not st.session_state.authenticated:
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -97,10 +106,7 @@ if not st.session_state.authenticated:
         st.markdown("### Davetiye Usulü Giriş")
         st.info("Bu uygulama şu an kapalı beta test aşamasındadır.")
         
-        # on_change, Enter'a basınca tetikler
         st.text_input("Giriş Kodu:", type="password", key="password_input", on_change=check_password)
-        
-        # Butona basınca da kontrol et
         if st.button("Giriş Yap"):
             check_password()
             
@@ -108,7 +114,7 @@ if not st.session_state.authenticated:
     st.stop() 
 
 # ==========================================
-# 🚀 ANA UYGULAMA (GİRİŞ BAŞARILIYSA ÇALIŞIR)
+# 🚀 ANA UYGULAMA
 # ==========================================
 
 # --- ÜST BAR VE RESET BUTONU ---
@@ -124,7 +130,7 @@ with col_reset:
         new_count = st.session_state.get("reset_counter", 0) + 1
         st.session_state.clear()
         st.session_state["reset_counter"] = new_count
-        st.session_state["authenticated"] = True # Oturumu açık tut
+        st.session_state["authenticated"] = True # Sıfırlayınca admin atmayın
         st.rerun()
 
 # --- 1. API KEY HAVUZU YÖNETİMİ ---
@@ -360,7 +366,6 @@ if analyze_btn:
     input_content = []
     
     # --- DYNAMIC PROMPT BUILDER ---
-    # Check uploads from both file and paste buffers
     has_derinlik = bool(img_derinlik_list) or bool(st.session_state["pasted_Derinlik"])
     has_akd = bool(img_akd_list) or bool(st.session_state["pasted_AKD"])
     has_kademe = bool(img_kademe_list) or bool(st.session_state["pasted_Kademe"])
@@ -395,7 +400,7 @@ if analyze_btn:
             (Pozitif > Nötr > Negatif Şeklinde GRUPLA ve RENKLENDİR)
             """
 
-    # --- MAIN PROMPT ---
+    # --- MAIN PROMPT (GÜNCELLENDİ: TAHMİN MODU EKLENDİ) ---
     base_prompt = f"""
     Sen Borsa İstanbul Uzmanısın.
     GÖREV: Yüklenen görselleri analiz et.
@@ -414,14 +419,12 @@ if analyze_btn:
     
     **🟢 POZİTİF / OLUMLU SENTEZ:**
     1. [Balina izi madde 1]
-    2. [Balina izi madde 2]
     
     **🔵 BİLGİ / NÖTR SENTEZ:**
     1. [Bilgi madde 1]
     
     **🔴 NEGATİF / RİSKLİ SENTEZ:**
     1. [Riskli durum madde 1]
-    2. [Riskli durum madde 2]
 
     ## 💯 SKOR KARTI & TRENDMETRE (DETAYLI)
     **GENEL SKOR:** [0-100 Puan]
@@ -436,6 +439,15 @@ if analyze_btn:
     * **4 Saat:** [Yön] - [Yorum]
     * **Günlük:** [Yön] - [Yorum]
     * **Haftalık:** [Yön] - [Yorum]
+
+    ## 🔮 GÜN SONU FİYAT TAHMİNİ VE OLASILIKLAR
+    (Aşağıdaki senaryoların gerçekleşme ihtimalini eldeki verilere (Derinlik, AKD, Takas) dayanarak YÜZDELİK (%) olarak tahmin et ve NEDENİNİ açıkla.)
+    
+    * **🚀 TAVAN POTANSİYELİ:** % [Oran] - [Neden?]
+    * **📈 %5 ÜZERİ KAPANIŞ:** % [Oran] - [Neden?]
+    * **🟢 POZİTİF KAPANIŞ:** % [Oran] - [Neden?]
+    * **🔴 NEGATİF / -%5 ALTI KAPANIŞ:** % [Oran] - [Neden?]
+    * **📉 TABAN POTANSİYELİ:** % [Oran] - [Neden?]
 
     ## 🚀 İŞLEM PLANI (Giriş, Stop, Kar Al)
     """
