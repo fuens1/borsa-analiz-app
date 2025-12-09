@@ -28,13 +28,14 @@ def load_global_config():
                 return json.load(f)
         except:
             return {"beta_active": True}
-    return {"beta_active": True}
+    return {"beta_active": True} # Varsayılan: Açık
 
 def save_global_config(config):
-    """Ayarları dosyaya kaydeder"""
+    """Ayarları dosyaya kaydeder (Herkes için değişir)"""
     with open(CONFIG_FILE, "w") as f:
         json.dump(config, f)
 
+# Başlangıçta konfigürasyonu yükle
 global_config = load_global_config()
 
 # ==========================================
@@ -79,7 +80,7 @@ st.markdown("""
         border-color: #1d9bf0;
         color: #1d9bf0 !important;
     }
-    /* İstenmeyen JSON/List çıktılarını gizle (Genel önlem) */
+    /* İstenmeyen JSON çıktılarını gizle */
     .element-container:has(> .stJson) { display: none; }
 </style>
 """, unsafe_allow_html=True)
@@ -93,6 +94,7 @@ if "reset_counter" not in st.session_state: st.session_state.reset_counter = 0
 query_params = st.query_params
 admin_secret = st.secrets.get("ADMIN_KEY", "admin123") 
 
+# URL Admin Bypass
 if query_params.get("admin") == admin_secret:
     st.session_state.authenticated = True
     st.session_state.is_admin = True
@@ -106,11 +108,13 @@ def check_password():
 
     input_pass = st.session_state.get("password_input", "")
     
+    # 1. Admin Şifresi mi? (Her zaman girer)
     if input_pass == admin_secret:
         st.session_state.authenticated = True
         st.session_state.is_admin = True
         return
 
+    # 2. Normal Şifre mi? (Sadece Beta Açıksa girer)
     if input_pass == correct_password:
         if global_config["beta_active"]:
             st.session_state.authenticated = True
@@ -120,7 +124,7 @@ def check_password():
     elif input_pass:
         st.error("❌ Hatalı Kod!")
 
-# --- LOGIN SCREEN ---
+# --- GİRİŞ EKRANI ---
 if not st.session_state.authenticated:
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -142,9 +146,10 @@ if not st.session_state.authenticated:
     st.stop() 
 
 # ==========================================
-# 🚀 ANA UYGULAMA
+# 🚀 ANA UYGULAMA (GİRİŞ BAŞARILI)
 # ==========================================
 
+# --- RESET LOGIC ---
 col_title, col_reset = st.columns([5, 1])
 with col_title:
     st.title("🐋 BIST Yapay Zeka Analiz PRO")
@@ -357,10 +362,18 @@ with c1:
         --- FORMAT ---
         {sections}
         
+        --- ÖZEL BÖLÜM (MADDE SINIRI YOK) ---
+        ## 🛡️ GÜÇLÜ/ZAYIF DESTEK VE DİRENÇ ANALİZİ
+        (Burada madde sınırı yok. Tespit ettiğin tüm seviyeleri yaz.)
+        * Destekler :green[YEŞİL], Dirençler :red[KIRMIZI]
+        * Yorumlar: "Bu direnç kırılırsa tavana (9.90) gidebilir" gibi stratejik ve net olsun.
+        
         --- GENEL (HER ZAMAN) ---
         ## 🐋 GENEL SENTEZ (BALİNA İZİ) (Paragraf)
         ## 💯 SKOR KARTI & TRENDMETRE (Tablo)
-        ## 🔮 GÜN SONU TAHMİNİ (% Olasılıklar ve Nedenleri)
+        
+        ## 🔮 GÜN SONU FİYAT TAHMİNİ VE OLASILIKLAR
+        (Aşağıdaki senaryoların gerçekleşme ihtimalini eldeki verilere dayanarak YÜZDELİK (%) olarak tahmin et ve NEDENİNİ açıkla.)
         * **🚀 TAVAN POTANSİYELİ:** % [Oran] - [Neden?]
         * **📈 %5 ÜZERİ KAPANIŞ:** % [Oran] - [Neden?]
         * **🟢 POZİTİF KAPANIŞ:** % [Oran] - [Neden?]
@@ -384,11 +397,11 @@ with c1:
         if add_imgs(img_t, st.session_state["pasted_Takas"]): input_data.append("\nTAKAS\n"); count+=1
         
         if count == 0:
-            st.warning("⚠️ Görsel yükleyiniz.")
+            st.warning("⚠️ Lütfen analiz için en az 1 adet görsel yükleyin veya yapıştırın.")
         else:
             with st.spinner("Analiz yapılıyor..."):
                 try:
-                    res = make_request(input_data, api_keys)
+                    res = make_resilient_request(input_data, api_keys)
                     st.session_state.analysis_result = res
                     st.session_state.loaded_count = count
                     st.rerun()
