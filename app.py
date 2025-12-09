@@ -23,8 +23,11 @@ CONFIG_FILE = "site_config.json"
 def load_global_config():
     """Tüm kullanıcılar için ortak ayarları yükler"""
     if os.path.exists(CONFIG_FILE):
-        with open(CONFIG_FILE, "r") as f:
-            return json.load(f)
+        try:
+            with open(CONFIG_FILE, "r") as f:
+                return json.load(f)
+        except:
+            return {"beta_active": True}
     return {"beta_active": True} # Varsayılan: Açık
 
 def save_global_config(config):
@@ -56,6 +59,26 @@ st.markdown("""
         border: 2px solid #00d4ff; padding: 40px; border-radius: 15px;
         background-color: #1E2130; text-align: center; margin-top: 50px;
         box-shadow: 0 4px 15px rgba(0, 212, 255, 0.2);
+    }
+    
+    .x-btn {
+        display: inline-block;
+        background-color: #000000;
+        color: white !important;
+        padding: 12px 20px;
+        text-align: center;
+        text-decoration: none;
+        font-size: 16px;
+        border-radius: 8px;
+        border: 1px solid #333;
+        width: 100%;
+        margin-top: 10px;
+        transition: 0.3s;
+    }
+    .x-btn:hover {
+        background-color: #1a1a1a;
+        border-color: #1d9bf0;
+        color: #1d9bf0 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -140,7 +163,7 @@ with col_title:
 
 with col_reset:
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🔄 SİSTEMİ SIFIRLA", type="secondary", help="Verileri temizler."):
+    if st.button("🔄 SİSTEMİ SIFIRLA", type="secondary", help="Tüm verileri siler."):
         st.session_state.reset_counter += 1
         keys_to_keep = ["authenticated", "is_admin", "reset_counter"]
         for key in list(st.session_state.keys()):
@@ -161,6 +184,7 @@ if "messages" not in st.session_state: st.session_state.messages = []
 if "loaded_count" not in st.session_state: st.session_state.loaded_count = 0
 if "active_working_key" not in st.session_state: st.session_state.active_working_key = None
 
+# Init paste buffers if not exists
 for cat in ["Derinlik", "AKD", "Kademe", "Takas"]:
     if f"pasted_{cat}" not in st.session_state: st.session_state[f"pasted_{cat}"] = []
 
@@ -208,23 +232,36 @@ with st.sidebar:
         else:
             st.caption("🟢 Kullanıcılar şifre ile giriş yapabilir.")
 
-# --- X BROWSER ---
+# --- X BROWSER (SADECE MANUEL GİRİŞ) ---
 with st.sidebar:
     st.markdown("---")
     st.header("𝕏 (#Hashtag) Tarayıcı")
+    
     raw_ticker = st.text_input("Hisse Kodu (Örn: THYAO)", "THYAO").upper()
     clean_ticker = raw_ticker.replace("#", "").replace("$", "").strip()
     
-    search_mode = st.radio("Tip:", ("🔥 Geçmiş", "⏱️ Canlı"))
-    if search_mode == "🔥 Geçmiş":
-        s_date = st.date_input("Tarih", datetime.date.today())
-        url = f"https://x.com/search?q={quote(f'#{clean_ticker} lang:tr until:{s_date + datetime.timedelta(days=1)} since:{s_date} min_faves:5')}&src=typed_query&f=top"
-        btn_txt = f"🔥 <b>{s_date}</b> Popüler"
-    else:
-        url = f"https://x.com/search?q={quote(f'#{clean_ticker} lang:tr')}&src=typed_query&f=live"
-        btn_txt = f"⏱️ Son Dakika"
+    st.markdown("---")
+    st.caption("💬 Gündemi Takip Et 💬")
     
-    st.markdown(f"""<a href="{url}" target="_blank" class="x-btn">{btn_txt}</a>""", unsafe_allow_html=True)
+    search_mode = st.radio("Arama Tipi:", ("🔥 En Popüler (Geçmiş)", "⏱️ Son Dakika (Canlı)"))
+    
+    x_url = ""
+    btn_text = ""
+    
+    if search_mode == "🔥 En Popüler (Geçmiş)":
+        selected_date = st.date_input("Hangi Tarih?", datetime.date.today())
+        next_day = selected_date + datetime.timedelta(days=1)
+        search_query = f"#{clean_ticker} lang:tr until:{next_day} since:{selected_date} min_faves:5"
+        encoded_query = quote(search_query)
+        x_url = f"https://x.com/search?q={encoded_query}&src=typed_query&f=top"
+        btn_text = f"🔥 <b>{selected_date}</b> Tarihli<br>Popüler <b>#{clean_ticker}</b> Tweetleri"
+    else: 
+        search_query = f"#{clean_ticker} lang:tr"
+        encoded_query = quote(search_query)
+        x_url = f"https://x.com/search?q={encoded_query}&src=typed_query&f=live"
+        btn_text = f"⏱️ <b>#{clean_ticker}</b> Hakkında<br>Son Dakika Akışını Gör"
+
+    st.markdown(f"""<a href="{x_url}" target="_blank" class="x-btn">{btn_text}</a>""", unsafe_allow_html=True)
 
 # --- FUNCTIONS ---
 valid_model_name = None
@@ -250,23 +287,33 @@ if not valid_model_name:
     st.error("❌ Aktif Model Bulunamadı.")
     st.stop()
 
-def make_request(content, keys):
-    if working_key in keys:
-        keys.remove(working_key)
-        keys.insert(0, working_key)
-    for k in keys:
+def make_resilient_request(content_input, keys_list):
+    last_error = None
+    if working_key in keys_list:
+        keys_list.remove(working_key)
+        keys_list.insert(0, working_key)
+        
+    for index, key in enumerate(keys_list):
         try:
-            genai.configure(api_key=k)
-            model = genai.GenerativeModel(valid_model_name)
-            resp = model.generate_content(content)
-            st.session_state.active_working_key = k
-            return resp.text
+            genai.configure(api_key=key)
+            model_instance = genai.GenerativeModel(valid_model_name)
+            response = model_instance.generate_content(content_input)
+            st.session_state.active_working_key = key
+            return response.text
         except Exception as e:
-            if "429" in str(e) or "quota" in str(e).lower(): continue
-            else: raise e
-    raise Exception("Tüm kotalar dolu.")
+            err_str = str(e)
+            if "429" in err_str or "quota" in err_str.lower() or "resource" in err_str.lower():
+                print(f"Anahtar {index+1} kotası doldu. Sıradakine geçiliyor...")
+                continue
+            else:
+                last_error = e
+                break
+    
+    if last_error: raise last_error
+    else: raise Exception("Tüm anahtarların kotası dolu! Biraz bekleyin.")
 
 # --- UPLOAD SECTION ---
+# Key'e reset_counter ekleyerek zorla yeniliyoruz (Dosyaları siler)
 file_key_suffix = str(st.session_state.reset_counter)
 
 def handle_paste(cat):
@@ -274,9 +321,10 @@ def handle_paste(cat):
         res = paste_image_button(
             label=f"📋 Yapıştır", 
             background_color="#1E2130", hover_background_color="#333",
-            key=f"paste_{cat}_{file_key_suffix}"
+            key=f"paste_{cat}_{file_key_suffix}" # Resetlenince ID değişir, hafıza silinir
         )
         if res.image_data is not None:
+            # Sadece yeni resimse ekle
             if not st.session_state[f"pasted_{cat}"] or st.session_state[f"pasted_{cat}"][-1] != res.image_data:
                 st.session_state[f"pasted_{cat}"].append(res.image_data)
 
@@ -321,7 +369,7 @@ with c1:
     if st.button("🐋 ANALİZİ BAŞLAT", type="primary", use_container_width=True):
         input_data = []
         
-        # Dynamic Prompt
+        # Dynamic Prompt Logic
         has_d = bool(img_d) or bool(st.session_state["pasted_Derinlik"])
         has_a = bool(img_a) or bool(st.session_state["pasted_AKD"])
         has_k = bool(img_k) or bool(st.session_state["pasted_Kademe"])
@@ -334,20 +382,35 @@ with c1:
             if has_k: sections += "## 📊 KADEME ÖZETİ\n"
             if has_t: sections += "## 🌍 TAKAS ÖZETİ\n"
         else:
-            if has_d: sections += f"## 📸 DERİNLİK ANALİZİ (Maks {max_items}, Pozitif/Nötr/Negatif Gruplu)\n"
-            if has_a: sections += f"## 🏦 AKD ANALİZİ (Maks {max_items}, Pozitif/Nötr/Negatif Gruplu)\n"
+            if has_d: sections += f"## 📸 DERİNLİK ANALİZİ (Maks {max_items}, Pozitif/Nötr/Negatif Gruplu, Renkli)\n"
+            if has_a: sections += f"## 🏦 AKD ANALİZİ (Maks {max_items}, Pozitif/Nötr/Negatif Gruplu, Renkli)\n"
             if has_k: sections += f"## 📊 KADEME ANALİZİ (Maks {max_items}, Alt Başlıklar)\n"
-            if has_t: sections += f"## 🌍 TAKAS ANALİZİ (Maks {max_items}, Gruplu)\n"
+            if has_t: sections += f"## 🌍 TAKAS ANALİZİ (Maks {max_items}, Gruplu, Renkli)\n"
 
         prompt = f"""
         Sen Borsa Uzmanısın. GÖREV: Görselleri analiz et.
         🚨 Hisse kodunu görselden bul.
+        
+        ÖNEMLİ FORMAT KURALLARI:
+        1. Başlıkları (Derinlik vb.) madde madde listele. ASLA paragraf yapma.
+        2. Renkleri kullan: :green[], :blue[], :red[].
+        3. Genel Sentez kısmını PARAGRAF olarak yaz.
+        4. Trendmetre kısmını TABLO olarak yap.
+        
         --- FORMAT ---
         {sections}
+        
         --- GENEL (HER ZAMAN) ---
         ## 🐋 GENEL SENTEZ (BALİNA İZİ) (Paragraf)
         ## 💯 SKOR KARTI & TRENDMETRE (Tablo)
-        ## 🔮 GÜN SONU TAHMİNİ (% Olasılıklar ve Nedenleri)
+        ## 🔮 GÜN SONU FİYAT TAHMİNİ VE OLASILIKLAR
+        (Aşağıdaki senaryoların gerçekleşme ihtimalini eldeki verilere dayanarak YÜZDELİK (%) olarak tahmin et ve NEDENİNİ açıkla.)
+        * **🚀 TAVAN POTANSİYELİ:** % [Oran] - [Neden?]
+        * **📈 %5 ÜZERİ KAPANIŞ:** % [Oran] - [Neden?]
+        * **🟢 POZİTİF KAPANIŞ:** % [Oran] - [Neden?]
+        * **🔴 NEGATİF / -%5 ALTI KAPANIŞ:** % [Oran] - [Neden?]
+        * **📉 TABAN POTANSİYELİ:** % [Oran] - [Neden?]
+        
         ## 🚀 İŞLEM PLANI
         """
         
@@ -365,11 +428,11 @@ with c1:
         if add_imgs(img_t, st.session_state["pasted_Takas"]): input_data.append("\nTAKAS\n"); count+=1
         
         if count == 0:
-            st.warning("⚠️ Görsel yükleyiniz.")
+            st.warning("⚠️ Lütfen analiz için en az 1 adet görsel yükleyin veya yapıştırın.")
         else:
             with st.spinner("Analiz yapılıyor..."):
                 try:
-                    res = make_request(input_data, api_keys)
+                    res = make_resilient_request(input_data, api_keys)
                     st.session_state.analysis_result = res
                     st.session_state.loaded_count = count
                     st.rerun()
