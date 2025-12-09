@@ -48,74 +48,64 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🐋 BIST Yapay Zeka Analiz PRO (Multi-Key)")
-st.info("Küçük Yatırımcı'nın Büyüdüğü Bir Evren..")
+st.title("🐋 BIST Yapay Zeka Analiz PRO")
+st.info("Küçük Yatırımcının Büyüdüğü Bir Evren..")
 
-# --- 1. API KEY HAVUZU YÖNETİMİ ---
+# --- 1. API KEY HAVUZU YÖNETİMİ (SADECE SECRETS) ---
 api_keys = []
 
 if "GOOGLE_API_KEY" in st.secrets:
     raw_secret = st.secrets["GOOGLE_API_KEY"]
+    # Virgülle ayrılmış çoklu anahtarları parçala
     if "," in raw_secret:
         api_keys = [k.strip() for k in raw_secret.split(",") if k.strip()]
     else:
         api_keys = [raw_secret]
-
-with st.sidebar:
-    st.header("🔑 Anahtar Havuzu")
-    
-    # --- DÜZELTME: TEXT_AREA KULLANIYORUZ (Geniş Kutu) ---
-    user_input = st.text_area(
-        "Google API Key'leri Yapıştır:", 
-        help="Her satıra bir tane gelecek şekilde veya virgülle ayırarak yapıştırabilirsiniz.",
-        placeholder="AIzaSy...\nAIzaSy...\nAIzaSy...",
-        height=150 
-    )
-    # Not: text_area'da type="password" olmadığı için şifreler görünür olacaktır.
-    
-    if user_input:
-        # Hem yeni satıra (\n) hem de virgüle (,) göre parçala
-        # Böylece kullanıcı ister alt alta, ister yan yana yazsın kabul eder.
-        processed_input = user_input.replace(",", "\n").split("\n")
-        manual_keys = [k.strip() for k in processed_input if k.strip()]
-        api_keys.extend(manual_keys)
+else:
+    st.error("🚨 HATA: Secrets dosyasında 'GOOGLE_API_KEY' bulunamadı. Lütfen Streamlit ayarlarından ekleyin.")
+    st.stop()
 
 # Tekrarlayanları temizle
 api_keys = list(set(api_keys))
 
 if not api_keys:
-    st.error("Lütfen en az bir API Anahtarı girin.")
+    st.error("Secrets dosyasındaki anahtar listesi boş.")
     st.stop()
-else:
-    st.sidebar.success(f"✅ {len(api_keys)} Adet Anahtar Yüklendi")
 
-    # --- ANAHTAR TEST MODÜLÜ ---
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("🔍 Durum Kontrolü")
+# --- YAN MENÜ: DURUM KONTROLÜ ---
+with st.sidebar:
+    st.header("🔑 Anahtar Yönetimi")
+    st.success(f"✅ Sistemde **{len(api_keys)}** adet anahtar yüklü.")
+    st.caption("Anahtarlar güvenli alandan (Secrets) çekiliyor.")
     
-    if st.sidebar.button("Anahtarları Test Et"):
-        st.sidebar.info("Bağlantı kontrol ediliyor...")
-        progress_bar = st.sidebar.progress(0)
+    st.markdown("---")
+    
+    # --- ANAHTAR TEST MODÜLÜ ---
+    if st.button("🔍 Anahtarları Test Et"):
+        st.info("Bağlantı kontrol ediliyor...")
+        progress_bar = st.progress(0)
         
         for i, key in enumerate(api_keys):
             try:
+                # Test bağlantısı: Sadece yetki kontrolü yap (Liste Çek)
                 genai.configure(api_key=key)
                 models = list(genai.list_models())
+                
                 if not models: raise Exception("Liste boş")
                 
                 masked_key = f"{key[:4]}...{key[-4:]}"
-                st.sidebar.markdown(f"🔑 `{masked_key}` : <span class='key-status-pass'>✅ AKTİF</span>", unsafe_allow_html=True)
+                st.markdown(f"🔑 `{masked_key}` : <span class='key-status-pass'>✅ AKTİF</span>", unsafe_allow_html=True)
                 
             except Exception as e:
                 masked_key = f"{key[:4]}...{key[-4:]}"
                 err_msg = str(e)
                 if "429" in err_msg or "quota" in err_msg.lower():
-                    st.sidebar.markdown(f"🔑 `{masked_key}` : <span class='key-status-limit'>🛑 KOTA DOLU</span>", unsafe_allow_html=True)
+                    st.markdown(f"🔑 `{masked_key}` : <span class='key-status-limit'>🛑 KOTA DOLU</span>", unsafe_allow_html=True)
                 else:
-                    st.sidebar.markdown(f"🔑 `{masked_key}` : <span class='key-status-fail'>❌ BAĞLANTI YOK</span>", unsafe_allow_html=True)
+                    st.markdown(f"🔑 `{masked_key}` : <span class='key-status-fail'>❌ HATALI</span>", unsafe_allow_html=True)
             
             progress_bar.progress((i + 1) / len(api_keys))
-        st.sidebar.success("Kontrol Tamamlandı.")
+        st.success("Kontrol Tamamlandı.")
 
 # --- 2. BAŞLANGIÇ MODEL SEÇİMİ ---
 valid_model_name = None
@@ -144,7 +134,7 @@ for k in api_keys:
         break
 
 if not valid_model_name:
-    st.error("❌ Hiçbir anahtar ile modele bağlanılamadı.")
+    st.error("❌ Hiçbir anahtar ile modele bağlanılamadı. Secrets dosyasını kontrol edin.")
     st.stop()
 
 # --- 3. FAILOVER İSTEK FONKSİYONU ---
@@ -370,7 +360,9 @@ if analyze_btn:
     else:
         with st.spinner(f"Veriler {len(api_keys)} adet API anahtarı üzerinden işleniyor..."):
             try:
+                # FAILOVER FONKSİYONUNU ÇAĞIR
                 final_text = make_resilient_request(input_content, api_keys)
+                
                 st.session_state.analysis_result = final_text
                 st.session_state.loaded_count = local_loaded_count
                 st.rerun()
@@ -413,6 +405,7 @@ if st.session_state.analysis_result:
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
+            # SOHBETTE DE AKTİF ANAHTARI KULLAN
             genai.configure(api_key=st.session_state.active_working_key)
             model = genai.GenerativeModel(valid_model_name)
             
