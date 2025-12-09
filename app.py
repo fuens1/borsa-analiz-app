@@ -14,7 +14,7 @@ except ImportError:
     PASTE_ENABLED = False
 
 # ==========================================
-# 🔐 GÜVENLİK VE AYARLAR (BULUT VERSİYONU)
+# 🔐 GÜVENLİK VE AYARLAR
 # ==========================================
 
 st.set_page_config(page_title="BIST Yapay Zeka Analiz PRO", layout="wide", page_icon="🐋")
@@ -29,10 +29,7 @@ st.markdown("""
     div[data-testid="stFileUploader"] { margin-bottom: 10px; }
     .stAlert { border-left: 5px solid #ffbd45; }
     
-    /* Reset Butonu */
-    div.stButton > button:first-child {
-        font-weight: bold;
-    }
+    div.stButton > button:first-child { font-weight: bold; }
     
     .x-btn {
         display: inline-block;
@@ -60,7 +57,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- ÜST BAR: BAŞLIK VE RESET BUTONU ---
+# --- ÜST BAR VE RESET BUTONU ---
 col_title, col_reset = st.columns([5, 1])
 
 with col_title:
@@ -70,7 +67,6 @@ with col_title:
 with col_reset:
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("🔄 SİSTEMİ SIFIRLA", type="secondary", help="Tüm verileri siler ve sayfayı yeniler."):
-        # BUG FIX: Reset sayacını artırarak butonları zorla yeniliyoruz
         new_count = st.session_state.get("reset_counter", 0) + 1
         st.session_state.clear()
         st.session_state["reset_counter"] = new_count
@@ -104,15 +100,15 @@ with st.sidebar:
                 if not models: raise Exception("Liste boş")
                 
                 masked_key = f"{key[:4]}...{key[-4:]}"
-                st.sidebar.markdown(f" <span class='key-status-pass'>✅ AKTİF</span>", unsafe_allow_html=True)
+                st.sidebar.markdown(f"🔑 `{masked_key}` : <span class='key-status-pass'>✅ AKTİF</span>", unsafe_allow_html=True)
                 
             except Exception as e:
                 masked_key = f"{key[:4]}...{key[-4:]}"
                 err_msg = str(e)
                 if "429" in err_msg or "quota" in err_msg.lower():
-                    st.sidebar.markdown(f"<span class='key-status-limit'>🛑 KOTA DOLU</span>", unsafe_allow_html=True)
+                    st.sidebar.markdown(f"🔑 `{masked_key}` : <span class='key-status-limit'>🛑 KOTA DOLU</span>", unsafe_allow_html=True)
                 else:
-                    st.sidebar.markdown(f"<span class='key-status-fail'>❌ BAĞLANTI YOK</span>", unsafe_allow_html=True)
+                    st.sidebar.markdown(f"🔑 `{masked_key}` : <span class='key-status-fail'>❌ BAĞLANTI YOK</span>", unsafe_allow_html=True)
             
             progress_bar.progress((i + 1) / len(api_keys))
         st.sidebar.success("Kontrol Tamamlandı.")
@@ -184,26 +180,88 @@ if "active_working_key" not in st.session_state:
 if "reset_counter" not in st.session_state:
     st.session_state.reset_counter = 0
 
-# Paste hafızası
 for cat in ["Derinlik", "AKD", "Kademe", "Takas"]:
     if f"pasted_{cat}" not in st.session_state:
         st.session_state[f"pasted_{cat}"] = []
 
 # ==========================================
-# 🐦 YAN MENÜ: X (TWITTER) TARAYICI (BAĞIMSIZ)
+# 🐦 YAN MENÜ: X (TWITTER) TARAYICI
 # ==========================================
 with st.sidebar:
     st.markdown("---")
     st.header("𝕏 (#Hashtag) Tarayıcı")
-    st.caption("💬 Gündemi Takip Et 💬")
     
-    raw_ticker = st.text_input("Hisse Kodu (Örn: THYAO)", "THYAO").upper()
+    # --- BIST TÜM LİSTESİ (Alfabetik) ---
+    bist_tum = sorted([
+        "A1CAP", "ACSEL", "ADEL", "ADESE", "ADGYO", "AEFES", "AFYON", "AGESA", "AGHOL", "AGROT", "AGYO", 
+        "AHGAZ", "AKBNK", "AKCNS", "AKENR", "AKFGY", "AKFYE", "AKGRT", "AKMGY", "AKSA", "AKSEN", "AKSGY", 
+        "AKSUE", "AKYHO", "ALARK", "ALBRK", "ALCAR", "ALCTL", "ALFAS", "ALGYO", "ALKA", "ALKIM", "ALMAD", 
+        "ALTNY", "ANELE", "ANGEN", "ANHYT", "ANSGR", "ARASE", "ARCLK", "ARDYZ", "ARENA", "ARSAN", "ARTMS", 
+        "ARZUM", "ASELS", "ASGYO", "ASTOR", "ASUZU", "ATAGY", "ATAKP", "ATATP", "ATEKS", "ATLAS", "ATSYH", 
+        "AVGYO", "AVHOL", "AVOD", "AVPGY", "AYCES", "AYDEM", "AYEN", "AYES", "AYGAZ", "AZTEK", "BAGFS", 
+        "BAKAB", "BALAT", "BANVT", "BARMA", "BASCM", "BASGZ", "BAYRK", "BEGYO", "BERA", "BEYAZ", "BFREN", 
+        "BIENY", "BIGCH", "BIMAS", "BINHO", "BIOEN", "BIZIM", "BJKAS", "BLCYT", "BMSCH", "BMSTL", "BNTAS", 
+        "BOBET", "BOSSA", "BRISA", "BRKO", "BRKSN", "BRKVY", "BRLSM", "BRMEN", "BRSAN", "BRYAT", "BSOKE", 
+        "BTCIM", "BUCIM", "BURCE", "BURVA", "BVSAN", "BYDNR", "CANTE", "CASA", "CATES", "CCOLA", "CELHA", 
+        "CEMAS", "CEMTS", "CEOEM", "CIMSA", "CLEBI", "CMBTN", "CMENT", "CONSE", "COSMO", "CRDFA", "CRFSA", 
+        "CUSAN", "CVKMD", "CWENE", "DAGHL", "DAGI", "DAPGM", "DARDL", "DENGE", "DERHL", "DERIM", "DESA", 
+        "DESPC", "DEVA", "DGATE", "DGGYO", "DGNMO", "DIRIT", "DITAS", "DMSAS", "DNISI", "DOAS", "DOBUR", 
+        "DOCO", "DOGUB", "DOHOL", "DOKTA", "DURDO", "DYOBY", "DZGYO", "EBEBK", "ECILC", "ECZYT", "EDATA", 
+        "EDIP", "EGEEN", "EGGUB", "EGPRO", "EGSER", "EKGYO", "EKIZ", "EKOS", "EKSUN", "ELITE", "EMKEL", 
+        "EMNIS", "ENERY", "ENJSA", "ENKAI", "ENSRI", "EPLAS", "ERBOS", "ERCB", "EREGL", "ERSU", "ESCAR", 
+        "ESCOM", "ESEN", "ETILR", "ETYAT", "EUHOL", "EUKYO", "EUPWR", "EUREN", "EUYO", "EYGYO", "FADE", 
+        "FENER", "FLAP", "FMIZP", "FONET", "FORMT", "FORTE", "FRIGO", "FROTO", "FZLGY", "GARAN", "GARFA", 
+        "GEDIK", "GEDZA", "GENIL", "GENTS", "GEREL", "GESAN", "GLBMD", "GLCVY", "GLRYH", "GLYHO", "GMTAS", 
+        "GOKNR", "GOLTS", "GOODY", "GOZDE", "GRNYO", "GRSEL", "GSDDE", "GSDHO", "GSRAY", "GUBRF", "GWIND", 
+        "GZNMI", "HALKB", "HATEK", "HDFGS", "HEDEF", "HEKTS", "HKTM", "HLGYO", "HTTBT", "HUBVC", "HUNER", 
+        "HURGZ", "ICBCT", "IDEAS", "IDGYO", "IEYHO", "IHAAS", "IHEVA", "IHGZT", "IHLAS", "IHLGM", "IHYAY", 
+        "IMASM", "INDES", "INFO", "INGRM", "INTEM", "INVEO", "INVES", "IPEKE", "ISATR", "ISBIR", "ISBTR", 
+        "ISCTR", "ISDMR", "ISFIN", "ISGSY", "ISGYO", "ISKPL", "ISKUR", "ISMEN", "ISSEN", "ISYAT", "ITTFH", 
+        "IZENR", "IZFAS", "IZINV", "IZMDC", "JANTS", "KAPLM", "KAREL", "KARSN", "KARTN", "KARYE", "KATMR", 
+        "KAYSE", "KCAER", "KCHOL", "KENT", "KERVN", "KERVT", "KFEIN", "KGYO", "KIMMR", "KLGYO", "KLKIM", 
+        "KLMSN", "KLNMA", "KLRHO", "KLSER", "KMPUR", "KNFRT", "KONKA", "KONTR", "KONYA", "KOPOL", "KORDS", 
+        "KOZAA", "KOZAL", "KRDMA", "KRDMB", "KRDMD", "KRGYO", "KRONT", "KRPLS", "KRSTL", "KRTEK", "KRVGD", 
+        "KSTUR", "KTLEV", "KTSKR", "KUTPO", "KUVVA", "KUYAS", "KZBGY", "KZGYO", "LIDER", "LIDFA", "LINK", 
+        "LKMNH", "LOGO", "LUKSK", "MAALT", "MACKO", "MAGEN", "MAKIM", "MAKTK", "MANAS", "MARBL", "MARKA", 
+        "MARTI", "MAVI", "MEDTR", "MEGAP", "MEGMT", "MEKAG", "MEPET", "MERCN", "MERIT", "MERKO", "METRO", 
+        "METUR", "MGROS", "MIATK", "MIPAZ", "MMCAS", "MNDRS", "MNDTR", "MOBTL", "MPARK", "MRGYO", "MRSHL", 
+        "MSGYO", "MTRKS", "MTRYO", "MZHLD", "NATEN", "NETAS", "NIBAS", "NTGAZ", "NTHOL", "NUGYO", "NUHCM", 
+        "OBASE", "ODAS", "OFSYM", "ONCSM", "ORCAY", "ORGE", "ORMA", "OSMEN", "OSTIM", "OTKAR", "OTTO", 
+        "OYAKC", "OYAYO", "OYLUM", "OYYAT", "OZGYO", "OZKGY", "OZRDN", "OZSUB", "PAGYO", "PAMEL", "PAPIL", 
+        "PARSN", "PASEU", "PCILT", "PEGYO", "PEKGY", "PENGD", "PENTA", "PETKM", "PETUN", "PGSUS", "PINSU", 
+        "PKART", "PKENT", "PLTUR", "PNLSN", "PNSUT", "POLHO", "POLTK", "PRDGS", "PRKAB", "PRKME", "PRZMA", 
+        "PSDTC", "PSGYO", "QNBFB", "QNBFL", "QUAGR", "RALYH", "RAYSG", "REEDR", "RNPOL", "RODRG", "ROYAL", 
+        "RTALB", "RUBNS", "RYGYO", "RYSAS", "SAFKR", "SAHOL", "SAMAT", "SANEL", "SANFM", "SANKO", "SARKY", 
+        "SASA", "SAYAS", "SDTTR", "SEKFK", "SEKUR", "SELEC", "SELGD", "SELVA", "SEYKM", "SILVR", "SISE", 
+        "SKBNK", "SKTAS", "SMART", "SMRTG", "SNGYO", "SNKRN", "SNPAM", "SODSN", "SOKE", "SOKM", "SONME", 
+        "SRVGY", "SUMAS", "SUNGW", "SURGY", "SUWEN", "TABGD", "TATGD", "TAVHL", "TBORG", "TCELL", "TDGYO", 
+        "TEKTU", "TERA", "TETMT", "TEZOL", "TGSAS", "THYAO", "TKFEN", "TKNSA", "TLMAN", "TMPOL", "TMSN", 
+        "TNZTP", "TOASO", "TRCAS", "TRGYO", "TRILC", "TSGYO", "TSKB", "TSPOR", "TTKOM", "TTRAK", "TUCLK", 
+        "TUKAS", "TUPRS", "TUREX", "TURGG", "TURSG", "UFUK", "ULAS", "ULKER", "ULUFA", "ULUSE", "ULUUN", 
+        "UMPAS", "UNLU", "USAK", "UZERB", "VAKBN", "VAKFN", "VAKKO", "VANGD", "VBTYZ", "VERTU", "VERUS", 
+        "VESBE", "VESTL", "VKFYO", "VKGYO", "VKING", "YAPRK", "YATAS", "YAYLA", "YEOTK", "YESIL", "YGGYO", 
+        "YGYO", "YKBNK", "YKSLN", "YONGA", "YUNSA", "YYAPI", "ZEDUR", "ZOREN", "ZRGYO"
+    ])
+    
+    st.subheader("🔥 BIST TÜM LİSTESİ")
+    selected_stock = st.selectbox(
+        "Hisse Seçiniz:", 
+        ["Manuel Giriş Yap"] + bist_tum,
+        index=0
+    )
+    
+    if selected_stock != "Manuel Giriş Yap":
+        raw_ticker = selected_stock
+        st.caption(f"✅ **{selected_stock}** seçildi.")
+    else:
+        raw_ticker = st.text_input("Hisse Kodu (Örn: REEDR)", "THYAO").upper()
+
     clean_ticker = raw_ticker.replace("#", "").replace("$", "").strip()
     
-    search_mode = st.radio(
-        "Arama Tipi:",
-        ("🔥 En Popüler (Geçmiş)", "⏱️ Son Dakika (Canlı)")
-    )
+    st.markdown("---")
+    st.caption("💬 Gündemi Takip Et 💬")
+    
+    search_mode = st.radio("Arama Tipi:", ("🔥 En Popüler (Geçmiş)", "⏱️ Son Dakika (Canlı)"))
     
     x_url = ""
     btn_text = ""
@@ -215,7 +273,6 @@ with st.sidebar:
         encoded_query = quote(search_query)
         x_url = f"https://x.com/search?q={encoded_query}&src=typed_query&f=top"
         btn_text = f"🔥 <b>{selected_date}</b> Tarihli<br>Popüler <b>#{clean_ticker}</b> Tweetleri"
-        
     else: 
         search_query = f"#{clean_ticker} lang:tr"
         encoded_query = quote(search_query)
@@ -228,10 +285,8 @@ with st.sidebar:
 # 📤 YÜKLEME VE YAPIŞTIRMA ALANLARI
 # ==========================================
 
-# Yardımcı Fonksiyon: Yapıştırılan Resmi Ekle
 def handle_paste(category):
     if PASTE_ENABLED:
-        # Key'e reset_counter ekleyerek cache'i kırıyoruz
         unique_key = f"btn_paste_{category}_{st.session_state.reset_counter}"
         paste_result = paste_image_button(
             label=f"📋 Panodan Yapıştır ({category})",
@@ -247,7 +302,6 @@ def handle_paste(category):
     else:
         st.warning(f"Yapıştırma özelliği için: `pip install streamlit-paste-button`")
 
-# Yardımcı Fonksiyon: Yapıştırılanları Göster
 def show_pasted_images(category):
     if st.session_state[f"pasted_{category}"]:
         st.caption(f"📌 Panodan Eklenenler ({len(st.session_state[f'pasted_{category}'])}):")
@@ -260,27 +314,27 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.markdown("### 1. Derinlik Ekranı 💹")
-    img_derinlik_list = st.file_uploader("Derinlik Görüntüsü 💹", type=["jpg", "png", "jpeg"], key="d", accept_multiple_files=True)
+    img_derinlik_list = st.file_uploader("Derinlik Yükle", type=["jpg", "png", "jpeg"], key="d", accept_multiple_files=True)
     handle_paste("Derinlik")
     show_pasted_images("Derinlik")
     
     st.markdown("---")
     
     st.markdown("### 3. Kademe Analizi 📊")
-    img_kademe_list = st.file_uploader("Kademe Analiz Ekranı 📊", type=["jpg", "png", "jpeg"], key="e", accept_multiple_files=True)
+    img_kademe_list = st.file_uploader("Kademe Yükle", type=["jpg", "png", "jpeg"], key="e", accept_multiple_files=True)
     handle_paste("Kademe")
     show_pasted_images("Kademe")
 
 with col2:
     st.markdown("### 2. AKD (Aracı Kurum) 🤵")
-    img_akd_list = st.file_uploader("AKD Ekranı 🤵", type=["jpg", "png", "jpeg"], key="a", accept_multiple_files=True)
+    img_akd_list = st.file_uploader("AKD Yükle", type=["jpg", "png", "jpeg"], key="a", accept_multiple_files=True)
     handle_paste("AKD")
     show_pasted_images("AKD")
     
     st.markdown("---")
     
     st.markdown("### 4. Takas Analizi 🌍")
-    img_takas_list = st.file_uploader("Takas Ekranı 🌍", type=["jpg", "png", "jpeg"], key="t", accept_multiple_files=True)
+    img_takas_list = st.file_uploader("Takas Yükle", type=["jpg", "png", "jpeg"], key="t", accept_multiple_files=True)
     handle_paste("Takas")
     show_pasted_images("Takas")
 
@@ -308,7 +362,6 @@ if analyze_btn:
     input_content = []
     
     # --- DİNAMİK BAŞLIK OLUŞTURUCU ---
-    # Hem yüklenen hem yapıştırılanları kontrol et
     has_derinlik = bool(img_derinlik_list) or bool(st.session_state["pasted_Derinlik"])
     has_akd = bool(img_akd_list) or bool(st.session_state["pasted_AKD"])
     has_kademe = bool(img_kademe_list) or bool(st.session_state["pasted_Kademe"])
@@ -325,12 +378,12 @@ if analyze_btn:
         if has_derinlik: 
             dynamic_sections_prompt += f"""
             ## 📸 DERİNLİK ANALİZİ (Maks {max_items} Madde)
-            (Pozitif > Nötr > Negatif Gruplu Formatı Uygula)
+            (Pozitif > Nötr > Negatif Şeklinde GRUPLA ve RENKLENDİR)
             """
         if has_akd:
             dynamic_sections_prompt += f"""
             ## 🏦 AKD (ARACI KURUM) ANALİZİ (Maks {max_items} Madde)
-            (Pozitif > Nötr > Negatif Gruplu Formatı Uygula)
+            (Pozitif > Nötr > Negatif Şeklinde GRUPLA ve RENKLENDİR)
             """
         if has_kademe:
             dynamic_sections_prompt += f"""
@@ -340,7 +393,7 @@ if analyze_btn:
         if has_takas:
             dynamic_sections_prompt += f"""
             ## 🌍 TAKAS ANALİZİ (Maks {max_items} Madde)
-            (Pozitif > Nötr > Negatif Gruplu Formatı Uygula)
+            (Pozitif > Nötr > Negatif Şeklinde GRUPLA ve RENKLENDİR)
             """
 
     # --- ANA PROMPT ---
@@ -362,17 +415,14 @@ if analyze_btn:
     
     **🟢 POZİTİF / OLUMLU SENTEZ:**
     1. [Balina izi madde 1]
-    2. [Balina izi madde 2]
     
     **🔵 BİLGİ / NÖTR SENTEZ:**
     1. [Bilgi madde 1]
     
     **🔴 NEGATİF / RİSKLİ SENTEZ:**
     1. [Riskli durum madde 1]
-    2. [Riskli durum madde 2]
 
     ## 💯 SKOR KARTI & TRENDMETRE (DETAYLI)
-    
     **GENEL SKOR:** [0-100 Puan]
     
     **ZAMAN BAZLI TREND TABLOSU (Listeleme):**
@@ -394,11 +444,9 @@ if analyze_btn:
         Sen dünyanın en iyi Borsa Fon Yöneticisi ve SMC uzmanısın.
         
         ÖNEMLİ KURALLAR:
-        1. **SAYI LİMİTİ:** Her başlık için EN FAZLA {max_items} madde.
-        2. **FORMAT:** Pozitif/Nötr/Negatif olarak grupla.
-        3. **SIRALAMA:** Önce :green[YEŞİL], sonra :blue[MAVİ], en son :red[KIRMIZI].
-        4. **İSTATİSTİK:** Bölüm sonuna `📊 ÖZET: ✅ X | 🔸 Y | 🔻 Z` ekle.
-        5. **BALİNA İZİ VE SKOR KARTI KISMINI KESİNLİKLE PARAGRAF YAPMA, MADDE MADDE LİSTELE VE RENKLENDİR.**
+        1. **ANALİZ BÖLÜMLERİ:** Her başlık için EN FAZLA {max_items} madde. Pozitif/Nötr/Negatif olarak grupla. Önce :green[YEŞİL], sonra :blue[MAVİ], en son :red[KIRMIZI] sırala. Bölüm sonuna `📊 ÖZET: ✅ X | 🔸 Y | 🔻 Z` ekle.
+        2. **GENEL SENTEZ:** Paragraf şeklinde yaz. Akıcı olsun.
+        3. **TRENDMETRE:** Kesinlikle MARKDOWN TABLOSU olarak yap. (| Periyot | Yön | Yorum |)
         
         {base_prompt}
         """
@@ -499,4 +547,3 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
             except Exception as e:
                 st.error("Sohbet sırasında hata oluştu.")
-
