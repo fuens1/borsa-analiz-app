@@ -17,6 +17,13 @@ try:
 except ImportError:
     PASTE_ENABLED = False
 
+# Haber Kütüphanesi Kontrolü (Yeni)
+try:
+    import feedparser
+    NEWS_ENABLED = True
+except ImportError:
+    NEWS_ENABLED = False
+
 # ==========================================
 # 🔐 GLOBAL AYAR YÖNETİMİ
 # ==========================================
@@ -75,7 +82,6 @@ st.markdown("""
     .key-status-fail { color: #ff4444; font-weight: bold; }
     .key-status-limit { color: #ffbd45; font-weight: bold; }
 
-    /* JSON ve Ham Veri Çıktılarını Gizle */
     .element-container:has(> .stJson) { display: none; }
 </style>
 """, unsafe_allow_html=True)
@@ -86,6 +92,7 @@ if "is_admin" not in st.session_state: st.session_state.is_admin = False
 if "reset_counter" not in st.session_state: st.session_state.reset_counter = 0
 if "api_depth_data" not in st.session_state: st.session_state.api_depth_data = None
 if "api_akd_data" not in st.session_state: st.session_state.api_akd_data = None
+if "fetched_news" not in st.session_state: st.session_state.fetched_news = ""
 
 # --- AUTH LOGIC ---
 query_params = st.query_params
@@ -149,8 +156,9 @@ with col_reset:
         st.session_state.reset_counter += 1
         st.session_state.api_depth_data = None
         st.session_state.api_akd_data = None
+        st.session_state.fetched_news = ""
         
-        keys_to_keep = ["authenticated", "is_admin", "reset_counter", "api_depth_data", "api_akd_data"]
+        keys_to_keep = ["authenticated", "is_admin", "reset_counter", "api_depth_data", "api_akd_data", "fetched_news"]
         for key in list(st.session_state.keys()):
             if key not in keys_to_keep: del st.session_state[key]
         for cat in ["Derinlik", "AKD", "Kademe", "Takas"]:
@@ -169,7 +177,6 @@ with api_col2:
     fetch_btn = st.button("Derinlik - AKD Verilerini AL", type="primary")
 
 if fetch_btn:
-    # HissePlus API (Canlı Veri)
     try:
         today_str = datetime.date.today().strftime("%Y-%m-%d")
         headers = {'User-Agent': 'Mozilla/5.0'}
@@ -185,23 +192,16 @@ if fetch_btn:
     except Exception as e:
         st.error(f"API Hatası: {e}")
 
-# --- DATA STATUS INDICATORS (SADELEŞTİRİLDİ) ---
-# Sadece veri çekme işlemi yapıldıysa göster
+# --- DATA STATUS INDICATORS ---
 if st.session_state.api_depth_data is not None or st.session_state.api_akd_data is not None:
     st.markdown("##### 📊 Veri Durumu")
     stat_col1, stat_col2 = st.columns(2)
-    
     with stat_col1:
-        if st.session_state.api_depth_data:
-            st.success("DERİNLİK VERİSİ 🟢")
-        else:
-            st.error("DERİNLİK VERİSİ 🔴")
-            
+        if st.session_state.api_depth_data: st.success("DERİNLİK VERİSİ 🟢")
+        else: st.error("DERİNLİK VERİSİ 🔴")
     with stat_col2:
-        if st.session_state.api_akd_data:
-            st.success("AKD VERİSİ 🟢")
-        else:
-            st.error("AKD VERİSİ 🔴")
+        if st.session_state.api_akd_data: st.success("AKD VERİSİ 🟢")
+        else: st.error("AKD VERİSİ 🔴")
 
 # --- INIT KEYS ---
 api_keys = []
@@ -243,13 +243,11 @@ with st.sidebar:
             global_config["beta_active"] = new_s
             save_global_config(global_config)
             st.rerun()
-        if not new_s: st.caption("🔴 Beta Kapalı.")
-        else: st.caption("🟢 Beta Açık.")
 
 with st.sidebar:
     st.markdown("---")
     st.header("𝕏 Tarayıcı")
-    raw_ticker = st.text_input("Kod:", api_ticker_input).upper()
+    raw_ticker = st.text_input("Kod:", api_ticker_input).upper() # Senkron
     clean_ticker = raw_ticker.replace("#", "").strip()
     
     search_mode = st.radio("Tip:", ("🔥 Geçmiş", "⏱️ Canlı"))
@@ -306,6 +304,26 @@ def make_resilient_request(content, keys):
             else: raise e
     raise Exception("Tüm kotalar dolu.")
 
+# --- YENİ HABER ÇEKME FONKSİYONU ---
+def fetch_stock_news(symbol):
+    """Google News RSS üzerinden haber çeker"""
+    if not NEWS_ENABLED: return "Haber modülü aktif değil (feedparser eksik)."
+    try:
+        # RSS URL: Hisse Kodu + Borsa + KAP
+        rss_url = f"https://news.google.com/rss/search?q={symbol}+Borsa+KAP&hl=tr&gl=TR&ceid=TR:tr"
+        feed = feedparser.parse(rss_url)
+        
+        news_list = []
+        for entry in feed.entries[:5]: # Son 5 haber
+            published = entry.published_parsed
+            date_str = time.strftime("%d.%m.%Y %H:%M", published) if published else "Tarih Yok"
+            news_list.append(f"- {entry.title} ({date_str})")
+        
+        if not news_list: return "Bu hisse ile ilgili güncel haber bulunamadı."
+        return "\n".join(news_list)
+    except Exception as e:
+        return f"Haber çekme hatası: {str(e)}"
+
 # --- UPLOAD SECTION ---
 file_key_suffix = str(st.session_state.reset_counter)
 
@@ -361,15 +379,22 @@ with c1:
         
         # --- BİRLEŞTİRİLMİŞ VERİ SETİ ---
         context_str = ""
+        # 1. API
         if st.session_state.api_depth_data:
-            context_str += f"\n\n--- CANLI DERİNLİK API VERİSİ (HissePlus) ---\n{json.dumps(st.session_state.api_depth_data, indent=2, ensure_ascii=False)}"
+            context_str += f"\n\n--- CANLI DERİNLİK API VERİSİ ---\n{json.dumps(st.session_state.api_depth_data, indent=2, ensure_ascii=False)}"
         if st.session_state.api_akd_data:
-            context_str += f"\n\n--- CANLI AKD API VERİSİ (HissePlus) ---\n{json.dumps(st.session_state.api_akd_data, indent=2, ensure_ascii=False)}"
+            context_str += f"\n\n--- CANLI AKD API VERİSİ ---\n{json.dumps(st.session_state.api_akd_data, indent=2, ensure_ascii=False)}"
 
         has_d = bool(img_d) or bool(st.session_state["pasted_Derinlik"]) or bool(st.session_state.api_depth_data)
         has_a = bool(img_a) or bool(st.session_state["pasted_AKD"]) or bool(st.session_state.api_akd_data)
         has_k = bool(img_k) or bool(st.session_state["pasted_Kademe"])
         has_t = bool(img_t) or bool(st.session_state["pasted_Takas"])
+        
+        # 2. Haberler (Otomatik Çek)
+        if NEWS_ENABLED:
+            with st.spinner("Son dakika haberleri taranıyor..."):
+                news_text = fetch_stock_news(raw_ticker) # Kullanıcı inputundan hisseyi al
+                context_str += f"\n\n--- SON DAKİKA HABERLERİ ({raw_ticker}) ---\n{news_text}"
         
         sections = ""
         if is_summary:
@@ -400,15 +425,15 @@ with c1:
         {sections}
         
         --- ÖZEL BÖLÜM (MADDE SINIRI YOK) ---
+        ## 📰 HABER VE GÜNDEM ANALİZİ
+        (Hisse ile ilgili çekilen son haberleri yorumla. Olumlu/Olumsuz etkilerini belirt.)
+
         ## 🛡️ GÜÇLÜ/ZAYIF DESTEK VE DİRENÇ ANALİZİ
         (Madde sınırı yok. Tüm seviyeleri yaz.)
         * Destekler :green[YEŞİL], Dirençler :red[KIRMIZI]
         * Yorumlar stratejik olsun.
         
         --- GENEL (HER ZAMAN) ---
-        ## 🌡️ PİYASA DUYGU ÖLÇER (SEKTÖREL SENTIMENT)
-        (Analizi yapılan hissenin ait olduğu sektöre göre yatırımcı ilgisini puanla: 0=Sektöre İlgi Yok, 100=Sektörde İlgi Çok Fazla. Sebebini yaz.)
-        
         ## 🐋 GENEL SENTEZ (BALİNA İZİ) (Paragraf)
         ## 💯 SKOR KARTI & TRENDMETRE (Tablo)
         ## 🚀 İŞLEM PLANI
@@ -430,7 +455,7 @@ with c1:
         if count == 0 and not context_str:
             st.warning("⚠️ Lütfen analiz için veri yükleyin (Görsel veya 'TÜM VERİLERİ GETİR' butonu).")
         else:
-            with st.spinner("Analiz yapılıyor... (Sektör ve Teknik Veriler harmanlanıyor)"):
+            with st.spinner("Analiz yapılıyor... (Haberler ve Teknik Veriler harmanlanıyor)"):
                 try:
                     res = make_resilient_request(input_data, api_keys)
                     st.session_state.analysis_result = res
@@ -463,4 +488,3 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role":"assistant", "content":resp})
             except: st.error("Hata.")
-
