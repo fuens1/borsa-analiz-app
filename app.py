@@ -85,25 +85,7 @@ if "GOOGLE_API_KEY" in st.secrets:
 
 with st.sidebar:
     st.header("🔑 Anahtar Havuzu")
-    user_input = st.text_area(
-        "Google API Key'leri Yapıştır:", 
-        help="Her satıra bir tane gelecek şekilde veya virgülle ayırarak yapıştırabilirsiniz.",
-        placeholder="AIzaSy...\nAIzaSy...\nAIzaSy...",
-        height=150 
-    )
-    
-    if user_input:
-        processed_input = user_input.replace(",", "\n").split("\n")
-        manual_keys = [k.strip() for k in processed_input if k.strip()]
-        api_keys.extend(manual_keys)
 
-api_keys = list(set(api_keys))
-
-if not api_keys:
-    st.error("Lütfen en az bir API Anahtarı girin.")
-    st.stop()
-else:
-    st.sidebar.success(f"✅ {len(api_keys)} Adet Anahtar Yüklendi")
 
     # --- ANAHTAR TEST MODÜLÜ ---
     st.sidebar.markdown("---")
@@ -506,3 +488,4 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
             except Exception as e:
                 st.error("Sohbet sırasında hata oluştu.")
+
