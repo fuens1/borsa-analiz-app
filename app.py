@@ -212,7 +212,7 @@ if fetch_btn:
         
         with st.spinner(f"{api_ticker_input} için veriler çekiliyor..."):
             # 1. Derinlik İsteği
-            url_depth = f"https://webapi.hisseplus.com/api/v1/kademe?sembol={api_ticker_input}"
+            url_depth = f"https://webapi.hisseplus.com/api/v1/derinlik?sembol={api_ticker_input}"
             r_depth = requests.get(url_depth, headers=headers)
             
             # 2. AKD İsteği
@@ -521,3 +521,4 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role":"assistant", "content":resp})
             except: st.error("Hata.")
+
