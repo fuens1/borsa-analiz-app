@@ -18,7 +18,7 @@ except ImportError:
     PASTE_ENABLED = False
 
 # ==========================================
-# 🔐 GLOBAL AYAR YÖNETİMİ
+# 🔐 GLOBAL CONFIG MANAGEMENT (JSON)
 # ==========================================
 CONFIG_FILE = "site_config.json"
 
@@ -38,7 +38,7 @@ def save_global_config(config):
 global_config = load_global_config()
 
 # ==========================================
-# 🎨 SAYFA AYARLARI
+# 🎨 PAGE SETTINGS
 # ==========================================
 
 st.set_page_config(page_title="BIST Yapay Zeka Analiz PRO", layout="wide", page_icon="🐋")
@@ -98,20 +98,22 @@ def check_password():
     if "APP_PASSWORD" in st.secrets:
         correct_password = st.secrets["APP_PASSWORD"]
     else:
-        st.error("🚨 Secrets Hatası.")
+        st.error("🚨 HATA: Secrets içinde APP_PASSWORD eksik.")
         st.stop()
 
     input_pass = st.session_state.get("password_input", "")
+    
     if input_pass == admin_secret:
         st.session_state.authenticated = True
         st.session_state.is_admin = True
         return
+
     if input_pass == correct_password:
         if global_config["beta_active"]:
             st.session_state.authenticated = True
             st.session_state.is_admin = False
         else:
-            st.error("🔒 Beta kapalı.")
+            st.error("🔒 Beta erişimi şu an kapalıdır.")
     elif input_pass:
         st.error("❌ Hatalı Kod!")
 
@@ -119,16 +121,20 @@ def check_password():
 if not st.session_state.authenticated:
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown("<div style='border: 2px solid #00d4ff; padding: 40px; border-radius: 15px; background-color: #1E2130; text-align: center; margin-top: 50px;'>", unsafe_allow_html=True)
-        st.title("🔒 Beta Erişim")
+        st.markdown("<div class='login-box'>", unsafe_allow_html=True)
+        st.title("🔒 Beta Erişim Kapısı")
+        
         if global_config["beta_active"]:
+            st.info("Lütfen davetiye kodunuzu giriniz.")
             st.text_input("Giriş Kodu:", type="password", key="password_input", on_change=check_password)
             if st.button("Giriş Yap"): check_password()
         else:
-            st.warning("⚠️ BAKIMDA")
-            with st.expander("Yönetici"):
-                st.text_input("Admin:", type="password", key="password_input", on_change=check_password)
-                if st.button("Yönetici Gir"): check_password()
+            st.warning("⚠️ SİSTEM BAKIMDA / ERİŞİME KAPALI")
+            st.markdown("Şu an sadece yöneticiler giriş yapabilir.")
+            with st.expander("Yönetici Girişi"):
+                st.text_input("Admin Anahtarı:", type="password", key="password_input", on_change=check_password)
+                if st.button("Yönetici Olarak Gir"): check_password()
+            
         st.markdown("</div>", unsafe_allow_html=True)
     st.stop() 
 
@@ -136,22 +142,26 @@ if not st.session_state.authenticated:
 # 🚀 MAIN APP
 # ==========================================
 
+# --- RESET LOGIC ---
 col_title, col_reset = st.columns([5, 1])
 with col_title:
     st.title("🐋 BIST Yapay Zeka Analiz PRO")
-    if st.session_state.is_admin: st.success("👑 YÖNETİCİ MODU")
-    else: st.info("Küçük Yatırımcının Büyüdüğü Bir Evren..")
+    if st.session_state.is_admin:
+        st.success(f"👑 YÖNETİCİ MODU | Beta Durumu: {'AÇIK' if global_config['beta_active'] else 'KAPALI'}")
+    else:
+        st.info("Küçük Yatırımcının Büyüdüğü Bir Evren..")
 
 with col_reset:
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🔄 SİSTEMİ SIFIRLA", type="secondary"):
+    if st.button("🔄 SİSTEMİ SIFIRLA", type="secondary", help="Tüm verileri siler."):
         st.session_state.reset_counter += 1
         st.session_state.api_depth_data = None
         st.session_state.api_akd_data = None
         
         keys_to_keep = ["authenticated", "is_admin", "reset_counter", "api_depth_data", "api_akd_data"]
         for key in list(st.session_state.keys()):
-            if key not in keys_to_keep: del st.session_state[key]
+            if key not in keys_to_keep:
+                del st.session_state[key]
         for cat in ["Derinlik", "AKD", "Kademe", "Takas"]:
             st.session_state[f"pasted_{cat}"] = []
         st.rerun()
@@ -412,17 +422,6 @@ with c1:
         * Destekler :green[YEŞİL], Dirençler :red[KIRMIZI]
         * Yorumlar: "Bu direnç kırılırsa tavana (9.90) gidebilir" gibi stratejik ve net olsun.
         
-        ## 🧭 YÖN / FİYAT OLASILIĞI VE SENARYOLAR (DETAYLI)
-        (Eldeki Derinlik, AKD ve Takas verilerine dayanarak matematiksel bir projeksiyon yap.)
-        * **📈 Yükseliş İhtimali:** % [Oran]
-        * **📉 Düşüş İhtimali:** % [Oran]
-        * **➖ Yatay Seyir İhtimali:** % [Oran]
-
-        **Senaryolar ve Hedefler:**
-        1. **Yukarı Yönlü Hareket:** Eğer fiyat [X] seviyesini aşarsa, [Y] fiyatına gitme potansiyeli var. (Neden: ...)
-        2. **Aşağı Yönlü Hareket:** Eğer fiyat [A] desteğini kırarsa, [B] fiyatına çekilebilir. (Neden: ...)
-        3. **En Kritik Kırılım Noktası:** [Fiyat]
-        
         --- GENEL (HER ZAMAN) ---
         ## 🌡️ PİYASA DUYGU ÖLÇER (SEKTÖREL SENTIMENT)
         (Analizi yapılan hissenin ait olduğu sektöre göre yatırımcı ilgisini puanla: 0=Sektöre İlgi Yok, 100=Sektörde İlgi Çok Fazla. Sebebini yaz.)
@@ -448,7 +447,7 @@ with c1:
         if count == 0 and not context_str:
             st.warning("⚠️ Lütfen analiz için veri yükleyin (Görsel veya 'TÜM VERİLERİ GETİR' butonu).")
         else:
-            with st.spinner("Analiz yapılıyor... (Teknik Veriler harmanlanıyor)"):
+            with st.spinner("Analiz yapılıyor... (Sektör ve Teknik Veriler harmanlanıyor)"):
                 try:
                     res = make_resilient_request(input_data, api_keys)
                     st.session_state.analysis_result = res
