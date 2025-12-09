@@ -161,15 +161,15 @@ with st.sidebar:
                 if not models: raise Exception("Liste boş")
                 
                 masked_key = f"{key[:4]}...{key[-4:]}"
-                st.sidebar.markdown(f"🔑 `{masked_key}` : <span class='key-status-pass'>✅ AKTİF</span>", unsafe_allow_html=True)
+                st.sidebar.markdown(f"<span class='key-status-pass'>✅ AKTİF</span>", unsafe_allow_html=True)
                 
             except Exception as e:
                 masked_key = f"{key[:4]}...{key[-4:]}"
                 err_msg = str(e)
                 if "429" in err_msg or "quota" in err_msg.lower():
-                    st.sidebar.markdown(f"🔑 `{masked_key}` : <span class='key-status-limit'>🛑 KOTA DOLU</span>", unsafe_allow_html=True)
+                    st.sidebar.markdown(f"<span class='key-status-limit'>🛑 KOTA DOLU</span>", unsafe_allow_html=True)
                 else:
-                    st.sidebar.markdown(f"🔑 `{masked_key}` : <span class='key-status-fail'>❌ BAĞLANTI YOK</span>", unsafe_allow_html=True)
+                    st.sidebar.markdown(f"<span class='key-status-fail'>❌ BAĞLANTI YOK</span>", unsafe_allow_html=True)
             
             progress_bar.progress((i + 1) / len(api_keys))
         st.sidebar.success("Kontrol Tamamlandı.")
@@ -324,13 +324,13 @@ with col1:
     
     st.markdown("---")
     
-    st.markdown("### 3. Kademe Analizi 📊")
+    st.markdown("### 2. Kademe Analizi 📊")
     img_kademe_list = st.file_uploader("Kademe Yükle", type=["jpg", "png", "jpeg"], key="e", accept_multiple_files=True)
     handle_paste("Kademe")
     show_pasted_images("Kademe")
 
 with col2:
-    st.markdown("### 2. AKD (Aracı Kurum) 🤵")
+    st.markdown("### 3. AKD (Aracı Kurum) 🤵")
     img_akd_list = st.file_uploader("AKD Yükle", type=["jpg", "png", "jpeg"], key="a", accept_multiple_files=True)
     handle_paste("AKD")
     show_pasted_images("AKD")
@@ -560,3 +560,4 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
             except Exception as e:
                 st.error("Sohbet sırasında hata oluştu.")
+
