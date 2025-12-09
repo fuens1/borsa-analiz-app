@@ -49,30 +49,28 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🐋 BIST Yapay Zeka Analiz PRO")
-st.info("Küçük Yatırımcının Büyüdüğü Bir Evren..")
+st.info("Küçük Yatırımcı'nın Büyüdüğü Bir Evren..")
 
 # --- 1. API KEY HAVUZU YÖNETİMİ (SADECE SECRETS) ---
 api_keys = []
 
 if "GOOGLE_API_KEY" in st.secrets:
     raw_secret = st.secrets["GOOGLE_API_KEY"]
-    # Virgülle ayrılmış çoklu anahtarları parçala
     if "," in raw_secret:
         api_keys = [k.strip() for k in raw_secret.split(",") if k.strip()]
     else:
         api_keys = [raw_secret]
 else:
-    st.error("🚨 HATA: Secrets dosyasında 'GOOGLE_API_KEY' bulunamadı. Lütfen Streamlit ayarlarından ekleyin.")
+    st.error("🚨 HATA: Secrets dosyasında 'GOOGLE_API_KEY' bulunamadı.")
     st.stop()
 
-# Tekrarlayanları temizle
 api_keys = list(set(api_keys))
 
 if not api_keys:
     st.error("Secrets dosyasındaki anahtar listesi boş.")
     st.stop()
 
-# --- YAN MENÜ: DURUM KONTROLÜ ---
+# --- YAN MENÜ ---
 with st.sidebar:
     st.header("🔑 Anahtar Yönetimi")
     st.success(f"✅ Sistemde **{len(api_keys)}** adet anahtar yüklü.")
@@ -80,22 +78,17 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # --- ANAHTAR TEST MODÜLÜ ---
     if st.button("🔍 Anahtarları Test Et"):
         st.info("Bağlantı kontrol ediliyor...")
         progress_bar = st.progress(0)
         
         for i, key in enumerate(api_keys):
             try:
-                # Test bağlantısı: Sadece yetki kontrolü yap (Liste Çek)
                 genai.configure(api_key=key)
                 models = list(genai.list_models())
-                
                 if not models: raise Exception("Liste boş")
-                
                 masked_key = f"{key[:4]}...{key[-4:]}"
                 st.markdown(f"🔑 `{masked_key}` : <span class='key-status-pass'>✅ AKTİF</span>", unsafe_allow_html=True)
-                
             except Exception as e:
                 masked_key = f"{key[:4]}...{key[-4:]}"
                 err_msg = str(e)
@@ -103,11 +96,10 @@ with st.sidebar:
                     st.markdown(f"🔑 `{masked_key}` : <span class='key-status-limit'>🛑 KOTA DOLU</span>", unsafe_allow_html=True)
                 else:
                     st.markdown(f"🔑 `{masked_key}` : <span class='key-status-fail'>❌ HATALI</span>", unsafe_allow_html=True)
-            
             progress_bar.progress((i + 1) / len(api_keys))
         st.success("Kontrol Tamamlandı.")
 
-# --- 2. BAŞLANGIÇ MODEL SEÇİMİ ---
+# --- 2. MODEL SEÇİMİ ---
 valid_model_name = None
 working_key = None
 
@@ -125,7 +117,6 @@ def get_model_name(key):
     except:
         return None
 
-# İlk çalışan anahtarı bul
 for k in api_keys:
     mod = get_model_name(k)
     if mod:
@@ -134,13 +125,12 @@ for k in api_keys:
         break
 
 if not valid_model_name:
-    st.error("❌ Hiçbir anahtar ile modele bağlanılamadı. Secrets dosyasını kontrol edin.")
+    st.error("❌ Hiçbir anahtar ile modele bağlanılamadı.")
     st.stop()
 
 # --- 3. FAILOVER İSTEK FONKSİYONU ---
 def make_resilient_request(content_input, keys_list):
     last_error = None
-    
     if working_key in keys_list:
         keys_list.remove(working_key)
         keys_list.insert(0, working_key)
@@ -150,10 +140,8 @@ def make_resilient_request(content_input, keys_list):
             genai.configure(api_key=key)
             model_instance = genai.GenerativeModel(valid_model_name)
             response = model_instance.generate_content(content_input)
-            
             st.session_state.active_working_key = key
             return response.text
-
         except Exception as e:
             err_str = str(e)
             if "429" in err_str or "quota" in err_str.lower() or "resource" in err_str.lower():
@@ -162,11 +150,8 @@ def make_resilient_request(content_input, keys_list):
             else:
                 last_error = e
                 break
-    
-    if last_error:
-        raise last_error
-    else:
-        raise Exception("Tüm anahtarların kotası dolu! Biraz bekleyin.")
+    if last_error: raise last_error
+    else: raise Exception("Tüm anahtarların kotası dolu!")
 
 # --- SESSION STATE ---
 if "analysis_result" not in st.session_state:
@@ -189,10 +174,7 @@ with st.sidebar:
     raw_ticker = st.text_input("Hisse Kodu (Örn: THYAO)", "THYAO").upper()
     clean_ticker = raw_ticker.replace("#", "").replace("$", "").strip()
     
-    search_mode = st.radio(
-        "Arama Tipi:",
-        ("🔥 En Popüler (Geçmiş)", "⏱️ Son Dakika (Canlı)")
-    )
+    search_mode = st.radio("Arama Tipi:", ("🔥 En Popüler (Geçmiş)", "⏱️ Son Dakika (Canlı)"))
     
     x_url = ""
     btn_text = ""
@@ -204,7 +186,6 @@ with st.sidebar:
         encoded_query = quote(search_query)
         x_url = f"https://x.com/search?q={encoded_query}&src=typed_query&f=top"
         btn_text = f"🔥 <b>{selected_date}</b> Tarihli<br>Popüler <b>#{clean_ticker}</b> Tweetleri"
-        
     else: 
         search_query = f"#{clean_ticker} lang:tr"
         encoded_query = quote(search_query)
@@ -214,21 +195,24 @@ with st.sidebar:
     st.markdown(f"""<a href="{x_url}" target="_blank" class="x-btn">{btn_text}</a>""", unsafe_allow_html=True)
 
 # ==========================================
-# 📤 YÜKLEME ALANLARI
+# 📤 YÜKLEME ALANLARI (MULTI-UPLOAD GÜNCELLEMESİ)
 # ==========================================
 col1, col2 = st.columns(2)
 
 with col1:
     st.markdown("### 1. Derinlik Ekranı 💹")
-    img_derinlik = st.file_uploader("Derinlik Görüntüsü 💹", type=["jpg", "png", "jpeg"], key="d")
+    # accept_multiple_files=True EKLENDİ
+    img_derinlik_list = st.file_uploader("Derinlik Görüntüsü (Birden fazla seçilebilir)", type=["jpg", "png", "jpeg"], key="d", accept_multiple_files=True)
+    
     st.markdown("### 3. Kademe Analizi 📊")
-    img_kademe = st.file_uploader("Kademe Analiz Ekranı 📊", type=["jpg", "png", "jpeg"], key="e")
+    img_kademe_list = st.file_uploader("Kademe Analiz Ekranı (Birden fazla seçilebilir)", type=["jpg", "png", "jpeg"], key="e", accept_multiple_files=True)
 
 with col2:
     st.markdown("### 2. AKD (Aracı Kurum) 🤵")
-    img_akd = st.file_uploader("AKD Ekranı 🤵", type=["jpg", "png", "jpeg"], key="a")
+    img_akd_list = st.file_uploader("AKD Ekranı (Birden fazla seçilebilir)", type=["jpg", "png", "jpeg"], key="a", accept_multiple_files=True)
+    
     st.markdown("### 4. Takas Analizi 🌍")
-    img_takas = st.file_uploader("Takas Ekranı 🌍", type=["jpg", "png", "jpeg"], key="t")
+    img_takas_list = st.file_uploader("Takas Ekranı (Birden fazla seçilebilir)", type=["jpg", "png", "jpeg"], key="t", accept_multiple_files=True)
 
 # ==========================================
 # 🚀 ANALİZ MOTORU & HIZ KONTROLÜ
@@ -253,32 +237,32 @@ if analyze_btn:
     st.session_state.messages = [] 
     input_content = []
     
-    # --- DİNAMİK BAŞLIK ---
+    # --- DİNAMİK BAŞLIK OLUŞTURUCU (LİSTE KONTROLÜ) ---
     dynamic_sections_prompt = ""
     
+    # Listeler boş değilse başlık ekle
     if is_summary_mode:
-        if img_derinlik: dynamic_sections_prompt += "## 💹 DERİNLİK ÖZETİ (En Kritik 3-5 Nokta)\n"
-        if img_akd: dynamic_sections_prompt += "## 🤵 AKD ÖZETİ (Para Giriş/Çıkış)\n"
-        if img_kademe: dynamic_sections_prompt += "## 📊 KADEME ÖZETİ (Güçlü Alıcı/Satıcı)\n"
-        if img_takas: dynamic_sections_prompt += "## 🌍 TAKAS ÖZETİ (Yabancı Durumu)\n"
+        if img_derinlik_list: dynamic_sections_prompt += "## 💹 DERİNLİK ÖZETİ (En Kritik 3-5 Nokta)\n"
+        if img_akd_list: dynamic_sections_prompt += "## 🤵 AKD ÖZETİ (Para Giriş/Çıkış)\n"
+        if img_kademe_list: dynamic_sections_prompt += "## 📊 KADEME ÖZETİ (Güçlü Alıcı/Satıcı)\n"
+        if img_takas_list: dynamic_sections_prompt += "## 🌍 TAKAS ÖZETİ (Yabancı Durumu)\n"
     else:
-        # GELİŞMİŞ MOD: RENKLİ LİSTE FORMATI
-        if img_derinlik: 
+        if img_derinlik_list: 
             dynamic_sections_prompt += f"""
             ## 📸 DERİNLİK ANALİZİ (Maks {max_items} Madde)
             (Pozitif > Nötr > Negatif Şeklinde GRUPLA ve RENKLENDİR)
             """
-        if img_akd:
+        if img_akd_list:
             dynamic_sections_prompt += f"""
             ## 🏦 AKD (ARACI KURUM) ANALİZİ (Maks {max_items} Madde)
             (Pozitif > Nötr > Negatif Şeklinde GRUPLA ve RENKLENDİR)
             """
-        if img_kademe:
+        if img_kademe_list:
             dynamic_sections_prompt += f"""
             ## 📊 KADEME & HACİM ANALİZİ (Maks {max_items} Madde)
             (Alt Başlıklar: Kurumsal Alış, Kurumsal Satış, Bireysel Davranış, POC)
             """
-        if img_takas:
+        if img_takas_list:
             dynamic_sections_prompt += f"""
             ## 🌍 TAKAS ANALİZİ (Maks {max_items} Madde)
             (Pozitif > Nötr > Negatif Şeklinde GRUPLA ve RENKLENDİR)
@@ -344,25 +328,43 @@ if analyze_btn:
     
     input_content.append(base_prompt)
     
-    # Görselleri Ekle ve Say
+    # --- GÖRSELLERİ EKLEME DÖNGÜSÜ (MULTI-UPLOAD DESTEĞİ) ---
     local_loaded_count = 0
-    if img_derinlik:
-        input_content.append("\n--- DERİNLİK GÖRSELİ ---\n"); input_content.append(Image.open(img_derinlik)); local_loaded_count += 1
-    if img_akd:
-        input_content.append("\n--- AKD GÖRSELİ ---\n"); input_content.append(Image.open(img_akd)); local_loaded_count += 1
-    if img_kademe:
-        input_content.append("\n--- KADEME GÖRSELİ ---\n"); input_content.append(Image.open(img_kademe)); local_loaded_count += 1
-    if img_takas:
-        input_content.append("\n--- TAKAS GÖRSELİ ---\n"); input_content.append(Image.open(img_takas)); local_loaded_count += 1
+    
+    # Derinlik Listesi
+    if img_derinlik_list:
+        input_content.append("\n--- DERİNLİK GÖRSELLERİ ---\n")
+        for img_file in img_derinlik_list:
+            input_content.append(Image.open(img_file))
+        local_loaded_count += 1
+
+    # AKD Listesi
+    if img_akd_list:
+        input_content.append("\n--- AKD GÖRSELLERİ ---\n")
+        for img_file in img_akd_list:
+            input_content.append(Image.open(img_file))
+        local_loaded_count += 1
+
+    # Kademe Listesi
+    if img_kademe_list:
+        input_content.append("\n--- KADEME GÖRSELLERİ ---\n")
+        for img_file in img_kademe_list:
+            input_content.append(Image.open(img_file))
+        local_loaded_count += 1
+
+    # Takas Listesi
+    if img_takas_list:
+        input_content.append("\n--- TAKAS GÖRSELLERİ ---\n")
+        for img_file in img_takas_list:
+            input_content.append(Image.open(img_file))
+        local_loaded_count += 1
         
     if local_loaded_count == 0:
         st.warning("⚠️ Lütfen analiz için en az 1 adet görsel yükleyiniz.")
     else:
-        with st.spinner(f"Analiz Süresi, İşlem Sayısına Göre Değişiklik Gösterir. Sonuçlar, Yatırım Tavsiyesi İçermez."):
+        with st.spinner(f"Analiz Süresi, Seçilen İşlem Sayısına Göre Değişkenlik Gösterir..."):
             try:
-                # FAILOVER FONKSİYONUNU ÇAĞIR
                 final_text = make_resilient_request(input_content, api_keys)
-                
                 st.session_state.analysis_result = final_text
                 st.session_state.loaded_count = local_loaded_count
                 st.rerun()
@@ -379,7 +381,7 @@ if st.session_state.analysis_result:
     if is_summary_mode:
         st.caption("⚡ HIZLI ÖZET MODU Aktif.")
     else:
-        st.caption(f"🧠 GELİŞMİŞ MOD Aktif (Sadece Yüklenen {st.session_state.loaded_count} Veri Seti Analiz Edildi).")
+        st.caption(f"🧠 GELİŞMİŞ MOD Aktif (Sadece Yüklenen {st.session_state.loaded_count} Veri Kategorisi Analiz Edildi).")
     
     st.markdown(st.session_state.analysis_result)
     
@@ -405,7 +407,6 @@ if st.session_state.analysis_result:
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
-            # SOHBETTE DE AKTİF ANAHTARI KULLAN
             genai.configure(api_key=st.session_state.active_working_key)
             model = genai.GenerativeModel(valid_model_name)
             
@@ -430,4 +431,3 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
             except Exception as e:
                 st.error("Sohbet sırasında hata oluştu.")
-
