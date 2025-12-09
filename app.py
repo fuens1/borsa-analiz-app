@@ -8,39 +8,69 @@ import json
 import os
 import requests
 import pandas as pd
+import base64
 from urllib.parse import quote
 
-# Paste Button Check
+# Kütüphane Kontrolleri
 try:
     from streamlit_paste_button import paste_image_button
     PASTE_ENABLED = True
 except ImportError:
     PASTE_ENABLED = False
 
-# Haber Kütüphanesi Kontrolü
 try:
     import feedparser
     NEWS_ENABLED = True
 except ImportError:
     NEWS_ENABLED = False
 
+# Firebase Kontrolü
+try:
+    import firebase_admin
+    from firebase_admin import credentials, db
+    FIREBASE_ENABLED = True
+except ImportError:
+    FIREBASE_ENABLED = False
+
 # ==========================================
-# 🔐 GLOBAL AYAR YÖNETİMİ
+# 🔐 AYARLAR VE FIREBASE BAĞLANTISI
 # ==========================================
 CONFIG_FILE = "site_config.json"
+# BURAYA KENDİ FIREBASE ADRESİNİ YAPIŞTIR (bridge.py'deki ile aynı olmalı)
+FIREBASE_DB_URL = 'https://borsakopru-default-rtdb.firebaseio.com/' 
+
+def init_firebase():
+    """Firebase bağlantısını başlatır (Singleton)"""
+    if not FIREBASE_ENABLED: return False
+    try:
+        if not firebase_admin._apps:
+            # 1. Streamlit Cloud (Secrets)
+            if "firebase" in st.secrets:
+                key_dict = json.loads(st.secrets["firebase"]["json_content"])
+                cred = credentials.Certificate(key_dict)
+            # 2. Lokal Test (Dosya)
+            elif os.path.exists("firebase_key.json"):
+                cred = credentials.Certificate("firebase_key.json")
+            else:
+                return False
+            
+            firebase_admin.initialize_app(cred, {'databaseURL': FIREBASE_DB_URL})
+        return True
+    except Exception as e:
+        st.error(f"Firebase Hatası: {e}")
+        return False
+
+firebase_ready = init_firebase()
 
 def load_global_config():
     if os.path.exists(CONFIG_FILE):
         try:
-            with open(CONFIG_FILE, "r") as f:
-                return json.load(f)
-        except:
-            return {"beta_active": True}
+            with open(CONFIG_FILE, "r") as f: return json.load(f)
+        except: return {"beta_active": True}
     return {"beta_active": True}
 
 def save_global_config(config):
-    with open(CONFIG_FILE, "w") as f:
-        json.dump(config, f)
+    with open(CONFIG_FILE, "w") as f: json.dump(config, f)
 
 global_config = load_global_config()
 
@@ -92,7 +122,11 @@ if "is_admin" not in st.session_state: st.session_state.is_admin = False
 if "reset_counter" not in st.session_state: st.session_state.reset_counter = 0
 if "api_depth_data" not in st.session_state: st.session_state.api_depth_data = None
 if "api_akd_data" not in st.session_state: st.session_state.api_akd_data = None
-if "fetched_news" not in st.session_state: st.session_state.fetched_news = ""
+# Telegram Görüntüleri
+if "tg_img_derinlik" not in st.session_state: st.session_state.tg_img_derinlik = None
+if "tg_img_akd" not in st.session_state: st.session_state.tg_img_akd = None
+if "tg_img_kademe" not in st.session_state: st.session_state.tg_img_kademe = None
+if "tg_img_takas" not in st.session_state: st.session_state.tg_img_takas = None
 
 # --- AUTH LOGIC ---
 query_params = st.query_params
@@ -156,9 +190,12 @@ with col_reset:
         st.session_state.reset_counter += 1
         st.session_state.api_depth_data = None
         st.session_state.api_akd_data = None
-        st.session_state.fetched_news = ""
+        st.session_state.tg_img_derinlik = None
+        st.session_state.tg_img_akd = None
+        st.session_state.tg_img_kademe = None
+        st.session_state.tg_img_takas = None
         
-        keys_to_keep = ["authenticated", "is_admin", "reset_counter", "api_depth_data", "api_akd_data", "fetched_news"]
+        keys_to_keep = ["authenticated", "is_admin", "reset_counter", "api_depth_data", "api_akd_data", "tg_img_derinlik", "tg_img_akd", "tg_img_kademe", "tg_img_takas"]
         for key in list(st.session_state.keys()):
             if key not in keys_to_keep: del st.session_state[key]
         for cat in ["Derinlik", "AKD", "Kademe", "Takas"]:
@@ -177,6 +214,7 @@ with api_col2:
     fetch_btn = st.button("Derinlik - AKD Verilerini AL", type="primary")
 
 if fetch_btn:
+    # 1. HissePlus API
     try:
         today_str = datetime.date.today().strftime("%Y-%m-%d")
         headers = {'User-Agent': 'Mozilla/5.0'}
@@ -197,11 +235,11 @@ if st.session_state.api_depth_data is not None or st.session_state.api_akd_data 
     st.markdown("##### 📊 Veri Durumu")
     stat_col1, stat_col2 = st.columns(2)
     with stat_col1:
-        if st.session_state.api_depth_data: st.success("DERİNLİK VERİSİ 🟢")
-        else: st.error("DERİNLİK VERİSİ 🔴")
+        if st.session_state.api_depth_data: st.success("API DERİNLİK 🟢")
+        else: st.error("API DERİNLİK 🔴")
     with stat_col2:
-        if st.session_state.api_akd_data: st.success("AKD VERİSİ 🟢")
-        else: st.error("AKD VERİSİ 🔴")
+        if st.session_state.api_akd_data: st.success("API AKD 🟢")
+        else: st.error("API AKD 🔴")
 
 # --- INIT KEYS ---
 api_keys = []
@@ -217,7 +255,59 @@ if "active_working_key" not in st.session_state: st.session_state.active_working
 for cat in ["Derinlik", "AKD", "Kademe", "Takas"]:
     if f"pasted_{cat}" not in st.session_state: st.session_state[f"pasted_{cat}"] = []
 
-# --- SIDEBAR ---
+# --- SIDEBAR & TELEGRAM BRIDGE ---
+def fetch_data_via_bridge(symbol, data_type):
+    """Firebase üzerinden PC'deki bridge.py ile konuşur"""
+    if not firebase_ready:
+        st.error("Veritabanı bağlantısı yok.")
+        return None
+
+    status_area = st.empty()
+    try:
+        # 1. EMİR GÖNDER
+        status_area.info(f"📡 {symbol} için {data_type} isteniyor... PC'ye bağlanılıyor.")
+        
+        ref_req = db.reference('bridge/request')
+        ref_req.set({
+            'symbol': symbol,
+            'type': data_type,
+            'status': 'pending',
+            'timestamp': time.time()
+        })
+        
+        # 2. CEVABI BEKLE (25 Saniye)
+        progress_bar = st.progress(0)
+        for i in range(25):
+            time.sleep(1)
+            progress_bar.progress((i + 1) / 25)
+            
+            status = ref_req.get().get('status')
+            
+            if status == 'processing':
+                status_area.warning("⏳ Robot emri aldı, Telegram'dan yanıt bekleniyor...")
+            
+            elif status == 'completed':
+                status_area.success("✅ Veri Alındı!")
+                progress_bar.empty()
+                
+                # Resmi indir
+                ref_res = db.reference('bridge/response')
+                data = ref_res.get()
+                if data and 'image_base64' in data:
+                    img_bytes = base64.b64decode(data['image_base64'])
+                    return Image.open(io.BytesIO(img_bytes))
+                break
+                
+            elif status == 'timeout':
+                status_area.error("❌ Zaman aşımı. Hedef bot cevap vermedi.")
+                break
+        else:
+            status_area.error("❌ Yanıt yok. PC'deki 'bridge.py' çalışıyor mu?")
+            
+    except Exception as e:
+        status_area.error(f"Hata: {e}")
+    return None
+
 with st.sidebar:
     st.header("🔑 Anahtar Havuzu")
     if st.button("🔄 Anahtarları Test Et"):
@@ -230,6 +320,28 @@ with st.sidebar:
             except: st.markdown(f"🔑 `...{k[-4:]}` : <span class='key-status-fail'>❌</span>", unsafe_allow_html=True)
             prog.progress((i+1)/len(api_keys))
     
+    st.markdown("---")
+    
+    # --- TELEGRAM KÖPRÜ PANELİ ---
+    st.header("📲 Telegram Köprüsü")
+    tg_ticker = st.text_input("Hisse Kodu (TG):", api_ticker_input, key="tg_ticker").upper()
+    
+    col_t1, col_t2 = st.columns(2)
+    with col_t1:
+        if st.button("📉 Derinlik İste", key="tg_dr"):
+            st.session_state.tg_img_derinlik = fetch_data_via_bridge(tg_ticker, "derinlik")
+    with col_t2:
+        if st.button("🏦 AKD İste", key="tg_akd"):
+            st.session_state.tg_img_akd = fetch_data_via_bridge(tg_ticker, "akd")
+            
+    col_t3, col_t4 = st.columns(2)
+    with col_t3:
+        if st.button("📊 Kademe İste", key="tg_kdm"):
+            st.session_state.tg_img_kademe = fetch_data_via_bridge(tg_ticker, "kademe")
+    with col_t4:
+        if st.button("🌍 Takas İste", key="tg_tks"):
+            st.session_state.tg_img_takas = fetch_data_via_bridge(tg_ticker, "takas")
+
     st.markdown("---")
     if st.button("🚪 Çıkış Yap"):
         st.session_state.authenticated = False
@@ -244,10 +356,24 @@ with st.sidebar:
             save_global_config(global_config)
             st.rerun()
 
+# --- TELEGRAM GÖRSELLERİNİ GÖSTERME ---
+if any([st.session_state.tg_img_derinlik, st.session_state.tg_img_akd, st.session_state.tg_img_kademe, st.session_state.tg_img_takas]):
+    st.info("📲 Telegram'dan Gelen Veriler")
+    gc1, gc2, gc3, gc4 = st.columns(4)
+    with gc1:
+        if st.session_state.tg_img_derinlik: st.image(st.session_state.tg_img_derinlik, caption="Derinlik", width=200)
+    with gc2:
+        if st.session_state.tg_img_akd: st.image(st.session_state.tg_img_akd, caption="AKD", width=200)
+    with gc3:
+        if st.session_state.tg_img_kademe: st.image(st.session_state.tg_img_kademe, caption="Kademe", width=200)
+    with gc4:
+        if st.session_state.tg_img_takas: st.image(st.session_state.tg_img_takas, caption="Takas", width=200)
+    st.markdown("---")
+
 with st.sidebar:
     st.markdown("---")
     st.header("𝕏 Tarayıcı")
-    raw_ticker = st.text_input("Kod:", api_ticker_input).upper() # Senkron
+    raw_ticker = st.text_input("Kod:", api_ticker_input).upper()
     clean_ticker = raw_ticker.replace("#", "").strip()
     
     search_mode = st.radio("Tip:", ("🔥 Geçmiş", "⏱️ Canlı"))
@@ -304,24 +430,20 @@ def make_resilient_request(content, keys):
             else: raise e
     raise Exception("Tüm kotalar dolu.")
 
-# --- YENİ HABER ÇEKME FONKSİYONU (SON 24 SAAT FİLTRELİ) ---
+# --- YENİ HABER ÇEKME ---
 def fetch_stock_news(symbol):
-    """Google News RSS üzerinden SON 24 SAATLİK haberleri çeker"""
+    """Google News RSS (Son 24 Saat)"""
     if not NEWS_ENABLED: return "Haber modülü aktif değil (feedparser eksik)."
     try:
-        # 'when:1d' parametresi ile son 1 gün filtresi
         query = f"{symbol} Borsa KAP when:1d"
         rss_url = f"https://news.google.com/rss/search?q={quote(query)}&hl=tr&gl=TR&ceid=TR:tr"
-        
         feed = feedparser.parse(rss_url)
-        
         news_list = []
-        for entry in feed.entries[:5]: # Son 5 haber
+        for entry in feed.entries[:5]: 
             published = entry.published_parsed
             date_str = time.strftime("%d.%m.%Y %H:%M", published) if published else "Tarih Yok"
             news_list.append(f"- {entry.title} ({date_str})")
-        
-        if not news_list: return "Son 24 saat içinde bu hisse ile ilgili önemli bir haber akışı tespit edilmedi."
+        if not news_list: return "Son 24 saatte önemli haber yok."
         return "\n".join(news_list)
     except Exception as e:
         return f"Haber çekme hatası: {str(e)}"
@@ -383,30 +505,37 @@ with c1:
         context_str = ""
         # 1. API
         if st.session_state.api_depth_data:
-            context_str += f"\n\n--- CANLI DERİNLİK API VERİSİ ---\n{json.dumps(st.session_state.api_depth_data, indent=2, ensure_ascii=False)}"
+            context_str += f"\n\n--- CANLI DERİNLİK API VERİSİ (HissePlus) ---\n{json.dumps(st.session_state.api_depth_data, indent=2, ensure_ascii=False)}"
         if st.session_state.api_akd_data:
-            context_str += f"\n\n--- CANLI AKD API VERİSİ ---\n{json.dumps(st.session_state.api_akd_data, indent=2, ensure_ascii=False)}"
+            context_str += f"\n\n--- CANLI AKD API VERİSİ (HissePlus) ---\n{json.dumps(st.session_state.api_akd_data, indent=2, ensure_ascii=False)}"
 
-        has_d = bool(img_d) or bool(st.session_state["pasted_Derinlik"]) or bool(st.session_state.api_depth_data)
-        has_a = bool(img_a) or bool(st.session_state["pasted_AKD"]) or bool(st.session_state.api_akd_data)
-        has_k = bool(img_k) or bool(st.session_state["pasted_Kademe"])
-        has_t = bool(img_t) or bool(st.session_state["pasted_Takas"])
-        
-        # 2. Haberler (Otomatik Çek)
+        # 2. Haberler
         if NEWS_ENABLED:
-            with st.spinner("Son 24 saatteki haberler taranıyor..."):
-                news_text = fetch_stock_news(raw_ticker) # Kullanıcı inputundan hisseyi al
-                context_str += f"\n\n--- SON DAKİKA HABERLERİ ({raw_ticker}) ---\n{news_text}"
+            with st.spinner("Haberler taranıyor..."):
+                news_text = fetch_stock_news(api_ticker_input)
+                context_str += f"\n\n--- HABERLER ({api_ticker_input}) ---\n{news_text}"
+
+        def add_imgs(fl, pl, tg_img):
+            added = False
+            if fl: [input_data.append(Image.open(f)) for f in fl]; added=True
+            if pl: [input_data.append(i) for i in pl]; added=True
+            if tg_img: input_data.append(tg_img); added=True
+            return added
+
+        has_d = add_imgs(img_d, st.session_state["pasted_Derinlik"], st.session_state.tg_img_derinlik)
+        has_a = add_imgs(img_a, st.session_state["pasted_AKD"], st.session_state.tg_img_akd)
+        has_k = add_imgs(img_k, st.session_state["pasted_Kademe"], st.session_state.tg_img_kademe)
+        has_t = add_imgs(img_t, st.session_state["pasted_Takas"], st.session_state.tg_img_takas)
         
         sections = ""
         if is_summary:
-            if has_d: sections += "## 💹 DERİNLİK ÖZETİ (3-5 Madde)\n"
-            if has_a: sections += "## 🤵 AKD ÖZETİ\n"
+            if has_d or st.session_state.api_depth_data: sections += "## 💹 DERİNLİK ÖZETİ (3-5 Madde)\n"
+            if has_a or st.session_state.api_akd_data: sections += "## 🤵 AKD ÖZETİ\n"
             if has_k: sections += "## 📊 KADEME ÖZETİ\n"
             if has_t: sections += "## 🌍 TAKAS ÖZETİ\n"
         else:
-            if has_d: sections += f"## 📸 DERİNLİK ANALİZİ (Maks {max_items}, Pozitif/Nötr/Negatif Gruplu, Renkli)\n"
-            if has_a: sections += f"## 🏦 AKD ANALİZİ (Maks {max_items}, Pozitif/Nötr/Negatif Gruplu, Renkli)\n"
+            if has_d or st.session_state.api_depth_data: sections += f"## 📸 DERİNLİK ANALİZİ (Maks {max_items}, Pozitif/Nötr/Negatif Gruplu, Renkli)\n"
+            if has_a or st.session_state.api_akd_data: sections += f"## 🏦 AKD ANALİZİ (Maks {max_items}, Pozitif/Nötr/Negatif Gruplu, Renkli)\n"
             if has_k: sections += f"## 📊 KADEME ANALİZİ (Maks {max_items}, Alt Başlıklar)\n"
             if has_t: sections += f"## 🌍 TAKAS ANALİZİ (Maks {max_items}, Gruplu, Renkli)\n"
 
@@ -436,6 +565,9 @@ with c1:
         * Yorumlar stratejik olsun.
         
         --- GENEL (HER ZAMAN) ---
+        ## 🌡️ PİYASA DUYGU ÖLÇER (SEKTÖREL SENTIMENT)
+        (Analizi yapılan hissenin ait olduğu sektöre göre yatırımcı ilgisini puanla: 0=Sektöre İlgi Yok, 100=Sektörde İlgi Çok Fazla. Sebebini yaz.)
+        
         ## 🐋 GENEL SENTEZ (BALİNA İZİ) (Paragraf)
         ## 💯 SKOR KARTI & TRENDMETRE (Tablo)
         ## 🚀 İŞLEM PLANI
@@ -443,21 +575,11 @@ with c1:
         
         input_data.append(prompt)
         
-        def add_imgs(fl, pl):
-            if fl: [input_data.append(Image.open(f)) for f in fl]
-            if pl: [input_data.append(i) for i in pl]
-            return bool(fl or pl)
-
-        count = 0
-        if add_imgs(img_d, st.session_state["pasted_Derinlik"]): input_data.append("\nDERİNLİK GÖRSELİ\n"); count+=1
-        if add_imgs(img_a, st.session_state["pasted_AKD"]): input_data.append("\nAKD GÖRSELİ\n"); count+=1
-        if add_imgs(img_k, st.session_state["pasted_Kademe"]): input_data.append("\nKADEME GÖRSELİ\n"); count+=1
-        if add_imgs(img_t, st.session_state["pasted_Takas"]): input_data.append("\nTAKAS GÖRSELİ\n"); count+=1
-        
-        if count == 0 and not context_str:
-            st.warning("⚠️ Lütfen analiz için veri yükleyin (Görsel veya 'TÜM VERİLERİ GETİR' butonu).")
+        # Eğer ne görsel ne API yoksa
+        if count == 0 and not context_str and not (has_d or has_a or has_k or has_t):
+            st.warning("⚠️ Lütfen analiz için veri yükleyin (Görsel, API veya Telegram).")
         else:
-            with st.spinner("Analiz yapılıyor... (Haberler ve Teknik Veriler harmanlanıyor)"):
+            with st.spinner("Analiz yapılıyor... (Veriler harmanlanıyor)"):
                 try:
                     res = make_resilient_request(input_data, api_keys)
                     st.session_state.analysis_result = res
