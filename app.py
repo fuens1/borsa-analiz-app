@@ -328,18 +328,18 @@ with st.sidebar:
     
     col_t1, col_t2 = st.columns(2)
     with col_t1:
-        if st.button("📉 Derinlik İste", key="tg_dr"):
+        if st.button("📉 Derinlik Verileri Al", key="tg_dr"):
             st.session_state.tg_img_derinlik = fetch_data_via_bridge(tg_ticker, "derinlik")
     with col_t2:
-        if st.button("🏦 AKD İste", key="tg_akd"):
+        if st.button("🏦 AKD Verileri Al", key="tg_akd"):
             st.session_state.tg_img_akd = fetch_data_via_bridge(tg_ticker, "akd")
             
     col_t3, col_t4 = st.columns(2)
     with col_t3:
-        if st.button("📊 Kademe İste", key="tg_kdm"):
+        if st.button("📊 Kademe Verileri Al", key="tg_kdm"):
             st.session_state.tg_img_kademe = fetch_data_via_bridge(tg_ticker, "kademe")
     with col_t4:
-        if st.button("🌍 Takas İste", key="tg_tks"):
+        if st.button("🌍 Takas Verileri Al", key="tg_tks"):
             st.session_state.tg_img_takas = fetch_data_via_bridge(tg_ticker, "takas")
 
     st.markdown("---")
@@ -619,3 +619,4 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role":"assistant", "content":resp})
             except: st.error("Hata.")
+
