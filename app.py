@@ -49,7 +49,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🐋 BIST Yapay Zeka Analiz PRO")
-st.info("Küçük Yatırımcı'nın Büyüdüğü Bir Evren..")
+st.info("Küçük Yatırımcının Büyüdüğü Bir Evren..")
 
 # --- 1. API KEY HAVUZU YÖNETİMİ (SADECE SECRETS) ---
 api_keys = []
@@ -431,3 +431,4 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
             except Exception as e:
                 st.error("Sohbet sırasında hata oluştu.")
+
