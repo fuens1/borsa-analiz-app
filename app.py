@@ -85,6 +85,13 @@ if "GOOGLE_API_KEY" in st.secrets:
 
 with st.sidebar:
     st.header("🔑 Anahtar Havuzu")
+    user_input = st.text_area(
+        "Google API Key'leri Yapıştır:", 
+        help="Her satıra bir tane gelecek şekilde veya virgülle ayırarak yapıştırabilirsiniz.",
+        placeholder="AIzaSy...\nAIzaSy...\nAIzaSy...",
+        height=150 
+    )
+    
     if user_input:
         processed_input = user_input.replace(",", "\n").split("\n")
         manual_keys = [k.strip() for k in processed_input if k.strip()]
@@ -430,7 +437,7 @@ if analyze_btn:
     if local_loaded_count == 0:
         st.warning("⚠️ Lütfen analiz için en az 1 adet görsel yükleyin veya yapıştırın.")
     else:
-        with st.spinner(f"Analiz Süresi, Seçilen İşlem Sayısına Göre Değişkenlik Gösterir..."):
+        with st.spinner(f"Veriler {len(api_keys)} adet API anahtarı üzerinden işleniyor..."):
             try:
                 final_text = make_resilient_request(input_content, api_keys)
                 st.session_state.analysis_result = final_text
@@ -499,4 +506,3 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
             except Exception as e:
                 st.error("Sohbet sırasında hata oluştu.")
-
