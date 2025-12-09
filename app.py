@@ -4,6 +4,8 @@ import google.generativeai as genai
 import datetime
 import time
 import io
+import json
+import os
 from urllib.parse import quote
 
 # Paste Button Check
@@ -14,7 +16,27 @@ except ImportError:
     PASTE_ENABLED = False
 
 # ==========================================
-# 🔐 CONFIG & STYLING
+# 🔐 GLOBAL AYAR YÖNETİMİ (JSON)
+# ==========================================
+CONFIG_FILE = "site_config.json"
+
+def load_global_config():
+    """Tüm kullanıcılar için ortak ayarları yükler"""
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, "r") as f:
+            return json.load(f)
+    return {"beta_active": True} # Varsayılan: Açık
+
+def save_global_config(config):
+    """Ayarları dosyaya kaydeder (Herkes için değişir)"""
+    with open(CONFIG_FILE, "w") as f:
+        json.dump(config, f)
+
+# Başlangıçta konfigürasyonu yükle
+global_config = load_global_config()
+
+# ==========================================
+# 🎨 SAYFA AYARLARI
 # ==========================================
 
 st.set_page_config(page_title="BIST Yapay Zeka Analiz PRO", layout="wide", page_icon="🐋")
@@ -42,14 +64,12 @@ st.markdown("""
 if "authenticated" not in st.session_state: st.session_state.authenticated = False
 if "is_admin" not in st.session_state: st.session_state.is_admin = False
 if "reset_counter" not in st.session_state: st.session_state.reset_counter = 0
-# Beta Mode Default (Bunu veritabanı olmadığı için session'da tutuyoruz, kalıcı olması için Secrets'a yazman lazım)
-if "beta_active" not in st.session_state: st.session_state.beta_active = True 
 
-# --- AUTH & ADMIN LOGIC ---
+# --- AUTH LOGIC ---
 query_params = st.query_params
 admin_secret = st.secrets.get("ADMIN_KEY", "admin123") 
 
-# Admin Link Check (?admin=KEY)
+# URL Admin Bypass
 if query_params.get("admin") == admin_secret:
     st.session_state.authenticated = True
     st.session_state.is_admin = True
@@ -58,45 +78,55 @@ def check_password():
     if "APP_PASSWORD" in st.secrets:
         correct_password = st.secrets["APP_PASSWORD"]
     else:
-        st.error("🚨 Secrets Hatası: APP_PASSWORD eksik.")
+        st.error("🚨 HATA: Secrets içinde APP_PASSWORD eksik.")
         st.stop()
 
     input_pass = st.session_state.get("password_input", "")
     
-    if input_pass == correct_password:
-        if st.session_state.beta_active:
-            st.session_state.authenticated = True
-            st.session_state.is_admin = False # Normal user
-        else:
-            st.error("🚧 Sistem şu an bakımda. Sadece Admin girebilir.")
-    elif input_pass == admin_secret: # Admin şifreyi kutuya yazarsa da girsin
+    # 1. Admin Şifresi mi? (Her zaman girer)
+    if input_pass == admin_secret:
         st.session_state.authenticated = True
         st.session_state.is_admin = True
-    elif input_pass:
-        st.error("❌ Hatalı Giriş Kodu!")
+        return
 
-# --- LOGIN SCREEN ---
+    # 2. Normal Şifre mi? (Sadece Beta Açıksa girer)
+    if input_pass == correct_password:
+        if global_config["beta_active"]:
+            st.session_state.authenticated = True
+            st.session_state.is_admin = False
+        else:
+            st.error("🔒 Beta erişimi şu an kapalıdır.")
+    elif input_pass:
+        st.error("❌ Hatalı Kod!")
+
+# --- GİRİŞ EKRANI (Login Screen) ---
 if not st.session_state.authenticated:
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown("<div class='login-box'>", unsafe_allow_html=True)
         st.title("🔒 Beta Erişim Kapısı")
         
-        if st.session_state.beta_active:
-            st.info("Davetiye kodunuzu giriniz.")
+        # DURUM 1: BETA AÇIK
+        if global_config["beta_active"]:
+            st.info("Lütfen davetiye kodunuzu giriniz.")
             st.text_input("Giriş Kodu:", type="password", key="password_input", on_change=check_password)
             if st.button("Giriş Yap"): check_password()
+            
+        # DURUM 2: BETA KAPALI
         else:
-            st.warning("⚠️ BETA GİRİŞLERİ GEÇİCİ OLARAK KAPALIDIR.")
-            # Admin için gizli giriş imkanı bırakalım
-            st.text_input("Admin Girişi:", type="password", key="password_input", on_change=check_password)
-            if st.button("Yönetici Girişi"): check_password()
+            st.warning("⚠️ SİSTEM BAKIMDA / ERİŞİME KAPALI")
+            st.markdown("Şu an sadece yöneticiler giriş yapabilir.")
+            
+            # Gizli Admin Girişi
+            with st.expander("Yönetici Girişi"):
+                st.text_input("Admin Anahtarı:", type="password", key="password_input", on_change=check_password)
+                if st.button("Yönetici Olarak Gir"): check_password()
             
         st.markdown("</div>", unsafe_allow_html=True)
     st.stop() 
 
 # ==========================================
-# 🚀 MAIN APP
+# 🚀 ANA UYGULAMA (GİRİŞ BAŞARILI)
 # ==========================================
 
 # --- RESET LOGIC ---
@@ -104,26 +134,20 @@ col_title, col_reset = st.columns([5, 1])
 with col_title:
     st.title("🐋 BIST Yapay Zeka Analiz PRO")
     if st.session_state.is_admin:
-        st.caption("👑 YÖNETİCİ MODU AKTİF")
+        st.success(f"👑 YÖNETİCİ MODU | Beta Durumu: {'AÇIK' if global_config['beta_active'] else 'KAPALI'}")
     else:
         st.info("Küçük Yatırımcının Büyüdüğü Bir Evren..")
 
 with col_reset:
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🔄 SİSTEMİ SIFIRLA", type="secondary", help="Tüm verileri siler."):
-        # Increment counter to force-clear file uploaders
+    if st.button("🔄 SİSTEMİ SIFIRLA", type="secondary", help="Verileri temizler."):
         st.session_state.reset_counter += 1
-        
-        # Clear specific session keys but keep auth & settings
-        keys_to_keep = ["authenticated", "is_admin", "reset_counter", "beta_active"]
+        keys_to_keep = ["authenticated", "is_admin", "reset_counter"]
         for key in list(st.session_state.keys()):
             if key not in keys_to_keep:
                 del st.session_state[key]
-        
-        # Init paste buffers
         for cat in ["Derinlik", "AKD", "Kademe", "Takas"]:
             st.session_state[f"pasted_{cat}"] = []
-            
         st.rerun()
 
 # --- INIT VARIABLES ---
@@ -137,7 +161,6 @@ if "messages" not in st.session_state: st.session_state.messages = []
 if "loaded_count" not in st.session_state: st.session_state.loaded_count = 0
 if "active_working_key" not in st.session_state: st.session_state.active_working_key = None
 
-# Init paste buffers if not exists
 for cat in ["Derinlik", "AKD", "Kademe", "Takas"]:
     if f"pasted_{cat}" not in st.session_state: st.session_state[f"pasted_{cat}"] = []
 
@@ -163,17 +186,27 @@ with st.sidebar:
         st.session_state.authenticated = False
         st.rerun()
 
-    # --- ADMIN PANEL (Sadece Admin Görür) ---
+    # --- ADMIN PANEL (DOSYA TABANLI GLOBAL KONTROL) ---
     if st.session_state.is_admin:
         st.markdown("---")
-        st.subheader("⚙️ Yönetici Paneli")
+        st.subheader("⚙️ Yönetici Paneli (Global)")
         
-        # Beta Switch
-        beta_status = st.toggle("Beta Girişlerini Aç", value=st.session_state.beta_active)
-        if beta_status != st.session_state.beta_active:
-            st.session_state.beta_active = beta_status
-            if beta_status: st.success("Beta Açıldı!")
-            else: st.error("Beta Kapatıldı! Sadece Admin girebilir.")
+        # Mevcut durumu dosyadan oku
+        current_status = global_config["beta_active"]
+        
+        # Toggle Switch
+        new_status = st.toggle("Beta Girişlerini Aç", value=current_status)
+        
+        # Değişiklik varsa dosyaya yaz ve yenile
+        if new_status != current_status:
+            global_config["beta_active"] = new_status
+            save_global_config(global_config)
+            st.rerun()
+            
+        if not new_status:
+            st.caption("🔴 Şu an kullanıcılar şifre bilseler de giremezler.")
+        else:
+            st.caption("🟢 Kullanıcılar şifre ile giriş yapabilir.")
 
 # --- X BROWSER ---
 with st.sidebar:
@@ -234,7 +267,6 @@ def make_request(content, keys):
     raise Exception("Tüm kotalar dolu.")
 
 # --- UPLOAD SECTION ---
-# Key'e reset_counter ekleyerek zorla yeniliyoruz (Dosyaları siler)
 file_key_suffix = str(st.session_state.reset_counter)
 
 def handle_paste(cat):
@@ -242,7 +274,7 @@ def handle_paste(cat):
         res = paste_image_button(
             label=f"📋 Yapıştır", 
             background_color="#1E2130", hover_background_color="#333",
-            key=f"paste_{cat}_{file_key_suffix}" # Resetlenince ID değişir, hafıza silinir
+            key=f"paste_{cat}_{file_key_suffix}"
         )
         if res.image_data is not None:
             if not st.session_state[f"pasted_{cat}"] or st.session_state[f"pasted_{cat}"][-1] != res.image_data:
@@ -289,7 +321,7 @@ with c1:
     if st.button("🐋 ANALİZİ BAŞLAT", type="primary", use_container_width=True):
         input_data = []
         
-        # Dynamic Prompt Logic
+        # Dynamic Prompt
         has_d = bool(img_d) or bool(st.session_state["pasted_Derinlik"])
         has_a = bool(img_a) or bool(st.session_state["pasted_AKD"])
         has_k = bool(img_k) or bool(st.session_state["pasted_Kademe"])
@@ -337,7 +369,7 @@ with c1:
         else:
             with st.spinner("Analiz yapılıyor..."):
                 try:
-                    res = make_resilient_request(input_data, api_keys)
+                    res = make_request(input_data, api_keys)
                     st.session_state.analysis_result = res
                     st.session_state.loaded_count = count
                     st.rerun()
@@ -363,6 +395,12 @@ if st.session_state.analysis_result:
                 genai.configure(api_key=st.session_state.active_working_key)
                 model = genai.GenerativeModel(valid_model_name)
                 stream = model.generate_content(f"Context: {st.session_state.analysis_result}\nUser: {q}", stream=True)
-                resp = st.write_stream(chunk.text for chunk in stream if chunk.text)
+                
+                # Stream parser
+                def parser():
+                    for ch in stream: 
+                        if ch.text: yield ch.text
+                
+                resp = st.write_stream(parser)
                 st.session_state.messages.append({"role":"assistant", "content":resp})
             except: st.error("Hata.")
