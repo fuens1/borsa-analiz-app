@@ -6,7 +6,7 @@ import time
 import io
 from urllib.parse import quote
 
-# Check for Paste Button Library
+# Kopyala-Yapıştır Kütüphanesi Kontrolü
 try:
     from streamlit_paste_button import paste_image_button
     PASTE_ENABLED = True
@@ -14,12 +14,12 @@ except ImportError:
     PASTE_ENABLED = False
 
 # ==========================================
-# 🔐 SECURITY & SETTINGS
+# 🔐 GÜVENLİK VE AYARLAR
 # ==========================================
 
 st.set_page_config(page_title="BIST Yapay Zeka Analiz PRO", layout="wide", page_icon="🐋")
 
-# Styling
+# Görsel stil ayarları
 st.markdown("""
 <style>
     .main { background-color: #0e1117; }
@@ -55,7 +55,7 @@ st.markdown("""
     .key-status-fail { color: #ff4444; font-weight: bold; }
     .key-status-limit { color: #ffbd45; font-weight: bold; }
     
-    /* Login Box Style */
+    /* Login Ekranı Stili */
     .login-box {
         border: 2px solid #00d4ff;
         padding: 40px;
@@ -68,25 +68,27 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- AUTHENTICATION CHECK ---
+# --- GİRİŞ KONTROLÜ (AUTH - DÜZELTİLDİ) ---
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
 def check_password():
-    """Checks the entered password against the secret."""
+    """Şifre kontrolü yapar (Hata korumalı)"""
     if "APP_PASSWORD" in st.secrets:
         correct_password = st.secrets["APP_PASSWORD"]
     else:
-        st.error("🚨 CONFIG ERROR: 'APP_PASSWORD' is missing in secrets.toml!")
+        st.error("🚨 HATA: Secrets dosyasında 'APP_PASSWORD' tanımlanmamış!")
         st.stop()
 
-    if st.session_state["password_input"] == correct_password:
+    # --- DÜZELTME: .get() kullanarak KeyError önlendi ---
+    input_password = st.session_state.get("password_input", "")
+    
+    if input_password == correct_password:
         st.session_state.authenticated = True
-        del st.session_state["password_input"] 
-    else:
+    elif input_password: # Sadece bir şey yazıldıysa hata ver
         st.error("❌ Hatalı Giriş Kodu!")
 
-# --- LOGIN SCREEN ---
+# --- GİRİŞ EKRANI ---
 if not st.session_state.authenticated:
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -95,16 +97,21 @@ if not st.session_state.authenticated:
         st.markdown("### Davetiye Usulü Giriş")
         st.info("Bu uygulama şu an kapalı beta test aşamasındadır.")
         
+        # on_change, Enter'a basınca tetikler
         st.text_input("Giriş Kodu:", type="password", key="password_input", on_change=check_password)
-        st.button("Giriş Yap", on_click=check_password)
+        
+        # Butona basınca da kontrol et
+        if st.button("Giriş Yap"):
+            check_password()
+            
         st.markdown("</div>", unsafe_allow_html=True)
     st.stop() 
 
 # ==========================================
-# 🚀 MAIN APPLICATION (Only runs if Authenticated)
+# 🚀 ANA UYGULAMA (GİRİŞ BAŞARILIYSA ÇALIŞIR)
 # ==========================================
 
-# --- HEADER & HARD RESET ---
+# --- ÜST BAR VE RESET BUTONU ---
 col_title, col_reset = st.columns([5, 1])
 
 with col_title:
@@ -114,14 +121,13 @@ with col_title:
 with col_reset:
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("🔄 SİSTEMİ SIFIRLA", type="secondary", help="Tüm verileri siler ve sayfayı yeniler."):
-        # Increment counter to force-refresh paste buttons
         new_count = st.session_state.get("reset_counter", 0) + 1
         st.session_state.clear()
         st.session_state["reset_counter"] = new_count
-        st.session_state["authenticated"] = True # Keep logged in after reset
+        st.session_state["authenticated"] = True # Oturumu açık tut
         st.rerun()
 
-# --- 1. API KEY POOL MANAGEMENT ---
+# --- 1. API KEY HAVUZU YÖNETİMİ ---
 api_keys = []
 
 if "GOOGLE_API_KEY" in st.secrets:
@@ -134,7 +140,7 @@ if "GOOGLE_API_KEY" in st.secrets:
 with st.sidebar:
     st.header("🔑 Anahtar Havuzu")
 
-    # --- KEY HEALTH CHECK ---
+    # --- ANAHTAR TEST MODÜLÜ ---
     st.sidebar.markdown("---")
     st.sidebar.subheader("🔍 Durum Kontrolü")
     
@@ -162,13 +168,13 @@ with st.sidebar:
             progress_bar.progress((i + 1) / len(api_keys))
         st.sidebar.success("Kontrol Tamamlandı.")
     
-    # --- LOGOUT BUTTON ---
+    # --- ÇIKIŞ BUTONU ---
     st.sidebar.markdown("---")
     if st.sidebar.button("🚪 Çıkış Yap"):
         st.session_state.authenticated = False
         st.rerun()
 
-# --- 2. INITIAL MODEL SELECTION ---
+# --- 2. BAŞLANGIÇ MODEL SEÇİMİ ---
 valid_model_name = None
 working_key = None
 
@@ -197,7 +203,7 @@ if not valid_model_name:
     st.error("❌ Hiçbir anahtar ile modele bağlanılamadı.")
     st.stop()
 
-# --- 3. FAILOVER REQUEST FUNCTION ---
+# --- 3. FAILOVER İSTEK FONKSİYONU ---
 def make_resilient_request(content_input, keys_list):
     last_error = None
     if working_key in keys_list:
@@ -241,13 +247,12 @@ for cat in ["Derinlik", "AKD", "Kademe", "Takas"]:
         st.session_state[f"pasted_{cat}"] = []
 
 # ==========================================
-# 🐦 SIDEBAR: X (TWITTER) BROWSER (MANUAL ONLY)
+# 🐦 YAN MENÜ: X (TWITTER) TARAYICI
 # ==========================================
 with st.sidebar:
     st.markdown("---")
     st.header("𝕏 (#Hashtag) Tarayıcı")
     
-    # --- MANUAL ENTRY ONLY ---
     raw_ticker = st.text_input("Hisse Kodu Giriniz (Örn: THYAO)", "THYAO").upper()
     clean_ticker = raw_ticker.replace("#", "").replace("$", "").strip()
     
