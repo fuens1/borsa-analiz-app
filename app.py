@@ -65,7 +65,7 @@ col_title, col_reset = st.columns([5, 1])
 
 with col_title:
     st.title("🐋 BIST Yapay Zeka Analiz PRO")
-    st.info("Küçük Yatırımcı'nın Büyüdüğü Bir Evren..")
+    st.info("Küçük Yatırımcının Büyüdüğü Bir Evren..")
 
 with col_reset:
     st.markdown("<br>", unsafe_allow_html=True)
@@ -488,4 +488,5 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
             except Exception as e:
                 st.error("Sohbet sırasında hata oluştu.")
+
 
