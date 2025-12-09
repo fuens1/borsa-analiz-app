@@ -104,15 +104,15 @@ with st.sidebar:
                 if not models: raise Exception("Liste boş")
                 
                 masked_key = f"{key[:4]}...{key[-4:]}"
-                st.sidebar.markdown(f"🔑 `{masked_key}` : <span class='key-status-pass'>✅ AKTİF</span>", unsafe_allow_html=True)
+                st.sidebar.markdown(f" <span class='key-status-pass'>✅ AKTİF</span>", unsafe_allow_html=True)
                 
             except Exception as e:
                 masked_key = f"{key[:4]}...{key[-4:]}"
                 err_msg = str(e)
                 if "429" in err_msg or "quota" in err_msg.lower():
-                    st.sidebar.markdown(f"🔑 `{masked_key}` : <span class='key-status-limit'>🛑 KOTA DOLU</span>", unsafe_allow_html=True)
+                    st.sidebar.markdown(f"<span class='key-status-limit'>🛑 KOTA DOLU</span>", unsafe_allow_html=True)
                 else:
-                    st.sidebar.markdown(f"🔑 `{masked_key}` : <span class='key-status-fail'>❌ BAĞLANTI YOK</span>", unsafe_allow_html=True)
+                    st.sidebar.markdown(f"<span class='key-status-fail'>❌ BAĞLANTI YOK</span>", unsafe_allow_html=True)
             
             progress_bar.progress((i + 1) / len(api_keys))
         st.sidebar.success("Kontrol Tamamlandı.")
@@ -499,3 +499,4 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
             except Exception as e:
                 st.error("Sohbet sırasında hata oluştu.")
+
