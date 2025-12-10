@@ -218,7 +218,7 @@ if fetch_btn:
         headers = {'User-Agent': 'Mozilla/5.0'}
         
         with st.spinner(f"{api_ticker_input} Verileri Çekiliyor..."):
-            url_depth = f"https://webapi.hisseplus.com/api/v1/kademe?sembol={api_ticker_input}"
+            url_depth = f"https://webapi.hisseplus.com/api/v1/derinlik?sembol={api_ticker_input}"
             r_depth = requests.get(url_depth, headers=headers)
             st.session_state.api_depth_data = r_depth.json() if r_depth.status_code == 200 else None
             
@@ -899,3 +899,4 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role": "assistant", "content": resp})
             except Exception as e: st.error(f"Hata: {e}")
+
