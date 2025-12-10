@@ -542,103 +542,137 @@ with c1:
         has_a = add_imgs(img_a, st.session_state["pasted_AKD"], st.session_state.tg_img_akd)
         has_k = add_imgs(img_k, st.session_state["pasted_Kademe"], st.session_state.tg_img_kademe)
         has_t = add_imgs(img_t, st.session_state["pasted_Takas"], st.session_state.tg_img_takas)
+       
+       # --- VERİ VARLIK KONTROLLERİ ---
+        # Hangi verilerin elimizde olduğunu tespit ediyoruz
+        is_depth_avail = has_d or st.session_state.api_depth_data
+        is_akd_avail = has_a or st.session_state.api_akd_data
+        is_kademe_avail = has_k
+        is_takas_avail = has_t
         
         # --- PROMPT MİMARİSİ ---
         base_role = f"""
         Sen Borsa Uzmanısın ve Kıdemli Veri Analistisin.
-        GÖREV: Verilen Görselleri (Derinlik, Aracı Kurum Dağılımı, Takas, Kademe), CANLI API VERİLERİNİ ve GÜNLÜK HABERLERİ birleştirerek yorumla.
+        GÖREV: SADECE sana sağlanan görselleri ve verileri kullanarak analiz yap.
         🚨 Hisse kodunu görselden veya veriden tespit et.
-        Fotoğrafı yüklemediğim verileri asla analiz sonucunda gösterme!
         
         --- MEVCUT VERİ SETİ ---
         {context_str}
         
-        --- ⚠️ RENK VE FORMAT KURALLARI (KESİN UYULACAK) ---
-        1. 🚫 **YASAK:** "Mevcut Veri Seti Bilgilendirmesi", "Veri kaynağı şudur", "API yoktur" gibi giriş cümleleri veya başlıkları **KESİNLİKLE YAZMA.**
-        2. 🏁 **BAŞLANGIÇ:** Hiçbir önsöz olmadan **DOĞRUDAN** seçilen modun 1. maddesi (örneğin "1. DERİNLİK ANALİZİ") ile başla.
-        3. 📝 **BİÇİM:** ASLA PARAGRAF YAZMA. Raporun tamamı madde madde olacak.
-        4. 🎨 **RENK:** Aşağıdaki renk etiketlerini analizlerinde mutlaka kullan:
-           * ✅ :green[**OLUMLU**]
-           * 🔵 :blue[**NÖTR**]
-           * 🔻 :red[**OLUMSUZ**]
+        --- ⚠️ KRİTİK KURALLAR (HAYATİ ÖNEM TAŞIR) ---
+        1. 🚫 **YASAK:** Elimizde verisi olmayan hiçbir başlığı rapora ekleme. Örneğin; AKD verisi yoksa, raporda "AKD Analizi" diye bir başlık ASLA olmayacak. O kısmı tamamen yok say. "Veri yok" yazıp maddeleme yapma.
+        2. 🚫 **YASAK:** "Mevcut Veri Seti Bilgilendirmesi" veya giriş cümlesi yazma. Direkt analize başla.
+        3. 📝 **BİÇİM:** ASLA PARAGRAF YAZMA. Madde madde ilerle.
+        4. 🎨 **RENK:** :green[**OLUMLU**], :blue[**NÖTR**], :red[**OLUMSUZ**] etiketlerini kullan.
         """
 
         # ==========================================
-        # ⚡ SADE MOD PROMPTU
+        # ⚡ SADE MOD PROMPTU (DİNAMİK OLUŞTURMA)
         # ==========================================
         if "SADE" in analysis_mode:
-            prompt = base_role + """
+            # Başlıkları dinamik olarak ekliyoruz. Veri yoksa string boş kalır.
+            req_sections = ""
+            
+            if is_depth_avail:
+                req_sections += """
+                ## 💹 DERİNLİK ANALİZİ (EN AZ 10 MADDE)
+                (Alıcı/Satıcı dengesi, bekleyen emirler, baskı durumu, kademe doluluğu vb.)
+                """
+            
+            if is_akd_avail:
+                req_sections += """
+                ## 🤵 AKD (ARACI KURUM) ANALİZİ (EN AZ 10 MADDE)
+                (Kim alıyor, kim satıyor, maliyetler, toplu/dağınık durumu vb.)
+                """
+            
+            if is_kademe_avail:
+                req_sections += """
+                ## 📊 KADEME ANALİZİ (EN AZ 10 MADDE)
+                (İşlem yoğunluğu, aktif alıcılar, pasif satıcılar, işlem geçen fiyatlar vb.)
+                """
+            
+            if is_takas_avail:
+                req_sections += """
+                ## 🌍 TAKAS ANALİZİ (EN AZ 10 MADDE)
+                (Yabancı durumu, haftalık değişimler, saklama oranları vb.)
+                """
+
+            prompt = base_role + f"""
             
             --- ⚡ SADE MOD SEÇİLDİ ---
-            Aşağıdaki başlıkları eksiksiz analiz et. Her başlık altında **EN AZ 10 MADDE** yazmak zorundasın.
+            Sadece aşağıdaki başlıkları analiz et. (Eğer aşağıda bir başlık yoksa, o veriyi analiz etme).
 
-            ## 1. 💹 DERİNLİK ANALİZİ (EN AZ 10 MADDE)
-            (Alıcı/Satıcı dengesi, bekleyen emirler, baskı durumu vb. detaylandır.)
+            {req_sections}
 
-            ## 2. 🤵 AKD (ARACI KURUM) ANALİZİ (EN AZ 10 MADDE)
-            (Kim alıyor, kim satıyor, maliyetler, toplu/dağınık durumu vb.)
-
-            ## 3. 📊 KADEME ANALİZİ (EN AZ 10 MADDE)
-            (İşlem yoğunluğu, aktif alıcılar, pasif satıcılar vb.)
-
-            ## 4. 🌍 TAKAS ANALİZİ (EN AZ 10 MADDE)
-            (Yabancı durumu, haftalık değişimler, saklama oranları vb.)
-
-            ## 5. 🛡️ GÜÇLÜ/ZAYIF DESTEK VE DİRENÇ ANALİZİ
+            ## 🛡️ GÜÇLÜ/ZAYIF DESTEK VE DİRENÇ ANALİZİ
             (Grafik ve derinlik verilerine bakarak EN AZ 15 ADET Destek seviyesi ve EN AZ 15 ADET Direnç seviyesi yaz.)
             * :green[**Destekler:** ...]
             * :red[**Dirençler:** ...]
 
-            ## 6. 🐋 GENEL SENTEZ (BALİNA İZİ)
+            ## 🐋 GENEL SENTEZ (BALİNA İZİ)
             (Büyük oyuncuların ne yapmaya çalıştığını madde madde özetle. En az 10 madde.)
 
-            ## 7. 🧭 YÖN / FİYAT OLASILIĞI (DETAYLI SENARYO)
-            (Hissenin gitmek istediği yönü, teknik ve takas gerekçeleriyle anlat.)
+            ## 🧭 YÖN / FİYAT OLASILIĞI (DETAYLI SENARYO)
+            (Hissenin gitmek istediği yönü anlat.)
             * **📈 Yükseliş İhtimali:** %...
             * **📉 Düşüş İhtimali:** %...
             * **Hedef Fiyatlar ve Stop Bölgeleri:** ...
 
-            ## 8. 💯 SKOR KARTI & TRENDMETRE (TABLO)
-            (Markdown Tablosu olarak yap. Tablonun içindeki yazıları renklendir.)
+            ## 💯 SKOR KARTI & TRENDMETRE (TABLO)
+            (Markdown Tablosu olarak yap. Sadece analizi yapılan verileri tabloya koy.)
             | Parametre | Durum | Puan (0-10) |
             |---|---|---|
-            | Derinlik | ... | ... |
-            | AKD | ... | ... |
-            | Momentum | ... | ... |
+            | (Mevcut Veriler) | ... | ... |
 
-            ## 9. 🚀 İŞLEM PLANI (STRATEJİ)
+            ## 🚀 İŞLEM PLANI (STRATEJİ)
             (Kısa, Orta ve Uzun vade stratejilerini madde madde yaz.)
             """
 
         # ==========================================
-        # 🧠 GELİŞMİŞ MOD PROMPTU
+        # 🧠 GELİŞMİŞ MOD PROMPTU (DİNAMİK OLUŞTURMA)
         # ==========================================
         else:
             limit_txt = f"(DİKKAT: EN AZ {max_items} TANE MADDELİ ANALİZ YAP.)"
+            
+            # Dinamik Ana Başlıklar
+            main_headers = ""
+            if is_depth_avail: main_headers += f"## 📸 DERİNLİK ANALİZİ {limit_txt}\n"
+            if is_akd_avail: main_headers += f"## 🏦 AKD ANALİZİ {limit_txt}\n"
+            if is_kademe_avail: main_headers += f"## 📊 KADEME ANALİZİ {limit_txt}\n"
+            if is_takas_avail: main_headers += f"## 🌍 TAKAS ANALİZİ {limit_txt}\n"
+
             prompt = base_role + f"""
             
             --- 🧠 GELİŞMİŞ (ULTRA DETAY) MOD SEÇİLDİ ---
-            Aşağıdaki tüm 50 maddelik kontrol listesini tek tek uygula.
             
             --- İSTENEN RAPOR BAŞLIKLARI ---
-            ## 📸 DERİNLİK ANALİZİ {limit_txt}
-            ## 🏦 AKD ANALİZİ {limit_txt}
-            ## 📊 KADEME ANALİZİ {limit_txt}
-            ## 🌍 TAKAS ANALİZİ {limit_txt}
+            {main_headers}
 
-            --- 🕵️‍♂️ MİKRO-YAPISAL ANALİZ (BU SORULARA DETAYLI CEVAP VER) ---
-            (Aşağıdaki 50 maddenin hepsini tek tek incele)
+            --- 🕵️‍♂️ MİKRO-YAPISAL ANALİZ ---
+            GÖREV: Aşağıdaki 50 maddelik listeden, **SADECE ELİMİZDEKİ VERİLERLE CEVAPLANABİLECEK OLANLARI** seç ve analiz et.
+            ❌ Eğer bir maddenin cevabı görsellerde yoksa, o maddeyi rapora HİÇ YAZMA, ATLA.
+            
+            (Kontrol Listesi Referansı - Sadece verisi olanları al):
+            1. 💰 GÜNÜN AĞIRLIKLI MALİYET ANALİZİ (KADEME)
+            2. 🤖 ROBOT VE ALGORİTMA TARAYICISI (AKD)
+            3. 👑 TAHTA YAPICININ KAR/ZARAR DURUMU
+            4. 🎭 ALGI YÖNETİMİ & TUZAK RADARI
+            5. 🥊 "DİĞER"LER SAVAŞI (AKD)
+            6. 🏦 TAKAS - AKD UYUMSUZLUĞU
+            7. 🕵️‍♂️ VİRMANLI ALIM TESPİTİ
+            8. 📊 TAKAS KONSANTRASYONU
+            9. 🧱 SATIŞ DUVARI (DERİNLİK)
+            10. 🌡️ ANLIK BASKI DENGESİ (DERİNLİK)
+            ... (Ve diğer tüm teknik maddeler. Sadece verisi olanı yorumla, gerisini sil.)
+            
+            --- FİNAL ---
+            ## 🐋 GENEL SENTEZ
+            ## 🧭 YÖN / FİYAT OLASILIĞI
+            ## 💯 SKOR KARTI & TRENDMETRE (TABLO - Sadece Verisi Olanlar)
+            ## 🚀 İŞLEM PLANI
+            """
 
-            ## 1. 💰 GÜNÜN AĞIRLIKLI MALİYET ANALİZİ (KADEME)
-            ## 2. 🤖 ROBOT VE ALGORİTMA TARAYICISI (AKD)
-            ## 3. 👑 TAHTA YAPICININ KAR/ZARAR DURUMU
-            ## 4. 🎭 ALGI YÖNETİMİ & TUZAK RADARI
-            ## 5. 🥊 "DİĞER"LER SAVAŞI (KÜÇÜK YATIRIMCI ANALİZİ)
-            ## 6. 🏦 TAKAS - AKD UYUMSUZLUĞU (SAKLAMA ANALİZİ)
-            ## 7. 🕵️‍♂️ VİRMANLI ALIM TESPİTİ
-            ## 8. 📊 TAKAS KONSANTRASYONU (MAL KİMDE?)
-            ## 9. 🧱 SATIŞ DUVARI VE PSİKOLOJİK DİRENÇ
-            ## 10. 🌡️ ANLIK BASKI DENGESİ (DERİNLİK ANALİZİ)
+        input_data.append(prompt)
             ## 11. ⚖️ AOF (AĞIRLIKLI ORTALAMA) SAPMASI
             ## 12. ✂️ MAKAS (SPREAD) VE LİKİDİTE RİSKİ
             ## 13. 🏹 AGRESİF vs. PASİF İŞLEM (KADEME)
@@ -791,6 +825,7 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role": "assistant", "content": resp})
             except Exception as e: st.error(f"Hata: {e}")
+
 
 
 
