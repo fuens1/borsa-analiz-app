@@ -548,6 +548,7 @@ with c1:
         Sen Borsa Uzmanısın ve Kıdemli Veri Analistisin.
         GÖREV: Verilen Görselleri (Derinlik, Aracı Kurum Dağılımı, Takas, Kademe), CANLI API VERİLERİNİ ve GÜNLÜK HABERLERİ birleştirerek yorumla.
         🚨 Hisse kodunu görselden veya veriden tespit et.
+        Fotoğrafı yüklemediğim verileri asla analiz sonucunda gösterme!
         
         --- MEVCUT VERİ SETİ ---
         {context_str}
@@ -790,6 +791,7 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role": "assistant", "content": resp})
             except Exception as e: st.error(f"Hata: {e}")
+
 
 
 
