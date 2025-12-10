@@ -7,7 +7,6 @@ import io
 import json
 import os
 import requests
-import pandas as pd
 import base64
 from urllib.parse import quote
 
@@ -36,7 +35,6 @@ except ImportError:
 # 🔐 AYARLAR VE FIREBASE BAĞLANTISI
 # ==========================================
 CONFIG_FILE = "site_config.json"
-# KENDİ URL'İNİ KONTROL ET
 FIREBASE_DB_URL = 'https://borsakopru-default-rtdb.firebaseio.com/' 
 
 def init_firebase():
@@ -447,6 +445,7 @@ def handle_paste(cat):
         if res.image_data is not None:
             if not st.session_state[f"pasted_{cat}"] or st.session_state[f"pasted_{cat}"][-1] != res.image_data:
                 st.session_state[f"pasted_{cat}"].append(res.image_data)
+
 def show_images(cat):
     """Yapıştırılan görselleri ve silme butonlarını gösterir"""
     if st.session_state[f"pasted_{cat}"]:
@@ -469,12 +468,6 @@ def show_images(cat):
             st.session_state[f"pasted_{cat}"] = []
             st.rerun()
 
-def show_images(cat):
-    if st.session_state[f"pasted_{cat}"]:
-        cols = st.columns(3)
-        for i, img in enumerate(st.session_state[f"pasted_{cat}"]):
-            cols[i%3].image(img, width=100)
-
 # ==========================================
 # 🖼️ GÖRSEL YÖNETİM PANELİ (GÜNCELLENDİ)
 # ==========================================
@@ -494,18 +487,22 @@ def render_category_panel(title, cat_name, tg_session_key, uploader_key):
     
     # --- 2. DOSYA YÜKLEME ---
     # File uploader zaten kendi içinde silme (X) özelliğine sahiptir.
-    st.file_uploader("Dosya Yükle", type=["jpg","png","jpeg"], key=uploader_key, accept_multiple_files=True)
+    uploaded_files = st.file_uploader("Dosya Yükle", type=["jpg","png","jpeg"], key=uploader_key, accept_multiple_files=True)
     
     # --- 3. YAPIŞTIRMA VE GALERİ ---
     handle_paste(cat_name) # Yapıştır butonu
     show_images(cat_name)  # Yapıştırılanları ve silme butonlarını göster
+    
+    # DÜZELTME: Yüklenen dosyaları return ediyoruz ki aşağıda kullanabilelim.
+    return uploaded_files
 
 # İki Kolonlu Yapı
 col1, col2 = st.columns(2)
 
 with col1:
     # Sol Kolon: Derinlik ve Kademe
-    render_category_panel(
+    # DÜZELTME: Dönüş değerini değişkene atıyoruz
+    img_d = render_category_panel(
         title="1. Derinlik 💹", 
         cat_name="Derinlik", 
         tg_session_key="tg_img_derinlik", 
@@ -514,7 +511,7 @@ with col1:
     
     st.markdown("---") # Ayırıcı
     
-    render_category_panel(
+    img_k = render_category_panel(
         title="3. Kademe 📊", 
         cat_name="Kademe", 
         tg_session_key="tg_img_kademe", 
@@ -523,7 +520,7 @@ with col1:
 
 with col2:
     # Sağ Kolon: AKD ve Takas
-    render_category_panel(
+    img_a = render_category_panel(
         title="2. AKD 🤵", 
         cat_name="AKD", 
         tg_session_key="tg_img_akd", 
@@ -532,7 +529,7 @@ with col2:
     
     st.markdown("---") # Ayırıcı
     
-    render_category_panel(
+    img_t = render_category_panel(
         title="4. Takas 🌍", 
         cat_name="Takas", 
         tg_session_key="tg_img_takas", 
@@ -572,6 +569,7 @@ with c1:
             if tg_img: input_data.append(tg_img); added=True
             return added
 
+        # DÜZELTME: Artık img_d, img_a vb. yukarıda tanımlı olduğu için NameError vermeyecek.
         has_d = add_imgs(img_d, st.session_state["pasted_Derinlik"], st.session_state.tg_img_derinlik)
         has_a = add_imgs(img_a, st.session_state["pasted_AKD"], st.session_state.tg_img_akd)
         has_k = add_imgs(img_k, st.session_state["pasted_Kademe"], st.session_state.tg_img_kademe)
@@ -668,5 +666,3 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role":"assistant", "content":resp})
             except: st.error("Hata.")
-
-
