@@ -10,7 +10,9 @@ import requests
 import base64
 from urllib.parse import quote
 
-# Kütüphane Kontrolleri
+# ==========================================
+# 📦 KÜTÜPHANE KONTROLLERİ
+# ==========================================
 try:
     from streamlit_paste_button import paste_image_button
     PASTE_ENABLED = True
@@ -542,8 +544,8 @@ with c1:
         has_a = add_imgs(img_a, st.session_state["pasted_AKD"], st.session_state.tg_img_akd)
         has_k = add_imgs(img_k, st.session_state["pasted_Kademe"], st.session_state.tg_img_kademe)
         has_t = add_imgs(img_t, st.session_state["pasted_Takas"], st.session_state.tg_img_takas)
-       
-       # --- VERİ VARLIK KONTROLLERİ ---
+        
+        # --- VERİ VARLIK KONTROLLERİ ---
         # Hangi verilerin elimizde olduğunu tespit ediyoruz
         is_depth_avail = has_d or st.session_state.api_depth_data
         is_akd_avail = has_a or st.session_state.api_akd_data
@@ -612,19 +614,19 @@ with c1:
             ## 🐋 GENEL SENTEZ (BALİNA İZİ)
             (Büyük oyuncuların ne yapmaya çalıştığını madde madde özetle. En az 10 madde.)
 
-            ## 🧭 YÖN / FİYAT OLASILIĞI (DETAYLI SENARYO)
+            ## 7. 🧭 YÖN / FİYAT OLASILIĞI (DETAYLI SENARYO)
             (Hissenin gitmek istediği yönü anlat.)
             * **📈 Yükseliş İhtimali:** %...
             * **📉 Düşüş İhtimali:** %...
             * **Hedef Fiyatlar ve Stop Bölgeleri:** ...
 
-            ## 💯 SKOR KARTI & TRENDMETRE (TABLO)
+            ## 8. 💯 SKOR KARTI & TRENDMETRE (TABLO)
             (Markdown Tablosu olarak yap. Sadece analizi yapılan verileri tabloya koy.)
             | Parametre | Durum | Puan (0-10) |
             |---|---|---|
             | (Mevcut Veriler) | ... | ... |
 
-            ## 🚀 İŞLEM PLANI (STRATEJİ)
+            ## 9. 🚀 İŞLEM PLANI (STRATEJİ)
             (Kısa, Orta ve Uzun vade stratejilerini madde madde yaz.)
             """
 
@@ -673,52 +675,6 @@ with c1:
             """
 
         input_data.append(prompt)
-            ## 11. ⚖️ AOF (AĞIRLIKLI ORTALAMA) SAPMASI
-            ## 12. ✂️ MAKAS (SPREAD) VE LİKİDİTE RİSKİ
-            ## 13. 🏹 AGRESİF vs. PASİF İŞLEM (KADEME)
-            ## 14. 🐋 LOT BÜYÜKLÜĞÜ ANALİZİ (BALİNA İZİ)
-            ## 15. 🕳️ KADEMELERDEKİ 'HAVA BOŞLUKLARI'
-            ## 16. ⚔️ ALICI / SATICI GÜÇ RASYOSU (AKD)
-            ## 17. 📍 POC (POINT OF CONTROL) ANALİZİ
-            ## 18. 🧠 PSİKOLOJİK RAKAM SAVAŞLARI
-            ## 19. 🤝 EKÜRİ (PASLAŞAN) KURUMLAR ANALİZİ
-            ## 20. 📉 PANİK SATIŞI İZLERİ
-            ## 21. 🕒 KREDİLİ İŞLEM KURUMLARI
-            ## 22. 🪜 MERDİVEN (STEP-UP) DESTEK ANALİZİ
-            ## 23. 🩸 DİPTEN DÖNÜŞ VAR MI?
-            ## 24. 🧢 TAVAN / TABAN KİLİT POTANSİYELİ
-            ## 25. 🧬 GERÇEK YABANCI MI, BIYIKLI YABANCI MI?
-            ## 26. 🏎️ İŞLEM YOĞUNLUĞU GÖRSELİ
-            ## 27. 🧱 BLOK SATIŞ KARŞILAMA
-            ## 28. ⚖️ ORTALAMA MALİYET YÜKSELTME (MARKUP)
-            ## 29. 🧮 GİZLİ TOPLAMA OPERASYONU
-            ## 30. 🏛️ KURUM KARAKTER ANALİZİ
-            ## 31. 🧊 GİZLİ EMİR (ICEBERG) TESPİTİ
-            ## 32. 🌪️ HACİM / FİYAT UYUMSUZLUĞU (CHURNING)
-            ## 33. 🚫 ALIM/SATIM İPTALİ
-            ## 34. 🔄 GÜN İÇİ DÖNÜŞ (REVERSAL) SİNYALİ
-            ## 35. 💰 NET PARA GİRİŞ/ÇIKIŞ GÖRÜNTÜSÜ
-            ## 36. 📉 GAP (FİYAT BOŞLUĞU) RİSKİ
-            ## 37. 🛡️ PİVOT SEVİYESİ KONUMU
-            ## 38. 🎢 KADEME DOLULUĞU
-            ## 39. 🏦 BofA ETKİSİ
-            ## 40. ⏳ KAPANIŞA DOĞRU DURUM
-            ## 41. ♻️ DEVİR HIZI ANALİZİ
-            ## 42. 🕸️ DESTEK ALTI İŞLEM HACMİ
-            ## 43. 📅 TAKAS SAKLAMA DEĞİŞİMİ
-            ## 44. 📊 ENDEKSE DUYARLILIK
-            ## 45. 📐 DERİNLİK EĞİM (SLOPE) ANALİZİ
-            ## 46. 🌑 KARANLIK ODA TAHMİNİ
-            ## 47. 🕯️ İŞLEM SIKLIĞI
-            ## 48. 🏗️ KURUMSAL vs. BİREYSEL SAVAŞI
-            ## 49. 🚩 GÜN İÇİ FORMASYON
-            ## 50. 💎 ELMAS DEĞERİNDE SON SÖZ
-            ## 🐋 GENEL SENTEZ
-            ## 🧭 YÖN / FİYAT OLASILIĞI
-            ## 💯 SKOR KARTI & TRENDMETRE (TABLO)
-            ## 🚀 İŞLEM PLANI
-
-        input_data.append(prompt)
         
         # Eğer ne görsel ne API yoksa
         count = 0
@@ -728,7 +684,7 @@ with c1:
         if has_t: count += 1
         
         if count == 0 and not context_str:
-            st.warning("⚠️ Lütfen  için veri yükleyin (Görsel, API veya Telegram).")
+            st.warning("⚠️ Lütfen analiz için veri yükleyin (Görsel, API veya Telegram).")
         else:
             # 🔥 HIZLANDIRMA 2: Streaming (Canlı Akış)
             # Spinner yerine canlı yazı akışı
@@ -820,11 +776,3 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role": "assistant", "content": resp})
             except Exception as e: st.error(f"Hata: {e}")
-
-
-
-
-
-
-
-
