@@ -12,6 +12,27 @@ from urllib.parse import quote
 
 st.markdown("""
 <style>
+    /* 1. Sağ Üst Menüyü Gizle */
+    .stAppDeployButton {display:none;}
+    div[data-testid="stToolbar"] {visibility: hidden; height: 0%; position: fixed;}
+    div[data-testid="stDecoration"] {visibility: hidden; height: 0%; position: fixed;}
+    div[data-testid="stStatusWidget"] {visibility: hidden; height: 0%; position: fixed;}
+
+    /* 2. Sağ Alt (Footer) ve "Made with Streamlit" Yazısını Gizle */
+    footer {visibility: hidden;}
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+
+    /* 3. Özel Olarak Sağ Alttaki Viewer Badge'i (Gözlemci Rozeti) Gizle */
+    .viewerBadge_container__1QSob {display: none;}
+    
+    /* Alternatif genel gizleme (Garanti olsun diye) */
+    [data-testid="stFooter"] {display: none;}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<style>
     /* Sağ üstteki Hamburger Menüyü (Üç Çizgi) Gizle */
     .stAppDeployButton {display:none;}
     div[data-testid="stToolbar"] {visibility: hidden; height: 0%; position: fixed;}
@@ -866,4 +887,5 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role": "assistant", "content": resp})
             except Exception as e: st.error(f"Hata: {e}")
+
 
