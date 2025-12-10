@@ -380,7 +380,7 @@ def get_model(key):
         genai.configure(api_key=key)
         models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
         for m in models: 
-            if "gemini-1.5-flash" in m and "002" in m: return m
+            if "gemini-1.5-flash" in m: return m
         return models[0] if models else None
     except: return None
 
@@ -395,24 +395,12 @@ if not valid_model_name:
     st.error("❌ Aktif Model Bulunamadı.")
     st.stop()
 
-def make_resilient_request(content, keys):
-    global working_key
-    local_keys = keys.copy()
-    if working_key in local_keys:
-        local_keys.remove(working_key)
-        local_keys.insert(0, working_key)
-    for k in local_keys:
-        try:
-            genai.configure(api_key=k)
-            model = genai.GenerativeModel(valid_model_name)
-            resp = model.generate_content(content)
-            st.session_state.active_working_key = k
-            working_key = k
-            return resp.text
-        except Exception as e:
-            if "429" in str(e) or "quota" in str(e).lower(): continue
-            else: raise e
-    raise Exception("Tüm kotalar dolu.")
+# 🔥 HIZLANDIRMA 1: Görsel Sıkıştırma Fonksiyonu
+def compress_image(image, max_size=(800, 800)):
+    """Görselleri analiz için küçültür ve hızlandırır"""
+    if image.mode in ("RGBA", "P"): image = image.convert("RGB")
+    image.thumbnail(max_size, Image.Resampling.LANCZOS)
+    return image
 
 # --- YENİ HABER ÇEKME ---
 def fetch_stock_news(symbol):
@@ -508,7 +496,8 @@ st.markdown("---")
 c1, c2 = st.columns([1, 1])
 with c2:
     is_summary = st.toggle("⚡ KISA ÖZET", value=False)
-    max_items = 5 if is_summary else st.slider("Madde Limiti", 5, 30, 20)
+    # GÜNCELLEME: Başlık uyarısını güçlendirdik
+    max_items = 5 if is_summary else st.slider("Analiz Başına Hedef Madde Sayısı", 5, 30, 15)
 
 with c1:
     st.markdown("<br>", unsafe_allow_html=True)
@@ -523,7 +512,7 @@ with c1:
         if st.session_state.api_akd_data:
             context_str += f"\n\n--- CANLI AKD API VERİSİ (HissePlus) ---\n{json.dumps(st.session_state.api_akd_data, indent=2, ensure_ascii=False)}"
 
-        # 2. Haberler (TEK DİNAMİK VERİ - İSTEK ÜZERİNE KALDI)
+        # 2. Haberler
         if NEWS_ENABLED:
             with st.spinner("Haberler taranıyor..."):
                 news_text = fetch_stock_news(api_ticker_input)
@@ -531,9 +520,9 @@ with c1:
 
         def add_imgs(fl, pl, tg_img):
             added = False
-            if fl: [input_data.append(Image.open(f)) for f in fl]; added=True
-            if pl: [input_data.append(i) for i in pl]; added=True
-            if tg_img: input_data.append(tg_img); added=True
+            if fl: [input_data.append(compress_image(Image.open(f))) for f in fl]; added=True
+            if pl: [input_data.append(compress_image(i)) for i in pl]; added=True
+            if tg_img: input_data.append(compress_image(tg_img)); added=True
             return added
 
         has_d = add_imgs(img_d, st.session_state["pasted_Derinlik"], st.session_state.tg_img_derinlik)
@@ -541,6 +530,7 @@ with c1:
         has_k = add_imgs(img_k, st.session_state["pasted_Kademe"], st.session_state.tg_img_kademe)
         has_t = add_imgs(img_t, st.session_state["pasted_Takas"], st.session_state.tg_img_takas)
         
+        # GÜNCELLEME: Madde sayısı emri güçlendirildi
         sections = ""
         if is_summary:
             if has_d or st.session_state.api_depth_data: sections += "## 💹 DERİNLİK ÖZETİ (3-5 Madde)\n"
@@ -548,12 +538,13 @@ with c1:
             if has_k: sections += "## 📊 KADEME ÖZETİ\n"
             if has_t: sections += "## 🌍 TAKAS ÖZETİ\n"
         else:
-            if has_d or st.session_state.api_depth_data: sections += f"## 📸 DERİNLİK ANALİZİ (Maks {max_items}, Pozitif/Nötr/Negatif Gruplu, Renkli)\n"
-            if has_a or st.session_state.api_akd_data: sections += f"## 🏦 AKD ANALİZİ (Maks {max_items}, Pozitif/Nötr/Negatif Gruplu, Renkli)\n"
-            if has_k: sections += f"## 📊 KADEME ANALİZİ (Maks {max_items}, Alt Başlıklar)\n"
-            if has_t: sections += f"## 🌍 TAKAS ANALİZİ (Maks {max_items}, Gruplu, Renkli)\n"
+            limit_txt = f"(DİKKAT: EN AZ 5, EN ÇOK {max_items} TANE MADDELİ ANALİZ YAP. 3 tane yazıp bırakma.)"
+            if has_d or st.session_state.api_depth_data: sections += f"## 📸 DERİNLİK ANALİZİ {limit_txt} (Renkli)\n"
+            if has_a or st.session_state.api_akd_data: sections += f"## 🏦 AKD ANALİZİ {limit_txt} (Renkli)\n"
+            if has_k: sections += f"## 📊 KADEME ANALİZİ {limit_txt} (Alt Başlıklar)\n"
+            if has_t: sections += f"## 🌍 TAKAS ANALİZİ {limit_txt} (Renkli)\n"
 
-        # --- YENİLENMİŞ DEV PROMPT (50 MADDE - FOTOĞRAF ODAKLI) ---
+        # --- GÜNCELLENMİŞ DEV PROMPT (RENKLİ TABLO VE MADDE SAYISI ZORLAMALI) ---
         prompt = f"""
         Sen Borsa Uzmanısın ve Kıdemli Veri Analistisin.
         GÖREV: Verilen Görselleri (Derinlik, Aracı Kurum Dağılımı, Takas, Kademe), CANLI API VERİLERİNİ ve GÜNLÜK HABERLERİ birleştirerek profesyonelce yorumla.
@@ -561,11 +552,12 @@ with c1:
         
         --- ⚠️ KESİN FORMAT VE RENK KURALLARI (BUNA UYMAK ZORUNDASIN) ⚠️ ---
         1.  **ASLA PARAGRAF YAZMA.** Raporun tamamı (Genel Sentez dahil) madde madde ve alt alta olacak.
-        2.  Her başlığın altındaki verileri şu SIRA ve RENK kuralına göre grupla:
+        2.  **MADDE SAYISI:** Başlıkların altına yazdığın analiz maddeleri MİNİMUM 5 adet olmalı. (3 tane yazıp geçme, detaya in).
+        3.  Her başlığın altındaki verileri şu SIRA ve RENK kuralına göre grupla:
             * ✅ :green[**OLUMLU / POZİTİF:** ...Buraya hisse için iyi olan verileri, para girişlerini, alıcıları yaz...]
             * 🔵 :blue[**NÖTR / YATAY:** ...Buraya kararsız veya standart durumları yaz...]
             * 🔻 :red[**OLUMSUZ / NEGATİF:** ...Buraya riskleri, para çıkışlarını, satıcı baskısını yaz...]
-        3.  Eğer bir kategoride veri yoksa o rengi geçebilirsin ama sıralama bozulmamalı (Yeşil -> Mavi -> Kırmızı).
+        4.  Eğer bir kategoride veri yoksa o rengi geçebilirsin ama sıralama bozulmamalı (Yeşil -> Mavi -> Kırmızı).
         
         --- MEVCUT VERİ SETİ ---
         {context_str}
@@ -574,7 +566,8 @@ with c1:
         {sections}
 
         --- 🕵️‍♂️ MİKRO-YAPISAL ANALİZ (BU SORULARA ÖNCELİKLE VE DETAYLI CEVAP VER) ---
-        
+        (Bu bölümde 50 maddelik detaylı kontrol listesini uygula. Aşağıdaki maddeleri tek tek analiz et.)
+
         ## 1. 💰 GÜNÜN AĞIRLIKLI MALİYET ANALİZİ (KADEME)
         (En çok işlemin/hacmin olduğu fiyatı bul. Fiyat bunun üstünde mi altında mı?)
         * :green[Alıcıların Maliyeti Güvende (Fiyat > Yoğun İşlem Seviyesi)]
@@ -793,7 +786,14 @@ with c1:
         * **⏳ Zamanlama:** Bu hareket ne zaman bekleniyor (Anlık/Kısa/Orta Vade)?
         * **💡 Teknik Neden:** Formasyon veya indikatör ne diyor?
 
-        ## 💯 SKOR KARTI & TRENDMETRE (Tablo Olarak)
+        ## 💯 SKOR KARTI & TRENDMETRE (TABLO)
+        (Bu bölümü MUTLAKA Markdown Tablosu olarak yap. Tablonun içindeki yazıları renklendir.)
+        | Parametre | Durum (Renkli Yazılacak) | Puan (0-10) |
+        |---|---|---|
+        | Derinlik | :green[Boğa] / :red[Ayı] | 8 |
+        | AKD | :blue[Nötr] | 5 |
+        | (Diğerleri...) | ... | ... |
+        
         ## 🚀 İŞLEM PLANI (Kısa, Orta, Uzun Vade Stratejisi - Madde Madde)
         """
         
@@ -809,17 +809,57 @@ with c1:
         if count == 0 and not context_str:
             st.warning("⚠️ Lütfen  için veri yükleyin (Görsel, API veya Telegram).")
         else:
-            with st.spinner("Veriler Analiz Ediliyor.."):
+            # 🔥 HIZLANDIRMA 2: Streaming (Canlı Akış)
+            # Spinner yerine canlı yazı akışı
+            placeholder = st.empty()
+            full_response = ""
+            
+            with st.spinner("Analiz Başlatılıyor... (Akış birazdan başlayacak)"):
                 try:
-                    res = make_resilient_request(input_data, api_keys)
-                    st.session_state.analysis_result = res
-                    st.session_state.loaded_count = count
-                    st.rerun()
+                    # Key Döngüsü ve Streaming Mantığı
+                    stream_active = False
+                    
+                    # Keyleri karıştır ki hep aynı keye yük binmesin
+                    local_keys = api_keys.copy()
+                    if working_key in local_keys:
+                        local_keys.remove(working_key)
+                        local_keys.insert(0, working_key)
+                        
+                    for k in local_keys:
+                        try:
+                            genai.configure(api_key=k)
+                            model = genai.GenerativeModel(valid_model_name)
+                            # STREAMING AÇIK
+                            stream = model.generate_content(input_data, stream=True)
+                            
+                            st.session_state.active_working_key = k
+                            working_key = k
+                            stream_active = True
+                            
+                            # Akış Başlıyor
+                            for chunk in stream:
+                                if chunk.text:
+                                    full_response += chunk.text
+                                    placeholder.markdown(full_response + "▌") # İmleç efekti
+                            
+                            placeholder.markdown(full_response) # Son hali
+                            st.session_state.analysis_result = full_response
+                            st.session_state.loaded_count = count
+                            break # Başarılı olduysa döngüden çık
+                            
+                        except Exception as e:
+                            if "429" in str(e) or "quota" in str(e).lower(): continue
+                            else: st.error(f"Hata: {e}"); break
+                    
+                    if not stream_active:
+                         st.error("Tüm kotalar dolu veya bağlantı hatası.")
+                         
                 except Exception as e:
-                    st.error(f"HATA: {e}")
+                    st.error(f"Genel Hata: {e}")
 
 # --- RESULT ---
-if st.session_state.analysis_result:
+# Eğer analiz daha önce yapılmışsa (sayfa yenilenince gitmesin diye)
+if st.session_state.analysis_result and not 'placeholder' in locals():
     st.markdown("## 🐋 Kurumsal Rapor")
     st.markdown(st.session_state.analysis_result)
     st.markdown("---")
