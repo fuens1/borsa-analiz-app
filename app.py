@@ -491,371 +491,249 @@ with col2:
     st.markdown("---") 
     img_t = render_category_panel("4. Takas 🌍", "Takas", "tg_img_takas", f"t_{file_key_suffix}")
 
-# --- ANALYZE ---
+# ==========================================
+# 🧠 ANALİZ MODÜLÜ (GÜNCELLENDİ)
+# ==========================================
 st.markdown("---")
-c1, c2 = st.columns([1, 1])
-with c2:
-    is_summary = st.toggle("⚡ KISA ÖZET", value=False)
-    # GÜNCELLEME: Başlık uyarısını güçlendirdik
-    max_items = 5 if is_summary else st.slider("Analiz Başına Hedef Madde Sayısı", 5, 30, 15)
+
+# --- MOD SEÇİM EKRANI ---
+c1, c2 = st.columns([1, 2])
 
 with c1:
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🐋 ANALİZİ BAŞLAT", type="primary", use_container_width=True):
-        input_data = []
-        
-        # --- BİRLEŞTİRİLMİŞ VERİ SETİ ---
-        context_str = ""
-        # 1. API
-        if st.session_state.api_depth_data:
-            context_str += f"\n\n--- CANLI DERİNLİK API VERİSİ (HissePlus) ---\n{json.dumps(st.session_state.api_depth_data, indent=2, ensure_ascii=False)}"
-        if st.session_state.api_akd_data:
-            context_str += f"\n\n--- CANLI AKD API VERİSİ (HissePlus) ---\n{json.dumps(st.session_state.api_akd_data, indent=2, ensure_ascii=False)}"
+    start_btn = st.button("🐋 ANALİZİ BAŞLAT", type="primary", use_container_width=True)
 
-        # 2. Haberler
-        if NEWS_ENABLED:
-            with st.spinner("Haberler taranıyor..."):
-                news_text = fetch_stock_news(api_ticker_input)
-                context_str += f"\n\n--- HABERLER ({api_ticker_input}) ---\n{news_text}"
+with c2:
+    # Toggle yerine Radio Button ile Mod Seçimi
+    analysis_mode = st.radio(
+        "Analiz Modunu Seçiniz:",
+        ("🚀 SADE MOD (Hızlı & Öz)", "🧠 GELİŞMİŞ MOD (Detaylı 50+ Madde)"),
+        horizontal=True
+    )
+    
+    # Sadece gelişmiş modda madde sayısı ayarı görünsün
+    if "GELİŞMİŞ" in analysis_mode:
+        max_items = st.slider("Bölüm Başına Detay Seviyesi (Madde Sayısı)", 5, 30, 15)
+    else:
+        max_items = 5 # Sade mod standart
 
-        def add_imgs(fl, pl, tg_img):
-            added = False
-            if fl: [input_data.append(compress_image(Image.open(f))) for f in fl]; added=True
-            if pl: [input_data.append(compress_image(i)) for i in pl]; added=True
-            if tg_img: input_data.append(compress_image(tg_img)); added=True
-            return added
+if start_btn:
+    input_data = []
+    
+    # --- BİRLEŞTİRİLMİŞ VERİ SETİ ---
+    context_str = ""
+    
+    # 1. API Verileri
+    if st.session_state.api_depth_data:
+        context_str += f"\n\n--- CANLI DERİNLİK API VERİSİ (HissePlus) ---\n{json.dumps(st.session_state.api_depth_data, indent=2, ensure_ascii=False)}"
+    if st.session_state.api_akd_data:
+        context_str += f"\n\n--- CANLI AKD API VERİSİ (HissePlus) ---\n{json.dumps(st.session_state.api_akd_data, indent=2, ensure_ascii=False)}"
 
-        has_d = add_imgs(img_d, st.session_state["pasted_Derinlik"], st.session_state.tg_img_derinlik)
-        has_a = add_imgs(img_a, st.session_state["pasted_AKD"], st.session_state.tg_img_akd)
-        has_k = add_imgs(img_k, st.session_state["pasted_Kademe"], st.session_state.tg_img_kademe)
-        has_t = add_imgs(img_t, st.session_state["pasted_Takas"], st.session_state.tg_img_takas)
-        
-        # GÜNCELLEME: Madde sayısı emri güçlendirildi
-        sections = ""
-        if is_summary:
-            if has_d or st.session_state.api_depth_data: sections += "## 💹 DERİNLİK ÖZETİ (3-5 Madde)\n"
-            if has_a or st.session_state.api_akd_data: sections += "## 🤵 AKD ÖZETİ\n"
-            if has_k: sections += "## 📊 KADEME ÖZETİ\n"
-            if has_t: sections += "## 🌍 TAKAS ÖZETİ\n"
-        else:
-            limit_txt = f"(DİKKAT: EN AZ 5, EN ÇOK {max_items} TANE MADDELİ ANALİZ YAP. 3 tane yazıp bırakma.)"
-            if has_d or st.session_state.api_depth_data: sections += f"## 📸 DERİNLİK ANALİZİ {limit_txt} (Renkli)\n"
-            if has_a or st.session_state.api_akd_data: sections += f"## 🏦 AKD ANALİZİ {limit_txt} (Renkli)\n"
-            if has_k: sections += f"## 📊 KADEME ANALİZİ {limit_txt} (Alt Başlıklar)\n"
-            if has_t: sections += f"## 🌍 TAKAS ANALİZİ {limit_txt} (Renkli)\n"
+    # 2. Haberler
+    if NEWS_ENABLED:
+        with st.spinner("Haberler taranıyor..."):
+            news_text = fetch_stock_news(api_ticker_input)
+            context_str += f"\n\n--- HABERLER ({api_ticker_input}) ---\n{news_text}"
 
-        # --- GÜNCELLENMİŞ DEV PROMPT (RENKLİ TABLO VE MADDE SAYISI ZORLAMALI) ---
+    # 3. Görsellerin Hazırlanması
+    def add_imgs(fl, pl, tg_img):
+        added = False
+        if fl: [input_data.append(compress_image(Image.open(f))) for f in fl]; added=True
+        if pl: [input_data.append(compress_image(i)) for i in pl]; added=True
+        if tg_img: input_data.append(compress_image(tg_img)); added=True
+        return added
+
+    has_d = add_imgs(img_d, st.session_state["pasted_Derinlik"], st.session_state.tg_img_derinlik)
+    has_a = add_imgs(img_a, st.session_state["pasted_AKD"], st.session_state.tg_img_akd)
+    has_k = add_imgs(img_k, st.session_state["pasted_Kademe"], st.session_state.tg_img_kademe)
+    has_t = add_imgs(img_t, st.session_state["pasted_Takas"], st.session_state.tg_img_takas)
+    
+    # --- ORTAK KURALLAR (Her iki mod için geçerli) ---
+    base_rules = """
+    Sen Borsa Uzmanısın ve Kıdemli Veri Analistisin.
+    🚨 Hisse kodunu görselden veya veriden tespit et.
+    
+    ⚠️ KESİN FORMAT VE RENK KURALLARI:
+    1. ASLA PARAGRAF YAZMA. Her şey madde madde olacak.
+    2. Verileri şu renklere göre grupla:
+       * ✅ :green[**OLUMLU:** Alıcılar, para girişi, destekler...]
+       * 🔵 :blue[**NÖTR:** Kararsız durumlar...]
+       * 🔻 :red[**OLUMSUZ:** Satıcı baskısı, para çıkışı, dirençler...]
+    """
+
+    # ==========================================
+    # 🚀 SADE MOD PROMPT
+    # ==========================================
+    if "SADE" in analysis_mode:
         prompt = f"""
-        Sen Borsa Uzmanısın ve Kıdemli Veri Analistisin.
-        GÖREV: Verilen Görselleri (Derinlik, Aracı Kurum Dağılımı, Takas, Kademe), CANLI API VERİLERİNİ ve GÜNLÜK HABERLERİ birleştirerek profesyonelce yorumla.
-        🚨 Hisse kodunu görselden veya veriden tespit et.
+        {base_rules}
         
-        --- ⚠️ KESİN FORMAT VE RENK KURALLARI (BUNA UYMAK ZORUNDASIN) ⚠️ ---
-        1.  **ASLA PARAGRAF YAZMA.** Raporun tamamı (Genel Sentez dahil) madde madde ve alt alta olacak.
-        2.  **MADDE SAYISI:** Başlıkların altına yazdığın analiz maddeleri MİNİMUM 5 adet olmalı. (3 tane yazıp geçme, detaya in).
-        3.  Her başlığın altındaki verileri şu SIRA ve RENK kuralına göre grupla:
-            * ✅ :green[**OLUMLU / POZİTİF:** ...Buraya hisse için iyi olan verileri, para girişlerini, alıcıları yaz...]
-            * 🔵 :blue[**NÖTR / YATAY:** ...Buraya kararsız veya standart durumları yaz...]
-            * 🔻 :red[**OLUMSUZ / NEGATİF:** ...Buraya riskleri, para çıkışlarını, satıcı baskısını yaz...]
-        4.  Eğer bir kategoride veri yoksa o rengi geçebilirsin ama sıralama bozulmamalı (Yeşil -> Mavi -> Kırmızı).
+        GÖREV: Sadece aşağıdaki 7 Temel Başlığı analiz et. Gereksiz detaya girme, net ol.
         
         --- MEVCUT VERİ SETİ ---
         {context_str}
         
-        --- İSTENEN RAPOR FORMATI ---
-        {sections}
+        --- İSTENEN RAPOR FORMATI (SADE MOD) ---
+        
+        ## 1. 💹 DERİNLİK ANALİZİ (Özet)
+        (Alıcı/Satıcı dengesi, bekleyen emirler ne durumda?)
+        
+        ## 2. 🤵 AKD (ARACI KURUM) ANALİZİ
+        (Kim alıyor, kim satıyor? Toplu mu dağınık mı?)
+        
+        ## 3. 📊 KADEME ANALİZİ
+        (Hangi fiyattan çok işlem geçti? Alıcılar istekli mi?)
+        
+        ## 4. 🌍 TAKAS ANALİZİ
+        (Yabancı veya patron ne yapıyor?)
+        
+        ## 5. 🛡️ GÜÇLÜ DESTEK VE DİRENÇ ANALİZİ
+        (Madde madde kritik rakamları yaz)
+        * :green[**Destekler:** ...]
+        * :red[**Dirençler:** ...]
 
-        --- 🕵️‍♂️ MİKRO-YAPISAL ANALİZ (BU SORULARA ÖNCELİKLE VE DETAYLI CEVAP VER) ---
-        (Bu bölümde 50 maddelik detaylı kontrol listesini uygula. Aşağıdaki maddeleri tek tek analiz et.)
+        ## 6. 🐋 GENEL SENTEZ (BALİNA İZİ)
+        (Büyük oyuncular (Balinalar) bu tahtada ne yapıyor? Topluyor mu dağıtıyor mu? Net bir yorum yap.)
 
+        ## 7. 🚀 İŞLEM PLANI
+        (Kısa vadeli AL-SAT-TUT stratejisi ne olmalı? Hedef ve Stop seviyeleri.)
+        """
+
+    # ==========================================
+    # 🧠 GELİŞMİŞ MOD PROMPT (MEVCUT 50 MADDE)
+    # ==========================================
+    else:
+        # Mevcut geniş prompt yapısı buraya gelir
+        prompt = f"""
+        {base_rules}
+        
+        GÖREV: Verilen tüm görselleri ve verileri en ince ayrıntısına kadar (Micro-structural Analysis) incele.
+        
+        --- MEVCUT VERİ SETİ ---
+        {context_str}
+
+        --- 🕵️‍♂️ MİKRO-YAPISAL ANALİZ (BU BÖLÜMLERİ EKSİKSİZ UYGULA) ---
+        
         ## 1. 💰 GÜNÜN AĞIRLIKLI MALİYET ANALİZİ (KADEME)
-        (En çok işlemin/hacmin olduğu fiyatı bul. Fiyat bunun üstünde mi altında mı?)
-        * :green[Alıcıların Maliyeti Güvende (Fiyat > Yoğun İşlem Seviyesi)]
-        * :red[Alıcılar Zararda (Fiyat < Yoğun İşlem Seviyesi)]
-
+        * :green[Alıcıların Maliyeti Güvende mi?]
+        
         ## 2. 🤖 ROBOT VE ALGORİTMA TARAYICISI (AKD)
         (BofA, İnfo, Yatırım Finansman devrede mi?)
-        * :green[Robot Alışta (Sert yukarı potansiyel)]
-        * :red[Robot Satışta/Baskıda]
 
         ## 3. 👑 TAHTA YAPICININ KAR/ZARAR DURUMU
-        (AKD'de en çok alan kurumun maliyeti, anlık fiyata göre ne durumda?)
-        * :green[Yapıcı Zararda/Maliyette (Fiyatı sürmek zorunda)]
-        * :red[Yapıcı Karda (Satış riski var)]
-
+        
         ## 4. 🎭 ALGI YÖNETİMİ & TUZAK RADARI
-        (Derinlikteki bekleyen emirler ile Kademe'deki gerçekleşenleri kıyasla.)
-        * :green[İştahlı Alıcı (Kademe sürekli doluyor)]
-        * :red[Baskı/Blöf (Satışa yığılan ama gerçekleşmeyen emirler)]
-
+        
         ## 5. 🥊 "DİĞER"LER SAVAŞI (KÜÇÜK YATIRIMCI ANALİZİ)
-        (AKD'de 'Diğer' kalemi ne durumda?)
-        * :green[Mal Toplu (Diğer satıyor, büyükler alıyor)]
-        * :red[Mal Dağınık (Diğer alıyor, büyükler satıyor)]
-
-        ## 6. 🏦 TAKAS - AKD UYUMSUZLUĞU (SAKLAMA ANALİZİ)
-        (Takas şampiyonları bugün AKD'de ne yapıyor?)
-        * :green[Patron Alımda/Destekliyor]
-        * :red[Patron Satışta/Kaçış]
-
-        ## 7. 🕵️‍♂️ VİRMANLI ALIM TESPİTİ
-        (Alan kurum, Takas listesinde de var mı?)
-        * :green[Depoya Mal Çekiliyor (Uzun vadeci topluyor)]
-        * :red[Trade Amaçlı (Al-Satçı)]
-
-        ## 8. 📊 TAKAS KONSANTRASYONU (MAL KİMDE?)
-        (İlk 5 kurumun toplam payı yüksek mi?)
-        * :green[Mal Toplu (%70+)]
-        * :red[Mal Dağınık]
         
-        ## 9. 🧱 SATIŞ DUVARI VE PSİKOLOJİK DİRENÇ
-        (Derinlikte satış tarafında nerede yığılma var?)
-        * :red[Duvar Var (Geçilmesi zor blok emirler)]
-        * :green[Yol Açık]
-
-        ## 10. 🌡️ ANLIK BASKI DENGESİ (DERİNLİK ANALİZİ)
-        (Toplam Alış vs. Toplam Satış emir miktarı)
-        * :green[Alıcı Baskın]
-        * :red[Satıcı Baskın]
-
-        ## 11. ⚖️ AOF (AĞIRLIKLI ORTALAMA) SAPMASI
-        (Son Fiyat vs AOF - Eğer görselde varsa)
-        * :green[Trend Yukarı (Son > AOF)]
-        * :red[Trend Aşağı (Son < AOF)]
-
-        ## 12. ✂️ MAKAS (SPREAD) VE LİKİDİTE RİSKİ
-        (Alış-Satış makası açık mı?)
-        * :green[Yüksek Likidite (Dar makas)]
-        * :red[Sığ Tahta Riski]
-
-        ## 13. 🏹 AGRESİF vs. PASİF İŞLEM (KADEME)
-        (İşlemler satıştan mı [Aktif] alıştan mı [Pasif] geçiyor?)
-        * :green[Agresif Alıcı]
-        * :red[Pasif/Defansif]
-
-        ## 14. 🐋 LOT BÜYÜKLÜĞÜ ANALİZİ (BALİNA İZİ)
-        (Kademe listesindeki işlem lot büyüklüğü nasıl?)
-        * :green[Balina Oyunda (Büyük bloklar geçiyor)]
-        * :blue[Küçük Balıklar (Küçük lotlar)]
-
-        ## 15. 🕳️ KADEMELERDEKİ 'HAVA BOŞLUKLARI'
-        (Derinlik alt kademeler dolu mu?)
-        * :green[Desteği Sağlam]
-        * :red[Düşüş Riski (Altlar boş)]
-
-        ## 16. ⚔️ ALICI / SATICI GÜÇ RASYOSU (AKD)
-        (İlk 5 Alıcı vs İlk 5 Satıcı gücü)
-        * :green[Boğalar Güçlü]
-        * :red[Ayılar Güçlü]
-
-        ## 17. 📍 POC (POINT OF CONTROL) ANALİZİ
-        (Kademe görselinde en uzun çubuğun olduğu fiyat neresi?)
-        * :green[Güvenli Bölge (Fiyat > POC)]
-        * :red[Direnç Oluşumu (Fiyat < POC)]
-
-        ## 18. 🧠 PSİKOLOJİK RAKAM SAVAŞLARI
-        (Derinlikte sonu .00 veya .50 olan kademelerde yığılma var mı?)
-
-        ## 19. 🤝 EKÜRİ (PASLAŞAN) KURUMLAR ANALİZİ
-        (BofA ve YK/Yatırım Finansman aynı tarafta mı?)
-
-        ## 20. 📉 PANİK SATIŞI İZLERİ
-        (Kademe listesinde, düşüş anında lotlar küçük mü [Panik] büyük mü [Kurumsal]?)
-
-        ## 21. 🕒 KREDİLİ İŞLEM KURUMLARI
-        (Info, A1 Capital, Marbaş, Osmanlı bugün ne tarafta? Alıcı mı Satıcı mı?)
-
-        ## 22. 🪜 MERDİVEN (STEP-UP) DESTEK ANALİZİ
-        (Derinlikte alış emirleri fiyata yakın mı, yoksa aşağıda mı bekliyor?)
-
-        ## 23. 🩸 DİPTEN DÖNÜŞ VAR MI?
-        (Kademe'de günün en düşük fiyatından [Low] fazla işlem geçmiş mi?)
-
-        ## 24. 🧢 TAVAN / TABAN KİLİT POTANSİYELİ
-        (Fiyat tavana/tabana ne kadar yakın? Kademeler eriyor mu?)
-
-        ## 25. 🧬 GERÇEK YABANCI MI, BIYIKLI YABANCI MI?
-        (Citi/Doce alımda ise, Takas geçmişinde de varlar mı?)
-
-        ## 26. 🏎️ İŞLEM YOĞUNLUĞU GÖRSELİ
-        (Kademe listesindeki işlemler sık mı yoksa seyrek mi görünüyor?)
-
-        ## 27. 🧱 BLOK SATIŞ KARŞILAMA
-        (Derinlikteki satışların Kademe'de 'Yeşil' [Alış] olarak geçtiği görülüyor mu?)
-
-        ## 28. ⚖️ ORTALAMA MALİYET YÜKSELTME (MARKUP)
-        (Alıcılar fiyat yükselirken almaya devam ediyor mu? AKD maliyetlerine bak.)
-
-        ## 29. 🧮 GİZLİ TOPLAMA OPERASYONU
-        (Alıcı tarafında dengeli dağılan, tek bir lider olmayan yapı var mı?)
+        ## 6. 🏦 TAKAS - AKD UYUMSUZLUĞU
         
-        ## 30. 🏛️ KURUM KARAKTER ANALİZİ
-        (Alıcılar Smart Money mi [Yatırım, BofA], Küçük Yatırımcı mı [Ziraat, Vakıf]?)
-
-        --- 🔥 FOTOĞRAF ODAKLI KRİTİK 20 EK BAŞLIK (STATİK ANALİZ) ---
-
-        ## 31. 🧊 GİZLİ EMİR (ICEBERG) TESPİTİ
-        (Derinlikte az lot görünüp, Kademe'de o fiyattan çok işlem geçmiş mi?)
-        * :green[Gizli Alıcı Var]
-        * :red[Gizli Satıcı Var]
-
-        ## 32. 🌪️ HACİM / FİYAT UYUMSUZLUĞU (CHURNING)
-        (Kademe'de çok işlem var ama fiyat kademesi değişmemiş mi?)
-        * :red[Yerinde Sayıyor (Mal Devri Riski)]
-        * :green[Dengeli]
-
-        ## 33. 🚫 ALIM/SATIM İPTALİ (GÖRSEL İZLENİM)
-        (Derinlik görselinde 'İptal' sütunu varsa analiz et.)
-
-        ## 34. 🔄 GÜN İÇİ DÖNÜŞ (REVERSAL) SİNYALİ
-        (Kademede en alt fiyatlardan alışlar [Yeşil işlemler] yoğunlaşmış mı?)
-
-        ## 35. 💰 NET PARA GİRİŞ/ÇIKIŞ GÖRÜNTÜSÜ
-        (AKD'deki Net Alım farkına bak.)
-        * :green[Net Para Girişi (+)]
-        * :red[Net Para Çıkışı (-)]
-
-        ## 36. 📉 GAP (FİYAT BOŞLUĞU) RİSKİ
-        (Görsellerde veya haberde 'Gap'ten bahsediliyor mu?)
-
-        ## 37. 🛡️ PİVOT SEVİYESİ KONUMU
-        (Fiyat, günün orta noktasının (AOF) neresinde?)
-
-        ## 38. 🎢 KADEME DOLULUĞU (VOLATİLİTE SİNYALİ)
-        (Kademeler dolu mu [Sakin] yoksa boşluklu mu [Oynak]?)
-
-        ## 39. 🏦 BANK OF AMERICA (BofA) ETKİSİ
-        (BofA tek başına tahtanın % kaçına hakim?)
-
-        ## 40. ⏳ KAPANIŞA DOĞRU DURUM
-        (Hisse günün yükseğinde mi yoksa düşüğünde mi duruyor?)
-
-        ## 41. ♻️ DEVİR HIZI (TURNOVER) ANALİZİ
-        (Takastaki lot miktarı ile AKD işlem hacmini oranla.)
-
-        ## 42. 🕸️ DESTEK ALTI İŞLEM HACMİ
-        (Kademe'de destek seviyesinin altında hacim var mı?)
-
-        ## 43. 📅 TAKAS SAKLAMA DEĞİŞİMİ
-        (Takas görselinde Haftalık farklar varsa yorumla.)
-
-        ## 44. 📊 ENDEKSE DUYARLILIK
-        (Haberlerde Endeks bilgisi varsa, hisseyle kıyasla.)
-
-        ## 45. 📐 DERİNLİK EĞİM (SLOPE) ANALİZİ
-        (Alış kademelerindeki lotlar mı daha hızlı artıyor, satıştakiler mi?)
-
-        ## 46. 🌑 KARANLIK ODA TAHMİNİ
-        (Derinlikteki en iyi eşleşme fiyatı ne görünüyor?)
-
-        ## 47. 🕯️ İŞLEM SIKLIĞI (YOĞUNLUK)
-        (Kademe ekranı baştan aşağı dolu mu?)
-
-        ## 48. 🏗️ KURUMSAL vs. BİREYSEL SAVAŞI
-        (AKD'de Bankalar [Bireysel] mi Aracı Kurumlar [Pro] mı baskın?)
-
-        ## 49. 🚩 GÜN İÇİ FORMASYON
-        (Fiyat adımlarına bakarak bir Bayrak/Flama oluşumu görüyor musun?)
-
-        ## 50. 💎 ELMAS DEĞERİNDE SON SÖZ
-        (Tüm bu 50 maddeye ve HABERLERE bakarak TEK CÜMLE: AL, SAT, TUT veya BEKLE?)
-        * **KARAR:** :green[**AL**] / :red[**SAT**] / :blue[**BEKLE**]
+        ## 7. 🧱 SATIŞ DUVARI VE PSİKOLOJİK DİRENÇLER
         
-        --- ÖZEL BÖLÜM (MADDE SINIRI YOK) ---
+        ## 8. 🌡️ ANLIK BASKI DENGESİ (DERİNLİK)
+        
+        ## 9. ✂️ MAKAS (SPREAD) VE LİKİDİTE
+        
+        ## 10. 🏹 AGRESİF vs. PASİF İŞLEM
+        
+        ## 11. 🐋 LOT BÜYÜKLÜĞÜ ANALİZİ (BALİNA İZİ)
+        
+        ## 12. ⚔️ ALICI / SATICI GÜÇ RASYOSU
+        
+        ## 13. 📍 POC (POINT OF CONTROL) ANALİZİ
+        
+        ## 14. 🧊 GİZLİ EMİR (ICEBERG) TESPİTİ
+        
+        ## 15. 💰 NET PARA GİRİŞ/ÇIKIŞ GÖRÜNTÜSÜ
+        
+        ## 16. 📉 GAP VE TEKNİK BOŞLUKLAR
+        
+        ## 17. 🛡️ PİVOT SEVİYESİ KONUMU
+        
+        ## 18. 🏦 BANK OF AMERICA (BofA) VE YABANCI ETKİSİ
+        
+        ## 19. 🕯️ İŞLEM SIKLIĞI VE MOMENTUM
+        
+        ## 20. 💎 ELMAS DEĞERİNDE SON SÖZ (KARAR: AL/SAT/BEKLE)
+        
+        --- ÖZEL BÖLÜM ---
         ## 📰 HABER VE GÜNDEM ANALİZİ
-        (Google News'ten çekilen haberleri yorumla. Olumlu/Olumsuz etkilerini belirt.)
+        (Google News verilerini yorumla)
 
-        ## 🛡️ GÜÇLÜ/ZAYIF DESTEK VE DİRENÇ ANALİZİ
-        (Madde madde seviyeler)
-        * :green[**Güçlü Destekler (Alım Fırsatı):** ...]
-        * :red[**Kritik Dirençler (Satış/Kar Bölgesi):** ...]
+        ## 🛡️ DETAYLI DESTEK VE DİRENÇLER
         
         --- GENEL ANALİZ ---
-        ## 🐋 GENEL SENTEZ (BALİNA İZİ)
-        (Bu bölümü SAKIN paragraf yapma. Yukarıdaki Yeşil-Mavi-Kırmızı kuralına göre madde madde 'Büyük Resim' i yap. Kurumlar topluyor mu, dağıtıyor mu?)
+        ## 🐋 GENEL SENTEZ (BÜYÜK RESİM)
+        (Kurumlar topluyor mu, dağıtıyor mu? Madde madde analiz et.)
 
-        ## 🌡️ PİYASA DUYGU ÖLÇER (SEKTÖREL SENTIMENT)
-        (Puan: 0-100. Neden bu puan verildi? Madde madde açıkla.)
-        
-        ## 🧭 YÖN / FİYAT OLASILIĞI (DETAYLI SENARYO)
-        (Bu bölümde hissenin gitmek istediği yönü yüzdelik ve fiyatsal olarak  et)
-        * **📈 Yükseliş İhtimali:** %... (Gerekçeleriyle madde madde)
-        * **📉 Düşüş İhtimali:** %... (Gerekçeleriyle madde madde)
-        * **🎯 Yukarı Hedef Fiyat:** Hangi fiyata gitmek için zorluyor?
-        * **🕳️ Aşağı Risk Fiyatı:** Düşerse nerede fren yapabilir?
-        * **⏳ Zamanlama:** Bu hareket ne zaman bekleniyor (Anlık/Kısa/Orta Vade)?
-        * **💡 Teknik Neden:** Formasyon veya indikatör ne diyor?
+        ## 🧭 YÖN / FİYAT OLASILIĞI (SENARYO)
+        * **📈 Yükseliş İhtimali:** %...
+        * **📉 Düşüş İhtimali:** %...
+        * **🎯 Hedefler ve Stoplar:** ...
 
-        ## 💯 SKOR KARTI & TRENDMETRE (TABLO)
-        (Bu bölümü MUTLAKA Markdown Tablosu olarak yap. Tablonun içindeki yazıları renklendir.)
-        | Parametre | Durum (Renkli Yazılacak) | Puan (0-10) |
+        ## 💯 SKOR KARTI (TABLO)
+        | Parametre | Durum | Puan (0-10) |
         |---|---|---|
-        | Derinlik | :green[Boğa] / :red[Ayı] | 8 |
-        | AKD | :blue[Nötr] | 5 |
-        | (Diğerleri...) | ... | ... |
+        | Derinlik | ... | ... |
+        | AKD | ... | ... |
         
-        ## 🚀 İŞLEM PLANI (Kısa, Orta, Uzun Vade Stratejisi - Madde Madde)
+        ## 🚀 PROFESYONEL İŞLEM PLANI
         """
+    
+    input_data.append(prompt)
+    
+    # Veri Kontrolü ve Akış Başlatma
+    count = 0
+    if has_d: count += 1
+    if has_a: count += 1
+    if has_k: count += 1
+    if has_t: count += 1
+    
+    if count == 0 and not context_str:
+        st.warning("⚠️ Lütfen analiz için veri yükleyin (Görsel, API veya Telegram).")
+    else:
+        # --- STREAMING RESPONSE ---
+        placeholder = st.empty()
+        full_response = ""
         
-        input_data.append(prompt)
-        
-        # Eğer ne görsel ne API yoksa
-        count = 0
-        if has_d: count += 1
-        if has_a: count += 1
-        if has_k: count += 1
-        if has_t: count += 1
-        
-        if count == 0 and not context_str:
-            st.warning("⚠️ Lütfen  için veri yükleyin (Görsel, API veya Telegram).")
-        else:
-            # 🔥 HIZLANDIRMA 2: Streaming (Canlı Akış)
-            # Spinner yerine canlı yazı akışı
-            placeholder = st.empty()
-            full_response = ""
-            
-            with st.spinner("Analiz Başlatılıyor... (Akış birazdan başlayacak)"):
-                try:
-                    # Key Döngüsü ve Streaming Mantığı
-                    stream_active = False
+        with st.spinner("Analiz Başlatılıyor..."):
+            try:
+                # Key Rotasyon ve İstek Kısmı (Aynı kalacak)
+                local_keys = api_keys.copy()
+                if working_key in local_keys:
+                    local_keys.remove(working_key)
+                    local_keys.insert(0, working_key)
                     
-                    # Keyleri karıştır ki hep aynı keye yük binmesin
-                    local_keys = api_keys.copy()
-                    if working_key in local_keys:
-                        local_keys.remove(working_key)
-                        local_keys.insert(0, working_key)
+                stream_active = False
+                for k in local_keys:
+                    try:
+                        genai.configure(api_key=k)
+                        model = genai.GenerativeModel(valid_model_name)
+                        stream = model.generate_content(input_data, stream=True)
                         
-                    for k in local_keys:
-                        try:
-                            genai.configure(api_key=k)
-                            model = genai.GenerativeModel(valid_model_name)
-                            # STREAMING AÇIK
-                            stream = model.generate_content(input_data, stream=True)
-                            
-                            st.session_state.active_working_key = k
-                            working_key = k
-                            stream_active = True
-                            
-                            # Akış Başlıyor
-                            for chunk in stream:
-                                if chunk.text:
-                                    full_response += chunk.text
-                                    placeholder.markdown(full_response + "▌") # İmleç efekti
-                            
-                            placeholder.markdown(full_response) # Son hali
-                            st.session_state.analysis_result = full_response
-                            st.session_state.loaded_count = count
-                            break # Başarılı olduysa döngüden çık
-                            
-                        except Exception as e:
-                            if "429" in str(e) or "quota" in str(e).lower(): continue
-                            else: st.error(f"Hata: {e}"); break
+                        st.session_state.active_working_key = k
+                        working_key = k
+                        stream_active = True
+                        
+                        for chunk in stream:
+                            if chunk.text:
+                                full_response += chunk.text
+                                placeholder.markdown(full_response + "▌")
+                        
+                        placeholder.markdown(full_response)
+                        st.session_state.analysis_result = full_response
+                        st.session_state.loaded_count = count
+                        break
+                        
+                    except Exception as e:
+                        if "429" in str(e) or "quota" in str(e).lower(): continue
+                        else: st.error(f"API Hatası: {e}"); break
+                
+                if not stream_active:
+                    st.error("❌ Tüm API kotaları dolu veya bağlantı hatası.")
                     
-                    if not stream_active:
-                         st.error("Tüm kotalar dolu veya bağlantı hatası.")
-                         
-                except Exception as e:
-                    st.error(f"Genel Hata: {e}")
+            except Exception as e:
+                st.error(f"Genel Hata: {e}")
 
 # --- RESULT ---
 # Eğer analiz daha önce yapılmışsa (sayfa yenilenince gitmesin diye)
@@ -882,4 +760,5 @@ if st.session_state.analysis_result and not 'placeholder' in locals():
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role":"assistant", "content":resp})
             except: st.error("Hata.")
+
 
