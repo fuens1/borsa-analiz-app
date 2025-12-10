@@ -857,29 +857,45 @@ with c1:
                 except Exception as e:
                     st.error(f"Genel Hata: {e}")
 
-# --- RESULT ---
-# Eğer analiz daha önce yapılmışsa (sayfa yenilenince gitmesin diye)
-if st.session_state.analysis_result and not 'placeholder' in locals():
-    st.markdown("## 🐋 Kurumsal Rapor")
-    st.markdown(st.session_state.analysis_result)
-    st.markdown("---")
+# ==========================================
+# 💬 SONUÇ VE SOHBET (FİNAL BÖLÜMÜ)
+# ==========================================
+if st.session_state.analysis_result:
+    if not 'placeholder' in locals():
+        st.markdown("## 🐋 Kurumsal Rapor")
+        st.markdown(st.session_state.analysis_result)
+        st.markdown("---")
+
+    st.subheader("💬 Analist ile Sohbet")
     
+    col_c1, col_c2 = st.columns([1, 4])
+    with col_c1:
+        st.markdown("**Mod:**")
+        chat_scope = st.radio("M", ("📝 RAPOR", "🌍 GENEL"), label_visibility="collapsed")
+
     for m in st.session_state.messages:
         with st.chat_message(m["role"]): st.markdown(m["content"])
-        
-    if q := st.chat_input("Sorunuz..."):
-        st.session_state.messages.append({"role":"user", "content":q})
+
+    if q := st.chat_input("Soru sor..."):
+        st.session_state.messages.append({"role": "user", "content": q})
         with st.chat_message("user"): st.markdown(q)
-        
+
         with st.chat_message("assistant"):
             try:
+                sys_inst = (
+                    "GÖREV: Sadece rapora sadık kal." if chat_scope == "📝 RAPOR" 
+                    else "GÖREV: Raporu temel al ama genel borsa bilginle yorum kat."
+                )
+                final_prompt = f"{sys_inst}\n\nRAPOR:\n{st.session_state.analysis_result}\n\nSORU:\n{q}"
+                
                 genai.configure(api_key=st.session_state.active_working_key)
                 model = genai.GenerativeModel(valid_model_name)
-                stream = model.generate_content(f"Context: {st.session_state.analysis_result}\nUser: {q}", stream=True)
+                stream = model.generate_content(final_prompt, stream=True)
+                
                 def parser():
                     for ch in stream: 
                         if ch.text: yield ch.text
+                
                 resp = st.write_stream(parser)
-                st.session_state.messages.append({"role":"assistant", "content":resp})
-            except: st.error("Hata.")
-
+                st.session_state.messages.append({"role": "assistant", "content": resp})
+            except Exception as e: st.error(f"Hata: {e}")
