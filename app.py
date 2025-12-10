@@ -11,7 +11,7 @@ import base64
 from urllib.parse import quote
 
 # ==========================================
-# 🛠️ KÜTÜPHANE KONTROLLERİ
+# 🛠️ KÜTÜPHANE VE AYAR KONTROLLERİ
 # ==========================================
 try:
     from streamlit_paste_button import paste_image_button
@@ -32,12 +32,10 @@ try:
 except ImportError:
     FIREBASE_ENABLED = False
 
-# ==========================================
-# 🔐 AYARLAR VE BAĞLANTILAR
-# ==========================================
 CONFIG_FILE = "site_config.json"
 FIREBASE_DB_URL = 'https://borsakopru-default-rtdb.firebaseio.com/' 
 
+# --- FIREBASE BAŞLATMA ---
 def init_firebase():
     if not FIREBASE_ENABLED: return False
     try:
@@ -98,7 +96,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- SESSION STATES ---
+# --- SESSION STATES INIT ---
 if "authenticated" not in st.session_state: st.session_state.authenticated = False
 if "is_admin" not in st.session_state: st.session_state.is_admin = False
 if "reset_counter" not in st.session_state: st.session_state.reset_counter = 0
@@ -108,11 +106,9 @@ if "analysis_result" not in st.session_state: st.session_state.analysis_result =
 if "messages" not in st.session_state: st.session_state.messages = []
 if "active_working_key" not in st.session_state: st.session_state.active_working_key = None
 
-# Telegram Resimleri
 for img_key in ["tg_img_derinlik", "tg_img_akd", "tg_img_kademe", "tg_img_takas"]:
     if img_key not in st.session_state: st.session_state[img_key] = None
 
-# Yapıştırılan Resimler
 for cat in ["Derinlik", "AKD", "Kademe", "Takas"]:
     if f"pasted_{cat}" not in st.session_state: st.session_state[f"pasted_{cat}"] = []
 
@@ -162,7 +158,7 @@ if not st.session_state.authenticated:
     st.stop() 
 
 # ==========================================
-# 🚀 ANA UYGULAMA BAŞLANGICI
+# 🚀 ANA UYGULAMA
 # ==========================================
 
 col_title, col_reset = st.columns([5, 1])
@@ -185,7 +181,7 @@ with col_reset:
             st.session_state[f"pasted_{cat}"] = []
         st.rerun()
 
-# --- API & VERİ MERKEZİ ---
+# --- VERİ MERKEZİ ---
 st.markdown("---")
 st.subheader("📡 Veri Merkezi")
 
@@ -201,7 +197,7 @@ if fetch_btn:
         today_str = datetime.date.today().strftime("%Y-%m-%d")
         headers = {'User-Agent': 'Mozilla/5.0'}
         with st.spinner(f"{api_ticker_input} Verileri Çekiliyor..."):
-            url_depth = f"https://webapi.hisseplus.com/api/v1/derinlik?sembol={api_ticker_input}" # URL düzeltildi
+            url_depth = f"https://webapi.hisseplus.com/api/v1/kademe?sembol={api_ticker_input}"
             r_depth = requests.get(url_depth, headers=headers)
             st.session_state.api_depth_data = r_depth.json() if r_depth.status_code == 200 else None
             
@@ -211,7 +207,6 @@ if fetch_btn:
     except Exception as e:
         st.error(f"API Hatası: {e}")
 
-# Veri Durumu Göstergeleri
 if st.session_state.api_depth_data or st.session_state.api_akd_data:
     st.markdown("##### 📊 Veri Durumu")
     stat_col1, stat_col2 = st.columns(2)
@@ -222,13 +217,12 @@ if st.session_state.api_depth_data or st.session_state.api_akd_data:
         if st.session_state.api_akd_data: st.success("API AKD 🟢")
         else: st.error("API AKD 🔴")
 
-# --- API KEY HAZIRLIĞI ---
+# --- API KEY ---
 api_keys = []
 if "GOOGLE_API_KEY" in st.secrets:
     raw = st.secrets["GOOGLE_API_KEY"]
     api_keys = [k.strip() for k in raw.split(",") if k.strip()] if "," in raw else [raw]
 
-# Geçerli Model Bulma
 valid_model_name = None
 working_key = None
 def get_model(key):
@@ -251,7 +245,7 @@ if not valid_model_name:
     st.error("❌ Aktif Model Bulunamadı.")
     st.stop()
 
-# --- YARDIMCI FONKSİYONLAR ---
+# --- HELPER FUNCTIONS ---
 def compress_image(image, max_size=(800, 800)):
     if image.mode in ("RGBA", "P"): image = image.convert("RGB")
     image.thumbnail(max_size, Image.Resampling.LANCZOS)
@@ -267,7 +261,6 @@ def fetch_stock_news(symbol):
         return "\n".join(news_list) if news_list else "Haber yok."
     except: return "Haber hatası."
 
-# --- TELEGRAM KÖPRÜ FONKSİYONU ---
 def fetch_data_via_bridge(symbol, data_type):
     if not firebase_ready:
         st.error("Veritabanı yok.")
@@ -295,7 +288,7 @@ def fetch_data_via_bridge(symbol, data_type):
     except Exception as e: status_area.error(f"Hata: {e}")
     return None
 
-# --- SIDEBAR (TELEGRAM & X) ---
+# --- SIDEBAR ---
 with st.sidebar:
     st.header("🔑 Anahtar Havuzu")
     if st.button("🔄 Test Et"):
@@ -350,16 +343,16 @@ def render_panel(title, cat, tg_key, key_s):
 
 c1, c2 = st.columns(2)
 with c1:
-    img_d_up = render_panel("1. Derinlik", "Derinlik", "tg_img_derinlik", f"d_{file_key_suffix}")
+    img_d_up = render_panel("1. Derinlik 💹", "Derinlik", "tg_img_derinlik", f"d_{file_key_suffix}")
     st.markdown("---")
-    img_k_up = render_panel("3. Kademe", "Kademe", "tg_img_kademe", f"k_{file_key_suffix}")
+    img_k_up = render_panel("3. Kademe 📊", "Kademe", "tg_img_kademe", f"k_{file_key_suffix}")
 with c2:
-    img_a_up = render_panel("2. AKD", "AKD", "tg_img_akd", f"a_{file_key_suffix}")
+    img_a_up = render_panel("2. AKD 🤵", "AKD", "tg_img_akd", f"a_{file_key_suffix}")
     st.markdown("---")
-    img_t_up = render_panel("4. Takas", "Takas", "tg_img_takas", f"t_{file_key_suffix}")
+    img_t_up = render_panel("4. Takas 🌍", "Takas", "tg_img_takas", f"t_{file_key_suffix}")
 
 # ==========================================
-# 🧠 ANALİZ MODÜLÜ (FİNAL)
+# 🧠 ANALİZ MODÜLÜ (ANALİZİ BAŞLAT)
 # ==========================================
 st.markdown("---")
 col_start, col_opts = st.columns([1, 2])
@@ -451,16 +444,11 @@ if start_btn:
     
     🛑 FORMAT VE RENK KURALLARI (KESİN UYULACAK):
     1. ASLA PARAGRAF YAZMA. Sadece madde madde (Bullet points).
-    2. RENK KURALI (HAYATİ ÖNEMDE): Cümlelerin içinde geçen kelimeleri veya tüm cümleyi duruma göre MUTLAKA renklendir.
-       * Olumlu/Pozitif her şey için: :green[...] kullan.
-       * Nötr/Bilgi verici her şey için: :blue[...] kullan.
-       * Olumsuz/Negatif her şey için: :red[...] kullan.
-       ÖRNEK: ":green[Alıcılar çok istekli] ancak :red[satış baskısı sürüyor]."
-    3. SIRALAMA: Her başlık altında maddeleri şu sırayla yaz:
-       * ÖNCE: ✅ :green[POZİTİF VERİLER]
-       * SONRA: 🔵 :blue[NÖTR VERİLER]
-       * EN SON: 🔻 :red[NEGATİF VERİLER]
-    4. Verisi olmayan başlık uydurma.
+    2. SIRALAMA KURALI (HAYATİ ÖNEMDE): Her başlık altında maddeleri ŞU SIRA İLE YAZ:
+       A. ÖNCE: ✅ :green[POZİTİF / OLUMLU VERİLER] (Para girişi, alıcılar, destekler...)
+       B. SONRA: 🔵 :blue[NÖTR / BİLGİ VERİLERİ] (Standart durumlar...)
+       C. EN SON: 🔻 :red[NEGATİF / OLUMSUZ VERİLER] (Satıcı baskısı, dirençler...)
+    3. RENKLENDİRME: Cümlenin anlamı olumluysa :green, nötrse :blue, olumsuzsa :red rengini kullanmak ZORUNDASIN.
     """
 
     if is_adv:
