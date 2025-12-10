@@ -717,7 +717,6 @@ with c1:
             ## 🧭 YÖN / FİYAT OLASILIĞI
             ## 💯 SKOR KARTI & TRENDMETRE (TABLO)
             ## 🚀 İŞLEM PLANI
-            """
 
         input_data.append(prompt)
         
@@ -821,6 +820,7 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role": "assistant", "content": resp})
             except Exception as e: st.error(f"Hata: {e}")
+
 
 
 
