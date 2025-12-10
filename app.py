@@ -502,16 +502,22 @@ with c2:
     st.markdown("##### 🛠️ Analiz Ayarları")
     analysis_mode = st.radio(
         "Analiz Modu Seçiniz:",
-        options=["⚡ SADE MOD (Öz ve Net)", "🧠 GELİŞMİŞ MOD (Ultra Detay - 50 Madde)"],
+        options=[
+            "⚡ SADE MOD (Öz ve Net)", 
+            "🛡️ DESTEK-DİRENÇ MODU (Özel Strateji)",
+            "🧠 GELİŞMİŞ MOD (Ultra Detay - 50 Madde)"
+        ],
         index=0,
-        help="Sade Mod: Temel veriler ve strateji (En az 10'ar madde). Gelişmiş Mod: 50 maddelik mikro analiz."
+        help="Sade Mod: Temel veriler. Destek-Direnç Modu: 15'er adet seviye belirler. Gelişmiş Mod: 50 maddelik mikro analiz."
     )
     
-    # Sadece gelişmiş modda slider göster, sade modda standart 10 madde kuralı var.
+    # Sadece gelişmiş modda slider göster
     if "GELİŞMİŞ" in analysis_mode:
         max_items = st.slider("Gelişmiş Mod Madde Sayısı", 10, 50, 20)
+    elif "DESTEK" in analysis_mode:
+        st.caption("ℹ️ Destek-Direnç Modu: En az 15 Destek ve 15 Direnç seviyesi detaylıca incelenir.")
     else:
-        st.caption("ℹ️ Sade Mod: Her başlık için en az 10 madde, Destek/Direnç için 15 kademe analiz edilir.")
+        st.caption("ℹ️ Sade Mod: Her başlık için en az 10 madde analiz edilir.")
 
 with c1:
     st.markdown("<br>", unsafe_allow_html=True)
@@ -546,7 +552,6 @@ with c1:
         has_t = add_imgs(img_t, st.session_state["pasted_Takas"], st.session_state.tg_img_takas)
         
         # --- VERİ VARLIK KONTROLLERİ ---
-        # Hangi verilerin elimizde olduğunu tespit ediyoruz
         is_depth_avail = has_d or st.session_state.api_depth_data
         is_akd_avail = has_a or st.session_state.api_akd_data
         is_kademe_avail = has_k
@@ -562,23 +567,22 @@ with c1:
         {context_str}
         
         --- ⚠️ KRİTİK KURALLAR (HAYATİ ÖNEM TAŞIR) ---
-        1. 🚫 **YASAK:** Elimizde verisi olmayan hiçbir başlığı rapora ekleme. Örneğin; AKD verisi yoksa, raporda "AKD Analizi" diye bir başlık ASLA olmayacak. O kısmı tamamen yok say. "Veri yok" yazıp maddeleme yapma.
+        1. 🚫 **YASAK:** Elimizde verisi olmayan hiçbir başlığı rapora ekleme.
         2. 🚫 **YASAK:** "Mevcut Veri Seti Bilgilendirmesi" veya giriş cümlesi yazma. Direkt analize başla.
         3. 📝 **BİÇİM:** ASLA PARAGRAF YAZMA. Madde madde ilerle.
         4. 🎨 **RENK:** :green[**OLUMLU**], :blue[**NÖTR**], :red[**OLUMSUZ**] kelimeleri / cümleleri vurgula.
         """
 
         # ==========================================
-        # ⚡ SADE MOD PROMPTU (DİNAMİK OLUŞTURMA)
+        # ⚡ SADE MOD PROMPTU
         # ==========================================
         if "SADE" in analysis_mode:
-            # Başlıkları dinamik olarak ekliyoruz. Veri yoksa string boş kalır.
             req_sections = ""
             
             if is_depth_avail:
                 req_sections += """
                 ## 💹 DERİNLİK ANALİZİ (EN AZ 10 MADDE)
-                (Alıcı/Satıcı dengesi, bekleyen emirler, baskı durumu, kademe doluluğu vb.)
+                (Alıcı/Satıcı dengesi, bekleyen emirler, baskı durumu vb.)
                 """
             
             if is_akd_avail:
@@ -600,14 +604,11 @@ with c1:
                 """
 
             prompt = base_role + f"""
-            
             --- ⚡ SADE MOD SEÇİLDİ ---
-            Sadece aşağıdaki başlıkları analiz et. (Eğer aşağıda bir başlık yoksa, o veriyi analiz etme).
-
             {req_sections}
 
             ## 🛡️ GÜÇLÜ/ZAYIF DESTEK VE DİRENÇ ANALİZİ
-            (Grafik ve derinlik verilerine bakarak EN AZ 15 ADET Destek seviyesi ve EN AZ 15 ADET Direnç seviyesi yaz.)
+            (Grafik ve derinlik verilerine bakarak EN AZ 10 ADET Destek seviyesi ve EN AZ 10 ADET Direnç seviyesi yaz.)
             * :green[**Destekler:** ...]
             * :red[**Dirençler:** ...]
 
@@ -615,23 +616,57 @@ with c1:
             (Büyük oyuncuların ne yapmaya çalıştığını madde madde özetle. En az 10 madde.)
 
             ## 7. 🧭 YÖN / FİYAT OLASILIĞI (DETAYLI SENARYO)
-            (Hissenin gitmek istediği yönü anlat.)
             * **📈 Yükseliş İhtimali:** %...
             * **📉 Düşüş İhtimali:** %...
             * **Hedef Fiyatlar ve Stop Bölgeleri:** ...
 
-            ## 8. 💯 SKOR KARTI & TRENDMETRE (TABLO)
-            (Markdown Tablosu olarak yap. Sadece analizi yapılan verileri tabloya koy.)
+            ## 8. 💯 SKOR KARTI (TABLO)
+            (Markdown Tablosu olarak yap. Sadece verisi olanları ekle.)
             | Parametre | Durum | Puan (0-10) |
             |---|---|---|
             | (Mevcut Veriler) | ... | ... |
 
             ## 9. 🚀 İŞLEM PLANI (STRATEJİ)
-            (Kısa, Orta ve Uzun vade stratejilerini madde madde yaz.)
             """
 
         # ==========================================
-        # 🧠 GELİŞMİŞ MOD PROMPTU (TAM LİSTE EKLENDİ)
+        # 🛡️ DESTEK-DİRENÇ ÖZEL MODU (YENİ EKLENDİ)
+        # ==========================================
+        elif "DESTEK" in analysis_mode:
+            prompt = base_role + f"""
+            --- 🛡️ DESTEK-DİRENÇ VE SEVİYE ANALİZİ MODU ---
+            GÖREV: Bu modda SADECE kritik fiyat seviyelerine ve bu seviyelerin neden önemli olduğuna odaklan.
+            Laf kalabalığı yapma, nokta atışı rakamlar ver.
+
+            ## 🧱 KRİTİK DESTEK BÖLGELERİ (EN AZ 15 ADET)
+            (Elindeki derinlik, kademe ve AKD verilerini kullanarak EN AZ 15 tane destek noktası belirle.)
+            (HER MADDEDE MUTLAKA AÇIKLAMA OLACAK: Neden burası destek? "Çok güçlü alış bölgesi", "Fiyat buradan sürekli dönüyor", "Derinlikte 1M lot alıcı var" gibi detaylar ver.)
+            1. **[FİYAT]** - [GÜÇ DERECESİ]: ...
+            2. **[FİYAT]** - [GÜÇ DERECESİ]: ...
+            ... (15 maddeye tamamla)
+
+            ## 🚧 KRİTİK DİRENÇ BÖLGELERİ (EN AZ 15 ADET)
+            (Elindeki verilere göre EN AZ 15 tane direnç/satış noktası belirle.)
+            (HER MADDEDE AÇIKLAMA YAP: "Burada satış duvarı var", "Maliyetlenme burada yoğun", "Psikolojik sınır" gibi.)
+            1. **[FİYAT]** - [GÜÇ DERECESİ]: ...
+            2. **[FİYAT]** - [GÜÇ DERECESİ]: ...
+            ... (15 maddeye tamamla)
+
+            ## ⚖️ KİLİT RAKAM (PİVOT)
+            Hissenin "Tamam mı devam mı" dediği o tek rakam hangisi?
+
+            ## 📉 GAP (BOŞLUK) ANALİZİ
+            Fiyat hareketlerinde kapatılmayı bekleyen GAP (boşluk) var mı?
+
+            ## 🚀 ALIM-SATIM STRATEJİSİ
+            Bu seviyelere göre;
+            * Nereden güvenli alım yapılır?
+            * Stop-loss nereye konulmalı? (Hangi desteğin kırılımı tehlikeli?)
+            * Kar al (Take-Profit) noktaları neresi?
+            """
+
+        # ==========================================
+        # 🧠 GELİŞMİŞ MOD PROMPTU
         # ==========================================
         else:
             limit_txt = f"(DİKKAT: EN AZ {max_items} TANE MADDELİ ANALİZ YAP.)"
@@ -815,4 +850,3 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role": "assistant", "content": resp})
             except Exception as e: st.error(f"Hata: {e}")
-
