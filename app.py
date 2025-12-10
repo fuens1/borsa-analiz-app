@@ -552,9 +552,11 @@ with c1:
         --- MEVCUT VERİ SETİ ---
         {context_str}
         
-        --- ⚠️ RENK VE FORMAT KURALLARI ---
-        1. ASLA PARAGRAF YAZMA. Her şey madde madde olacak.
-        2. Renkleri Mutlaka Kullan:
+        --- ⚠️ RENK VE FORMAT KURALLARI (KESİN UYULACAK) ---
+        1. 🚫 **YASAK:** "Mevcut Veri Seti Bilgilendirmesi", "Veri kaynağı şudur", "API yoktur" gibi giriş cümleleri veya başlıkları **KESİNLİKLE YAZMA.**
+        2. 🏁 **BAŞLANGIÇ:** Hiçbir önsöz olmadan **DOĞRUDAN** seçilen modun 1. maddesi (örneğin "1. DERİNLİK ANALİZİ") ile başla.
+        3. 📝 **BİÇİM:** ASLA PARAGRAF YAZMA. Raporun tamamı madde madde olacak.
+        4. 🎨 **RENK:** Aşağıdaki renk etiketlerini analizlerinde mutlaka kullan:
            * ✅ :green[**OLUMLU**]
            * 🔵 :blue[**NÖTR**]
            * 🔻 :red[**OLUMSUZ**]
@@ -566,7 +568,7 @@ with c1:
         if "SADE" in analysis_mode:
             prompt = base_role + """
             
-            --- ⚡ SADE MOD SEÇİLDİ (KATIE KURALLAR) ---
+            --- ⚡ SADE MOD SEÇİLDİ ---
             Aşağıdaki başlıkları eksiksiz analiz et. Her başlık altında **EN AZ 10 MADDE** yazmak zorundasın.
 
             ## 1. 💹 DERİNLİK ANALİZİ (EN AZ 10 MADDE)
@@ -582,11 +584,9 @@ with c1:
             (Yabancı durumu, haftalık değişimler, saklama oranları vb.)
 
             ## 5. 🛡️ GÜÇLÜ/ZAYIF DESTEK VE DİRENÇ ANALİZİ
-            (⚠️ BURASI ÇOK ÖNEMLİ: Grafik ve derinlik verilerine bakarak EN AZ 15 ADET Destek seviyesi ve EN AZ 15 ADET Direnç seviyesi yaz.)
-            * :green[**Destek 1:** ...]
-            * ... (15 tane)
-            * :red[**Direnç 1:** ...]
-            * ... (15 tane)
+            (Grafik ve derinlik verilerine bakarak EN AZ 15 ADET Destek seviyesi ve EN AZ 15 ADET Direnç seviyesi yaz.)
+            * :green[**Destekler:** ...]
+            * :red[**Dirençler:** ...]
 
             ## 6. 🐋 GENEL SENTEZ (BALİNA İZİ)
             (Büyük oyuncuların ne yapmaya çalıştığını madde madde özetle. En az 10 madde.)
@@ -598,22 +598,19 @@ with c1:
             * **Hedef Fiyatlar ve Stop Bölgeleri:** ...
 
             ## 8. 💯 SKOR KARTI & TRENDMETRE (TABLO)
-            (Bu bölümü MUTLAKA Markdown Tablosu olarak yap. Tablonun içindeki yazıları renklendir.)
+            (Markdown Tablosu olarak yap. Tablonun içindeki yazıları renklendir.)
             | Parametre | Durum | Puan (0-10) |
             |---|---|---|
-            | Derinlik | :green[Boğa] / :red[Ayı] | ... |
-            | AKD | :blue[Nötr] | ... |
-            | Takas | ... | ... |
+            | Derinlik | ... | ... |
+            | AKD | ... | ... |
             | Momentum | ... | ... |
 
             ## 9. 🚀 İŞLEM PLANI (STRATEJİ)
-            * **Kısa Vade:** (Al-Sat stratejisi)
-            * **Orta Vade:** (Beklenti ve hedef)
-            * **Uzun Vade:** (Yatırım vizyonu)
+            (Kısa, Orta ve Uzun vade stratejilerini madde madde yaz.)
             """
 
         # ==========================================
-        # 🧠 GELİŞMİŞ MOD PROMPTU (ESKİ DETAYLI MOD)
+        # 🧠 GELİŞMİŞ MOD PROMPTU
         # ==========================================
         else:
             limit_txt = f"(DİKKAT: EN AZ {max_items} TANE MADDELİ ANALİZ YAP.)"
@@ -793,5 +790,6 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role": "assistant", "content": resp})
             except Exception as e: st.error(f"Hata: {e}")
+
 
 
