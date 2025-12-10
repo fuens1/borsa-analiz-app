@@ -513,7 +513,7 @@ with c2:
     if "GELİŞMİŞ" in analysis_mode:
         max_items = st.slider("Başlık Başına Madde Sayısı", 15, 50, 20)
     else:
-        max_items = 3 # Sade modda başlık başına ortalama sayı (Toplamda 15-20 eder)
+        max_items = 15 # Sade modda başlık başına ortalama sayı (Toplamda 15-20 eder)
 
 if start_btn:
     input_data = []
@@ -558,7 +558,7 @@ if start_btn:
         {base_rules}
         GÖREV: Aşağıdaki 7 başlığı analiz et.
         KRİTİK KURAL: Raporun tamamında TOPLAM EN AZ 15-20 arası dolu dolu analiz maddesi olsun. 
-        Her başlığın altına en az 2-3 detaylı madde yazarak ilerle.
+        Her başlığın altına en az 10-11 detaylı madde yazarak ilerle.
         
         --- VERİLER ---
         {context_str}
@@ -684,6 +684,7 @@ if st.session_state.analysis_result and not 'placeholder' in locals():
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role":"assistant", "content":resp})
             except: st.error("Hata.")
+
 
 
 
