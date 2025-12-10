@@ -693,8 +693,6 @@ with c1:
             ## 28. ⚖️ ORTALAMA MALİYET YÜKSELTME (MARKUP)
             ## 29. 🧮 GİZLİ TOPLAMA OPERASYONU
             ## 30. 🏛️ KURUM KARAKTER ANALİZİ
-            
-            --- 🔥 FOTOĞRAF ODAKLI KRİTİK 20 EK BAŞLIK ---
             ## 31. 🧊 GİZLİ EMİR (ICEBERG) TESPİTİ
             ## 32. 🌪️ HACİM / FİYAT UYUMSUZLUĞU (CHURNING)
             ## 33. 🚫 ALIM/SATIM İPTALİ
@@ -825,6 +823,7 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role": "assistant", "content": resp})
             except Exception as e: st.error(f"Hata: {e}")
+
 
 
 
