@@ -588,14 +588,17 @@ with c1:
             if has_t: sections += f"## 🌍 TAKAS ANALİZİ (Maks {max_items}, Gruplu, Renkli)\n"
 
         prompt = f"""
-        Sen Borsa Uzmanısın. GÖREV: Verilen Görselleri, CANLI API VERİLERİNİ ve HABERLERİ analiz et.
-        🚨 Hisse kodunu görselden veya veriden bul.
+        Sen Borsa Uzmanısın ve Kıdemli Veri Analistisin.
+        GÖREV: Verilen Görselleri (Derinlik, Aracı Kurum Dağılımı, Takas, Kademe), CANLI API VERİLERİNİ ve HABERLERİ birleştirerek profesyonelce yorumla.
+        🚨 Hisse kodunu görselden veya veriden tespit et.
         
-        ÖNEMLİ FORMAT KURALLARI:
-        1. Başlıkları madde madde listele. ASLA paragraf yapma.
-        2. Renkleri kullan: :green[], :blue[], :red[].
-        3. Genel Sentez kısmını PARAGRAF olarak yaz.
-        4. Trendmetre kısmını TABLO olarak yap.
+        --- ⚠️ KESİN FORMAT VE RENK KURALLARI (BUNA UYMAK ZORUNDASIN) ⚠️ ---
+        1.  **ASLA PARAGRAF YAZMA.** Raporun tamamı (Genel Sentez dahil) madde madde ve alt alta olacak.
+        2.  Her başlığın altındaki verileri şu SIRA ve RENK kuralına göre grupla:
+            * ✅ :green[**OLUMLU / POZİTİF:** ...Buraya hisse için iyi olan verileri, para girişlerini, alıcıları yaz...]
+            * 🔵 :blue[**NÖTR / YATAY:** ...Buraya kararsız veya standart durumları yaz...]
+            * 🔻 :red[**OLUMSUZ / NEGATİF:** ...Buraya riskleri, para çıkışlarını, satıcı baskısını yaz...]
+        3.  Eğer bir kategoride veri yoksa o rengi geçebilirsin ama sıralama bozulmamalı (Yeşil -> Mavi -> Kırmızı).
         
         --- MEVCUT VERİ SETİ ---
         {context_str}
@@ -605,20 +608,31 @@ with c1:
         
         --- ÖZEL BÖLÜM (MADDE SINIRI YOK) ---
         ## 📰 HABER VE GÜNDEM ANALİZİ
-        (Hisse ile ilgili çekilen son haberleri yorumla. Olumlu/Olumsuz etkilerini belirt.)
+        (Haberlerin hisseye etkisi: Olumlu mu, Olumsuz mu? Madde madde yaz.)
 
         ## 🛡️ GÜÇLÜ/ZAYIF DESTEK VE DİRENÇ ANALİZİ
-        (Madde sınırı yok. Tüm seviyeleri yaz.)
-        * Destekler :green[YEŞİL], Dirençler :red[KIRMIZI]
-        * Yorumlar stratejik olsun.
+        (Madde madde seviyeler)
+        * :green[**Güçlü Destekler (Alım Fırsatı):** ...]
+        * :red[**Kritik Dirençler (Satış/Kar Bölgesi):** ...]
         
-        --- GENEL (HER ZAMAN) ---
+        --- GENEL ANALİZ ---
+        ## 🐋 GENEL SENTEZ (BALİNA İZİ)
+        (Bu bölümü SAKIN paragraf yapma. Yukarıdaki Yeşil-Mavi-Kırmızı kuralına göre madde madde 'Büyük Resim' analizi yap. Kurumlar topluyor mu, dağıtıyor mu?)
+
         ## 🌡️ PİYASA DUYGU ÖLÇER (SEKTÖREL SENTIMENT)
-        (Analizi yapılan hissenin ait olduğu sektöre göre yatırımcı ilgisini puanla: 0=Sektöre İlgi Yok, 100=Sektörde İlgi Çok Fazla. Sebebini yaz.)
+        (Puan: 0-100. Neden bu puan verildi? Madde madde açıkla.)
         
-        ## 🐋 GENEL SENTEZ (BALİNA İZİ) (Paragraf)
-        ## 💯 SKOR KARTI & TRENDMETRE (Tablo)
-        ## 🚀 İŞLEM PLANI
+        ## 🧭 YÖN / FİYAT OLASILIĞI (DETAYLI SENARYO)
+        (Bu bölümde hissenin gitmek istediği yönü yüzdelik ve fiyatsal olarak analiz et)
+        * **📈 Yükseliş İhtimali:** %... (Gerekçeleriyle madde madde)
+        * **📉 Düşüş İhtimali:** %... (Gerekçeleriyle madde madde)
+        * **🎯 Yukarı Hedef Fiyat:** Hangi fiyata gitmek için zorluyor?
+        * **🕳️ Aşağı Risk Fiyatı:** Düşerse nerede fren yapabilir?
+        * **⏳ Zamanlama:** Bu hareket ne zaman bekleniyor (Anlık/Kısa/Orta Vade)?
+        * **💡 Teknik Neden:** Formasyon veya indikatör ne diyor?
+
+        ## 💯 SKOR KARTI & TRENDMETRE (Tablo Olarak)
+        ## 🚀 İŞLEM PLANI (Kısa, Orta, Uzun Vade Stratejisi - Madde Madde)
         """
         
         input_data.append(prompt)
@@ -666,3 +680,4 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role":"assistant", "content":resp})
             except: st.error("Hata.")
+
