@@ -76,7 +76,7 @@ global_config = load_global_config()
 # 🎨 SAYFA AYARLARI
 # ==========================================
 
-st.set_page_config(page_title="BIST Yapay Zeka  PRO", layout="wide", page_icon="🐋")
+st.set_page_config(page_title="BIST Yapay Zeka PRO", layout="wide", page_icon="🐋")
 
 st.markdown("""
 <style>
@@ -178,7 +178,7 @@ if not st.session_state.authenticated:
 
 col_title, col_reset = st.columns([5, 1])
 with col_title:
-    st.title("🐋 BIST Yapay Zeka  PRO")
+    st.title("🐋 BIST Yapay Zeka PRO")
     if st.session_state.is_admin: st.success("👑 YÖNETİCİ MODU")
     else: st.info("Küçük Yatırımcının Büyüdüğü Bir Evren..")
 
@@ -451,25 +451,20 @@ def show_images(cat):
     if st.session_state[f"pasted_{cat}"]:
         st.markdown(f"**📋 Pano ({len(st.session_state[f'pasted_{cat}'])}):**")
         
-        # Grid yapısı oluştur (her satırda 3 resim)
         cols = st.columns(3)
-        
-        # Enumerate ile index alarak döngüye sokuyoruz
         for i, img in enumerate(st.session_state[f"pasted_{cat}"]):
             with cols[i % 3]:
                 st.image(img, use_container_width=True)
-                # Benzersiz key ataması yaparak silme butonu oluştur
                 if st.button("🗑️ Sil", key=f"del_{cat}_{i}_{st.session_state.reset_counter}"):
-                    st.session_state[f"pasted_{cat}"].pop(i) # Listeden sil
-                    st.rerun() # Sayfayı yenile
+                    st.session_state[f"pasted_{cat}"].pop(i) 
+                    st.rerun() 
         
-        # Tümünü temizle butonu (Sadece o kategori için)
         if st.button(f"🗑️ Tüm {cat} Görsellerini Temizle", key=f"clear_all_{cat}"):
             st.session_state[f"pasted_{cat}"] = []
             st.rerun()
 
 # ==========================================
-# 🖼️ GÖRSEL YÖNETİM PANELİ (GÜNCELLENDİ)
+# 🖼️ GÖRSEL YÖNETİM PANELİ
 # ==========================================
 
 def render_category_panel(title, cat_name, tg_session_key, uploader_key):
@@ -480,64 +475,33 @@ def render_category_panel(title, cat_name, tg_session_key, uploader_key):
     if st.session_state[tg_session_key]:
         with st.container(border=True):
             st.caption("📲 Telegram'dan Alındı")
-            # 👇 AŞAĞIDAKİ SATIR DEĞİŞTİ (use_container_width yerine width eklendi)
             st.image(st.session_state[tg_session_key], width=100, caption="TG Verisi") 
             
             if st.button("🗑️ Kaldır", key=f"del_tg_{cat_name}"):
                 st.session_state[tg_session_key] = None
                 st.rerun()
-
     
     # --- 2. DOSYA YÜKLEME ---
-    # File uploader zaten kendi içinde silme (X) özelliğine sahiptir.
     uploaded_files = st.file_uploader("Dosya Yükle", type=["jpg","png","jpeg"], key=uploader_key, accept_multiple_files=True)
     
     # --- 3. YAPIŞTIRMA VE GALERİ ---
-    handle_paste(cat_name) # Yapıştır butonu
-    show_images(cat_name)  # Yapıştırılanları ve silme butonlarını göster
+    handle_paste(cat_name) 
+    show_images(cat_name)  
     
-    # DÜZELTME: Yüklenen dosyaları return ediyoruz ki aşağıda kullanabilelim.
     return uploaded_files
 
 # İki Kolonlu Yapı
 col1, col2 = st.columns(2)
 
 with col1:
-    # Sol Kolon: Derinlik ve Kademe
-    # DÜZELTME: Dönüş değerini değişkene atıyoruz
-    img_d = render_category_panel(
-        title="1. Derinlik 💹", 
-        cat_name="Derinlik", 
-        tg_session_key="tg_img_derinlik", 
-        uploader_key=f"d_{file_key_suffix}"
-    )
-    
-    st.markdown("---") # Ayırıcı
-    
-    img_k = render_category_panel(
-        title="3. Kademe 📊", 
-        cat_name="Kademe", 
-        tg_session_key="tg_img_kademe", 
-        uploader_key=f"k_{file_key_suffix}"
-    )
+    img_d = render_category_panel("1. Derinlik 💹", "Derinlik", "tg_img_derinlik", f"d_{file_key_suffix}")
+    st.markdown("---") 
+    img_k = render_category_panel("3. Kademe 📊", "Kademe", "tg_img_kademe", f"k_{file_key_suffix}")
 
 with col2:
-    # Sağ Kolon: AKD ve Takas
-    img_a = render_category_panel(
-        title="2. AKD 🤵", 
-        cat_name="AKD", 
-        tg_session_key="tg_img_akd", 
-        uploader_key=f"a_{file_key_suffix}"
-    )
-    
-    st.markdown("---") # Ayırıcı
-    
-    img_t = render_category_panel(
-        title="4. Takas 🌍", 
-        cat_name="Takas", 
-        tg_session_key="tg_img_takas", 
-        uploader_key=f"t_{file_key_suffix}"
-    )
+    img_a = render_category_panel("2. AKD 🤵", "AKD", "tg_img_akd", f"a_{file_key_suffix}")
+    st.markdown("---") 
+    img_t = render_category_panel("4. Takas 🌍", "Takas", "tg_img_takas", f"t_{file_key_suffix}")
 
 # --- ANALYZE ---
 st.markdown("---")
@@ -559,7 +523,7 @@ with c1:
         if st.session_state.api_akd_data:
             context_str += f"\n\n--- CANLI AKD API VERİSİ (HissePlus) ---\n{json.dumps(st.session_state.api_akd_data, indent=2, ensure_ascii=False)}"
 
-        # 2. Haberler
+        # 2. Haberler (TEK DİNAMİK VERİ - İSTEK ÜZERİNE KALDI)
         if NEWS_ENABLED:
             with st.spinner("Haberler taranıyor..."):
                 news_text = fetch_stock_news(api_ticker_input)
@@ -572,7 +536,6 @@ with c1:
             if tg_img: input_data.append(tg_img); added=True
             return added
 
-        # DÜZELTME: Artık img_d, img_a vb. yukarıda tanımlı olduğu için NameError vermeyecek.
         has_d = add_imgs(img_d, st.session_state["pasted_Derinlik"], st.session_state.tg_img_derinlik)
         has_a = add_imgs(img_a, st.session_state["pasted_AKD"], st.session_state.tg_img_akd)
         has_k = add_imgs(img_k, st.session_state["pasted_Kademe"], st.session_state.tg_img_kademe)
@@ -590,10 +553,10 @@ with c1:
             if has_k: sections += f"## 📊 KADEME ANALİZİ (Maks {max_items}, Alt Başlıklar)\n"
             if has_t: sections += f"## 🌍 TAKAS ANALİZİ (Maks {max_items}, Gruplu, Renkli)\n"
 
-        # --- YENİLENMİŞ DEV PROMPT (30+ MADDE) ---
+        # --- YENİLENMİŞ DEV PROMPT (50 MADDE - FOTOĞRAF ODAKLI) ---
         prompt = f"""
         Sen Borsa Uzmanısın ve Kıdemli Veri Analistisin.
-        GÖREV: Verilen Görselleri (Derinlik, Aracı Kurum Dağılımı, Takas, Kademe), CANLI API VERİLERİNİ ve HABERLERİ birleştirerek profesyonelce yorumla.
+        GÖREV: Verilen Görselleri (Derinlik, Aracı Kurum Dağılımı, Takas, Kademe), CANLI API VERİLERİNİ ve GÜNLÜK HABERLERİ birleştirerek profesyonelce yorumla.
         🚨 Hisse kodunu görselden veya veriden tespit et.
         
         --- ⚠️ KESİN FORMAT VE RENK KURALLARI (BUNA UYMAK ZORUNDASIN) ⚠️ ---
@@ -663,7 +626,7 @@ with c1:
         * :red[Satıcı Baskın]
 
         ## 11. ⚖️ AOF (AĞIRLIKLI ORTALAMA) SAPMASI
-        (Son Fiyat vs AOF)
+        (Son Fiyat vs AOF - Eğer görselde varsa)
         * :green[Trend Yukarı (Son > AOF)]
         * :red[Trend Aşağı (Son < AOF)]
 
@@ -678,7 +641,7 @@ with c1:
         * :red[Pasif/Defansif]
 
         ## 14. 🐋 LOT BÜYÜKLÜĞÜ ANALİZİ (BALİNA İZİ)
-        (İşlemlerin lot büyüklüğü nasıl?)
+        (Kademe listesindeki işlem lot büyüklüğü nasıl?)
         * :green[Balina Oyunda (Büyük bloklar geçiyor)]
         * :blue[Küçük Balıklar (Küçük lotlar)]
 
@@ -693,52 +656,121 @@ with c1:
         * :red[Ayılar Güçlü]
 
         ## 17. 📍 POC (POINT OF CONTROL) ANALİZİ
-        (Kademe hacim tepesi nerede?)
+        (Kademe görselinde en uzun çubuğun olduğu fiyat neresi?)
         * :green[Güvenli Bölge (Fiyat > POC)]
         * :red[Direnç Oluşumu (Fiyat < POC)]
 
         ## 18. 🧠 PSİKOLOJİK RAKAM SAVAŞLARI
-        (Sonu .00 veya .50 olan kademelerde yığılma var mı?)
+        (Derinlikte sonu .00 veya .50 olan kademelerde yığılma var mı?)
 
         ## 19. 🤝 EKÜRİ (PASLAŞAN) KURUMLAR ANALİZİ
         (BofA ve YK/Yatırım Finansman aynı tarafta mı?)
 
         ## 20. 📉 PANİK SATIŞI İZLERİ
-        (Düşüşte lotlar küçük mü büyük mü?)
+        (Kademe listesinde, düşüş anında lotlar küçük mü [Panik] büyük mü [Kurumsal]?)
 
-        ## 21. 🕒 KREDİLİ İŞLEM VE T1/T2 BASKISI
-        (Info, A1 Capital, Marbaş, Osmanlı ne yapıyor?)
+        ## 21. 🕒 KREDİLİ İŞLEM KURUMLARI
+        (Info, A1 Capital, Marbaş, Osmanlı bugün ne tarafta? Alıcı mı Satıcı mı?)
 
         ## 22. 🪜 MERDİVEN (STEP-UP) DESTEK ANALİZİ
-        (Alış emirleri fiyata yakın mı, yukarı taşınıyor mu?)
+        (Derinlikte alış emirleri fiyata yakın mı, yoksa aşağıda mı bekliyor?)
 
-        ## 23. 🩸 STOP PATLATMA (AYI TUZAĞI) KONTROLÜ
-        (Günün dibinden dönüş var mı?)
+        ## 23. 🩸 DİPTEN DÖNÜŞ VAR MI?
+        (Kademe'de günün en düşük fiyatından [Low] fazla işlem geçmiş mi?)
 
         ## 24. 🧢 TAVAN / TABAN KİLİT POTANSİYELİ
-        (Marj durumu nedir?)
+        (Fiyat tavana/tabana ne kadar yakın? Kademeler eriyor mu?)
 
         ## 25. 🧬 GERÇEK YABANCI MI, BIYIKLI YABANCI MI?
-        (Takas saklama analizi)
+        (Citi/Doce alımda ise, Takas geçmişinde de varlar mı?)
 
-        ## 26. 🏎️ TAHTA HIZI VE İLGİ DÜZEYİ
-        (İşlem sıklığı nasıl?)
+        ## 26. 🏎️ İŞLEM YOĞUNLUĞU GÖRSELİ
+        (Kademe listesindeki işlemler sık mı yoksa seyrek mi görünüyor?)
 
         ## 27. 🧱 BLOK SATIŞ KARŞILAMA
-        (Dirençteki satışlar aktif alımla yeniyor mu?)
+        (Derinlikteki satışların Kademe'de 'Yeşil' [Alış] olarak geçtiği görülüyor mu?)
 
         ## 28. ⚖️ ORTALAMA MALİYET YÜKSELTME (MARKUP)
-        (Alıcılar fiyat yükselirken almaya devam ediyor mu?)
+        (Alıcılar fiyat yükselirken almaya devam ediyor mu? AKD maliyetlerine bak.)
 
         ## 29. 🧮 GİZLİ TOPLAMA OPERASYONU
-        (Dengeli dağılan alımlar var mı?)
+        (Alıcı tarafında dengeli dağılan, tek bir lider olmayan yapı var mı?)
         
         ## 30. 🏛️ KURUM KARAKTER ANALİZİ
-        (Alıcılar Smart Money mi, Küçük Yatırımcı mı?)
+        (Alıcılar Smart Money mi [Yatırım, BofA], Küçük Yatırımcı mı [Ziraat, Vakıf]?)
+
+        --- 🔥 FOTOĞRAF ODAKLI KRİTİK 20 EK BAŞLIK (STATİK ANALİZ) ---
+
+        ## 31. 🧊 GİZLİ EMİR (ICEBERG) TESPİTİ
+        (Derinlikte az lot görünüp, Kademe'de o fiyattan çok işlem geçmiş mi?)
+        * :green[Gizli Alıcı Var]
+        * :red[Gizli Satıcı Var]
+
+        ## 32. 🌪️ HACİM / FİYAT UYUMSUZLUĞU (CHURNING)
+        (Kademe'de çok işlem var ama fiyat kademesi değişmemiş mi?)
+        * :red[Yerinde Sayıyor (Mal Devri Riski)]
+        * :green[Dengeli]
+
+        ## 33. 🚫 ALIM/SATIM İPTALİ (GÖRSEL İZLENİM)
+        (Derinlik görselinde 'İptal' sütunu varsa analiz et.)
+
+        ## 34. 🔄 GÜN İÇİ DÖNÜŞ (REVERSAL) SİNYALİ
+        (Kademede en alt fiyatlardan alışlar [Yeşil işlemler] yoğunlaşmış mı?)
+
+        ## 35. 💰 NET PARA GİRİŞ/ÇIKIŞ GÖRÜNTÜSÜ
+        (AKD'deki Net Alım farkına bak.)
+        * :green[Net Para Girişi (+)]
+        * :red[Net Para Çıkışı (-)]
+
+        ## 36. 📉 GAP (FİYAT BOŞLUĞU) RİSKİ
+        (Görsellerde veya haberde 'Gap'ten bahsediliyor mu?)
+
+        ## 37. 🛡️ PİVOT SEVİYESİ KONUMU
+        (Fiyat, günün orta noktasının (AOF) neresinde?)
+
+        ## 38. 🎢 KADEME DOLULUĞU (VOLATİLİTE SİNYALİ)
+        (Kademeler dolu mu [Sakin] yoksa boşluklu mu [Oynak]?)
+
+        ## 39. 🏦 BANK OF AMERICA (BofA) ETKİSİ
+        (BofA tek başına tahtanın % kaçına hakim?)
+
+        ## 40. ⏳ KAPANIŞA DOĞRU DURUM
+        (Hisse günün yükseğinde mi yoksa düşüğünde mi duruyor?)
+
+        ## 41. ♻️ DEVİR HIZI (TURNOVER) ANALİZİ
+        (Takastaki lot miktarı ile AKD işlem hacmini oranla.)
+
+        ## 42. 🕸️ DESTEK ALTI İŞLEM HACMİ
+        (Kademe'de destek seviyesinin altında hacim var mı?)
+
+        ## 43. 📅 TAKAS SAKLAMA DEĞİŞİMİ
+        (Takas görselinde Haftalık farklar varsa yorumla.)
+
+        ## 44. 📊 ENDEKSE DUYARLILIK
+        (Haberlerde Endeks bilgisi varsa, hisseyle kıyasla.)
+
+        ## 45. 📐 DERİNLİK EĞİM (SLOPE) ANALİZİ
+        (Alış kademelerindeki lotlar mı daha hızlı artıyor, satıştakiler mi?)
+
+        ## 46. 🌑 KARANLIK ODA TAHMİNİ
+        (Derinlikteki en iyi eşleşme fiyatı ne görünüyor?)
+
+        ## 47. 🕯️ İŞLEM SIKLIĞI (YOĞUNLUK)
+        (Kademe ekranı baştan aşağı dolu mu?)
+
+        ## 48. 🏗️ KURUMSAL vs. BİREYSEL SAVAŞI
+        (AKD'de Bankalar [Bireysel] mi Aracı Kurumlar [Pro] mı baskın?)
+
+        ## 49. 🚩 GÜN İÇİ FORMASYON
+        (Fiyat adımlarına bakarak bir Bayrak/Flama oluşumu görüyor musun?)
+
+        ## 50. 💎 ELMAS DEĞERİNDE SON SÖZ
+        (Tüm bu 50 maddeye ve HABERLERE bakarak TEK CÜMLE: AL, SAT, TUT veya BEKLE?)
+        * **KARAR:** :green[**AL**] / :red[**SAT**] / :blue[**BEKLE**]
         
         --- ÖZEL BÖLÜM (MADDE SINIRI YOK) ---
         ## 📰 HABER VE GÜNDEM ANALİZİ
-        (Haberlerin hisseye etkisi: Olumlu mu, Olumsuz mu? Madde madde yaz.)
+        (Google News'ten çekilen haberleri yorumla. Olumlu/Olumsuz etkilerini belirt.)
 
         ## 🛡️ GÜÇLÜ/ZAYIF DESTEK VE DİRENÇ ANALİZİ
         (Madde madde seviyeler)
