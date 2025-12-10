@@ -564,11 +564,11 @@ if start_btn:
         {context_str}
         
         --- RAPOR ŞABLONU ---
-        ## 1. 💹 DERİNLİK ÖZETİ (En az 3 Madde)
-        ## 2. 🤵 AKD ÖZETİ (En az 3 Madde)
-        ## 3. 📊 KADEME ANALİZİ (En az 3 Madde)
-        ## 4. 🌍 TAKAS ANALİZİ (En az 3 Madde)
-        ## 5. 🛡️ DESTEK & DİRENÇ (Rakamlar)
+        ## 1. 💹 DERİNLİK ÖZETİ (En az 10 Madde)
+        ## 2. 🤵 AKD ÖZETİ (En az 10 Madde)
+        ## 3. 📊 KADEME ANALİZİ (En az 10 Madde)
+        ## 4. 🌍 TAKAS ANALİZİ (En az 10 Madde)
+        ## 5. 🛡️ DESTEK & DİRENÇ (Rakamlar)(En Az 10 Adet) 
         ## 6. 🐋 BALİNA İZİ (Genel Yorum)
         ## 7. 🚀 İŞLEM PLANI (Net Strateji)
         """
@@ -684,6 +684,7 @@ if st.session_state.analysis_result and not 'placeholder' in locals():
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role":"assistant", "content":resp})
             except: st.error("Hata.")
+
 
 
 
