@@ -691,35 +691,87 @@ if start_btn:
                         else: st.error(f"Hata: {e}"); break
              except Exception as e: st.error(f"Hata: {e}")
 
-# --- RESULT ---
-# Eğer analiz daha önce yapılmışsa (sayfa yenilenince gitmesin diye)
-if st.session_state.analysis_result and not 'placeholder' in locals():
-    st.markdown("## 🐋 Kurumsal Rapor")
-    st.markdown(st.session_state.analysis_result)
-    st.markdown("---")
+# ==========================================
+# 💬 SONUÇ VE SOHBET (FİNAL BÖLÜMÜ)
+# ==========================================
+
+# Analiz sonucu varsa (Daha önce üretilmişse) ekrana bas
+if st.session_state.analysis_result:
     
+    # Eğer sayfa yenilendiyse ve start_btn basılı değilse raporu tekrar göster
+    # (Streaming sırasında zaten placeholder ile gösterildiği için çift yazdırmayı önlüyoruz)
+    if not 'placeholder' in locals():
+        st.markdown("## 🐋 Kurumsal Rapor")
+        st.markdown(st.session_state.analysis_result)
+        st.markdown("---")
+
+    # --- SOHBET ARAYÜZÜ ---
+    st.subheader("💬 Analist ile Sohbet")
+    
+    # MOD SEÇİMİ (RAPOR / GENEL)
+    chat_col1, chat_col2 = st.columns([1, 4])
+    with chat_col1:
+        st.markdown("**Cevaplama Modu:**")
+        chat_scope = st.radio(
+            "Mod Seç", 
+            ("📝 RAPOR", "🌍 GENEL"), 
+            label_visibility="collapsed",
+            help="RAPOR: Sadece yukarıdaki analize sadık kalır.\nGENEL: Kendi borsa bilgisini ve yorumunu katar."
+        )
+
+    # Geçmiş Mesajları Göster
     for m in st.session_state.messages:
-        with st.chat_message(m["role"]): st.markdown(m["content"])
-        
-    if q := st.chat_input("Sorunuz..."):
-        st.session_state.messages.append({"role":"user", "content":q})
-        with st.chat_message("user"): st.markdown(q)
-        
+        with st.chat_message(m["role"]):
+            st.markdown(m["content"])
+
+    # Yeni Soru Girişi
+    if q := st.chat_input("Analiz hakkında bir soru sor..."):
+        # Kullanıcı mesajını ekle
+        st.session_state.messages.append({"role": "user", "content": q})
+        with st.chat_message("user"):
+            st.markdown(q)
+
+        # Asistan Cevabı
         with st.chat_message("assistant"):
             try:
+                # Seçilen Moda Göre Talimat Hazırla
+                if chat_scope == "📝 RAPOR":
+                    system_instruction = (
+                        "GÖREV: Sadece ve sadece yukarıda üretilen analiz raporundaki verilere dayanarak cevap ver. "
+                        "Raporda yazmayan bir bilgi sorulursa 'Raporda bu bilgi yer almıyor' de. "
+                        "Kendi harici borsa bilgini veya yorumunu ASLA katma."
+                    )
+                else:
+                    system_instruction = (
+                        "GÖREV: Yukarıdaki analiz raporunu temel alarak cevap ver. "
+                        "ANCAK; genel borsa bilgin, piyasa tecrüben ve finansal okuryazarlığın ile yorum katmakta ÖZGÜRSÜN. "
+                        "Konuyu genel piyasa koşullarıyla bağdaştırabilirsin."
+                    )
+
+                # Prompt Hazırlığı
+                final_chat_prompt = f"""
+                {system_instruction}
+                
+                --- MEVCUT RAPOR ---
+                {st.session_state.analysis_result}
+                
+                --- KULLANICI SORUSU ---
+                {q}
+                """
+
+                # API Çağrısı
                 genai.configure(api_key=st.session_state.active_working_key)
                 model = genai.GenerativeModel(valid_model_name)
-                stream = model.generate_content(f"Context: {st.session_state.analysis_result}\nUser: {q}", stream=True)
+                stream = model.generate_content(final_chat_prompt, stream=True)
+                
                 def parser():
                     for ch in stream: 
                         if ch.text: yield ch.text
+                
                 resp = st.write_stream(parser)
-                st.session_state.messages.append({"role":"assistant", "content":resp})
-            except: st.error("Hata.")
-
-
-
-
-
+                st.session_state.messages.append({"role": "assistant", "content": resp})
+            
+            except Exception as e:
+                st.error(f"Sohbet Hatası: {str(e)}")
 
 
