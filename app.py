@@ -713,8 +713,6 @@ with c1:
             ## 48. 🏗️ KURUMSAL vs. BİREYSEL SAVAŞI
             ## 49. 🚩 GÜN İÇİ FORMASYON
             ## 50. 💎 ELMAS DEĞERİNDE SON SÖZ
-            
-            --- FİNAL ---
             ## 🐋 GENEL SENTEZ
             ## 🧭 YÖN / FİYAT OLASILIĞI
             ## 💯 SKOR KARTI & TRENDMETRE (TABLO)
@@ -823,6 +821,7 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role": "assistant", "content": resp})
             except Exception as e: st.error(f"Hata: {e}")
+
 
 
 
