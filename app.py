@@ -447,6 +447,27 @@ def handle_paste(cat):
         if res.image_data is not None:
             if not st.session_state[f"pasted_{cat}"] or st.session_state[f"pasted_{cat}"][-1] != res.image_data:
                 st.session_state[f"pasted_{cat}"].append(res.image_data)
+def show_images(cat):
+    """Yapıştırılan görselleri ve silme butonlarını gösterir"""
+    if st.session_state[f"pasted_{cat}"]:
+        st.markdown(f"**📋 Pano ({len(st.session_state[f'pasted_{cat}'])}):**")
+        
+        # Grid yapısı oluştur (her satırda 3 resim)
+        cols = st.columns(3)
+        
+        # Enumerate ile index alarak döngüye sokuyoruz
+        for i, img in enumerate(st.session_state[f"pasted_{cat}"]):
+            with cols[i % 3]:
+                st.image(img, use_container_width=True)
+                # Benzersiz key ataması yaparak silme butonu oluştur
+                if st.button("🗑️ Sil", key=f"del_{cat}_{i}_{st.session_state.reset_counter}"):
+                    st.session_state[f"pasted_{cat}"].pop(i) # Listeden sil
+                    st.rerun() # Sayfayı yenile
+        
+        # Tümünü temizle butonu (Sadece o kategori için)
+        if st.button(f"🗑️ Tüm {cat} Görsellerini Temizle", key=f"clear_all_{cat}"):
+            st.session_state[f"pasted_{cat}"] = []
+            st.rerun()
 
 def show_images(cat):
     if st.session_state[f"pasted_{cat}"]:
@@ -454,41 +475,69 @@ def show_images(cat):
         for i, img in enumerate(st.session_state[f"pasted_{cat}"]):
             cols[i%3].image(img, width=100)
 
+# ==========================================
+# 🖼️ GÖRSEL YÖNETİM PANELİ (GÜNCELLENDİ)
+# ==========================================
+
+def render_category_panel(title, cat_name, tg_session_key, uploader_key):
+    """Her kategori için standart panel oluşturur"""
+    st.markdown(f"### {title}")
+    
+    # --- 1. TELEGRAM GÖRSELİ ---
+    if st.session_state[tg_session_key]:
+        with st.container(border=True):
+            st.caption("📲 Telegram'dan Alındı")
+            st.image(st.session_state[tg_session_key], use_container_width=True)
+            if st.button("🗑️ Kaldır", key=f"del_tg_{cat_name}"):
+                st.session_state[tg_session_key] = None
+                st.rerun()
+    
+    # --- 2. DOSYA YÜKLEME ---
+    # File uploader zaten kendi içinde silme (X) özelliğine sahiptir.
+    st.file_uploader("Dosya Yükle", type=["jpg","png","jpeg"], key=uploader_key, accept_multiple_files=True)
+    
+    # --- 3. YAPIŞTIRMA VE GALERİ ---
+    handle_paste(cat_name) # Yapıştır butonu
+    show_images(cat_name)  # Yapıştırılanları ve silme butonlarını göster
+
+# İki Kolonlu Yapı
 col1, col2 = st.columns(2)
+
 with col1:
-    st.markdown("### 1. Derinlik 💹")
-    # Telegram Resmi Varsa Göster
-    if st.session_state.tg_img_derinlik:
-        st.image(st.session_state.tg_img_derinlik, caption="📲 Telegram'dan Alındı", width=200)
+    # Sol Kolon: Derinlik ve Kademe
+    render_category_panel(
+        title="1. Derinlik 💹", 
+        cat_name="Derinlik", 
+        tg_session_key="tg_img_derinlik", 
+        uploader_key=f"d_{file_key_suffix}"
+    )
     
-    img_d = st.file_uploader("Yükle", type=["jpg","png","jpeg"], key=f"d_{file_key_suffix}", accept_multiple_files=True)
-    handle_paste("Derinlik")
-    show_images("Derinlik")
+    st.markdown("---") # Ayırıcı
     
-    st.markdown("### 3. Kademe 📊")
-    if st.session_state.tg_img_kademe:
-        st.image(st.session_state.tg_img_kademe, caption="📲 Telegram'dan Alındı", width=200)
-        
-    img_k = st.file_uploader("Yükle", type=["jpg","png","jpeg"], key=f"k_{file_key_suffix}", accept_multiple_files=True)
-    handle_paste("Kademe")
-    show_images("Kademe")
+    render_category_panel(
+        title="3. Kademe 📊", 
+        cat_name="Kademe", 
+        tg_session_key="tg_img_kademe", 
+        uploader_key=f"k_{file_key_suffix}"
+    )
 
 with col2:
-    st.markdown("### 2. AKD 🤵")
-    if st.session_state.tg_img_akd:
-        st.image(st.session_state.tg_img_akd, caption="📲 Telegram'dan Alındı", width=200)
-        
-    img_a = st.file_uploader("Yükle", type=["jpg","png","jpeg"], key=f"a_{file_key_suffix}", accept_multiple_files=True)
-    handle_paste("AKD")
-    show_images("AKD")
+    # Sağ Kolon: AKD ve Takas
+    render_category_panel(
+        title="2. AKD 🤵", 
+        cat_name="AKD", 
+        tg_session_key="tg_img_akd", 
+        uploader_key=f"a_{file_key_suffix}"
+    )
     
-    st.markdown("### 4. Takas 🌍")
-    if st.session_state.tg_img_takas:
-        st.image(st.session_state.tg_img_takas, caption="📲 Telegram'dan Alındı", width=200)
-        
-    img_t = st.file_uploader("Yükle", type=["jpg","png","jpeg"], key=f"t_{file_key_suffix}", accept_multiple_files=True)
-    handle_paste("Takas")
-    show_images("Takas")
+    st.markdown("---") # Ayırıcı
+    
+    render_category_panel(
+        title="4. Takas 🌍", 
+        cat_name="Takas", 
+        tg_session_key="tg_img_takas", 
+        uploader_key=f"t_{file_key_suffix}"
+    )
 
 # --- ANALYZE ---
 st.markdown("---")
@@ -619,4 +668,5 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role":"assistant", "content":resp})
             except: st.error("Hata.")
+
 
