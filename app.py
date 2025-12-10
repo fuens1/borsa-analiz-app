@@ -9,41 +9,33 @@ import os
 import requests
 import base64
 from urllib.parse import quote
+# ==========================================
+# 🎨 SAYFA AYARLARI
+# ==========================================
 
+st.set_page_config(page_title="BIST Yapay Zeka PRO", layout="wide", page_icon="🐋")
+
+# 👇👇👇 GÜNCELLENMİŞ "ATOM BOMBASI" GİZLEME KODU 👇👇👇
 st.markdown("""
 <style>
-    /* 1. Sağ Üst Menüyü Gizle */
-    .stAppDeployButton {display:none;}
-    div[data-testid="stToolbar"] {visibility: hidden; height: 0%; position: fixed;}
-    div[data-testid="stDecoration"] {visibility: hidden; height: 0%; position: fixed;}
-    div[data-testid="stStatusWidget"] {visibility: hidden; height: 0%; position: fixed;}
-
-    /* 2. Sağ Alt (Footer) ve "Made with Streamlit" Yazısını Gizle */
-    footer {visibility: hidden;}
-    #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
-
-    /* 3. Özel Olarak Sağ Alttaki Viewer Badge'i (Gözlemci Rozeti) Gizle */
-    .viewerBadge_container__1QSob {display: none;}
+    /* 1. Üstteki Renkli Şerit ve Menü (Header) */
+    [data-testid="stHeader"] { display: none; }
     
-    /* Alternatif genel gizleme (Garanti olsun diye) */
-    [data-testid="stFooter"] {display: none;}
-</style>
-""", unsafe_allow_html=True)
+    /* 2. Sayfanın En Altındaki Standart Footer */
+    [data-testid="stFooter"] { display: none; }
+    footer { visibility: hidden; }
 
-st.markdown("""
-<style>
-    /* Sağ üstteki Hamburger Menüyü (Üç Çizgi) Gizle */
-    .stAppDeployButton {display:none;}
-    div[data-testid="stToolbar"] {visibility: hidden; height: 0%; position: fixed;}
-    div[data-testid="stDecoration"] {visibility: hidden; height: 0%; position: fixed;}
-    div[data-testid="stStatusWidget"] {visibility: hidden; height: 0%; position: fixed;}
+    /* 3. SAĞ ALTTAKİ 'DEPLOY' BUTONU (Kırmızı Taç/Logo) */
+    .stAppDeployButton { display: none !important; visibility: hidden !important; }
+    [data-testid="stAppDeployButton"] { display: none !important; visibility: hidden !important; }
 
-    /* Alt kısımdaki "Made with Streamlit" yazısını Gizle */
-    footer {visibility: hidden;}
-    
-    /* Üstteki renkli şeridi gizle (Opsiyonel) */
-    header {visibility: hidden;}
+    /* 4. SAĞ ALTTAKİ İZLEYİCİ ROZETİ (Avatar/Viewer Badge) */
+    [data-testid="stStatusWidget"] { display: none !important; visibility: hidden !important; }
+    div[class^="viewerBadge"] { display: none !important; }
+
+    /* 5. Genel Toolbar ve Dekorasyonlar */
+    [data-testid="stToolbar"] { display: none !important; }
+    [data-testid="stDecoration"] { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -887,5 +879,6 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role": "assistant", "content": resp})
             except Exception as e: st.error(f"Hata: {e}")
+
 
 
