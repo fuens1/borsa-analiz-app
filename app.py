@@ -173,16 +173,21 @@ def check_password():
         st.stop()
 
     input_pass = st.session_state.get("password_input", "")
+    
+    # 1. Admin Girişi Kontrolü
     if input_pass == admin_secret:
         st.session_state.authenticated = True
-        st.session_state.is_admin = True
+        st.session_state.is_admin = True  # Yönetici AÇIK
         return
+
+    # 2. Beta (Normal) Giriş Kontrolü
     if input_pass == correct_password:
         if global_config["beta_active"]:
             st.session_state.authenticated = True
-            st.session_state.is_admin = False
+            st.session_state.is_admin = False # 👈 BURASI KRİTİK: Yönetici KAPALI
         else:
             st.error("🔒 Beta kapalı.")
+            
     elif input_pass:
         st.error("❌ Hatalı Kod!")
 
@@ -885,6 +890,7 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role": "assistant", "content": resp})
             except Exception as e: st.error(f"Hata: {e}")
+
 
 
 
