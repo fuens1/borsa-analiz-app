@@ -76,7 +76,7 @@ global_config = load_global_config()
 # 🎨 SAYFA AYARLARI
 # ==========================================
 
-st.set_page_config(page_title="BIST Yapay Zeka Analiz PRO", layout="wide", page_icon="🐋")
+st.set_page_config(page_title="BIST Yapay Zeka  PRO", layout="wide", page_icon="🐋")
 
 st.markdown("""
 <style>
@@ -178,7 +178,7 @@ if not st.session_state.authenticated:
 
 col_title, col_reset = st.columns([5, 1])
 with col_title:
-    st.title("🐋 BIST Yapay Zeka Analiz PRO")
+    st.title("🐋 BIST Yapay Zeka  PRO")
     if st.session_state.is_admin: st.success("👑 YÖNETİCİ MODU")
     else: st.info("Küçük Yatırımcının Büyüdüğü Bir Evren..")
 
@@ -620,13 +620,13 @@ with c1:
         
         --- GENEL ANALİZ ---
         ## 🐋 GENEL SENTEZ (BALİNA İZİ)
-        (Bu bölümü SAKIN paragraf yapma. Yukarıdaki Yeşil-Mavi-Kırmızı kuralına göre madde madde 'Büyük Resim' analizi yap. Kurumlar topluyor mu, dağıtıyor mu?)
+        (Bu bölümü SAKIN paragraf yapma. Yukarıdaki Yeşil-Mavi-Kırmızı kuralına göre madde madde 'Büyük Resim' i yap. Kurumlar topluyor mu, dağıtıyor mu?)
 
         ## 🌡️ PİYASA DUYGU ÖLÇER (SEKTÖREL SENTIMENT)
         (Puan: 0-100. Neden bu puan verildi? Madde madde açıkla.)
         
         ## 🧭 YÖN / FİYAT OLASILIĞI (DETAYLI SENARYO)
-        (Bu bölümde hissenin gitmek istediği yönü yüzdelik ve fiyatsal olarak analiz et)
+        (Bu bölümde hissenin gitmek istediği yönü yüzdelik ve fiyatsal olarak  et)
         * **📈 Yükseliş İhtimali:** %... (Gerekçeleriyle madde madde)
         * **📉 Düşüş İhtimali:** %... (Gerekçeleriyle madde madde)
         * **🎯 Yukarı Hedef Fiyat:** Hangi fiyata gitmek için zorluyor?
@@ -648,9 +648,9 @@ with c1:
         if has_t: count += 1
         
         if count == 0 and not context_str:
-            st.warning("⚠️ Lütfen analiz için veri yükleyin (Görsel, API veya Telegram).")
+            st.warning("⚠️ Lütfen  için veri yükleyin (Görsel, API veya Telegram).")
         else:
-            with st.spinner("Analiz yapılıyor... (Veriler harmanlanıyor)"):
+            with st.spinner("Veriler Analiz Ediliyor.."):
                 try:
                     res = make_resilient_request(input_data, api_keys)
                     st.session_state.analysis_result = res
@@ -683,6 +683,7 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role":"assistant", "content":resp})
             except: st.error("Hata.")
+
 
 
 
