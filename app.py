@@ -565,7 +565,7 @@ with c1:
         1. 🚫 **YASAK:** Elimizde verisi olmayan hiçbir başlığı rapora ekleme. Örneğin; AKD verisi yoksa, raporda "AKD Analizi" diye bir başlık ASLA olmayacak. O kısmı tamamen yok say. "Veri yok" yazıp maddeleme yapma.
         2. 🚫 **YASAK:** "Mevcut Veri Seti Bilgilendirmesi" veya giriş cümlesi yazma. Direkt analize başla.
         3. 📝 **BİÇİM:** ASLA PARAGRAF YAZMA. Madde madde ilerle.
-        4. 🎨 **RENK:** :green[**OLUMLU**], :blue[**NÖTR**], :red[**OLUMSUZ**] etiketlerini kullan.
+        4. 🎨 **RENK:** :green[**OLUMLU**], :blue[**NÖTR**], :red[**OLUMSUZ**] kelimeleri / cümleleri vurgula.
         """
 
         # ==========================================
@@ -815,4 +815,5 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role": "assistant", "content": resp})
             except Exception as e: st.error(f"Hata: {e}")
+
 
