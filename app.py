@@ -10,6 +10,22 @@ import requests
 import base64
 from urllib.parse import quote
 
+st.markdown("""
+<style>
+    /* Sağ üstteki Hamburger Menüyü (Üç Çizgi) Gizle */
+    .stAppDeployButton {display:none;}
+    div[data-testid="stToolbar"] {visibility: hidden; height: 0%; position: fixed;}
+    div[data-testid="stDecoration"] {visibility: hidden; height: 0%; position: fixed;}
+    div[data-testid="stStatusWidget"] {visibility: hidden; height: 0%; position: fixed;}
+
+    /* Alt kısımdaki "Made with Streamlit" yazısını Gizle */
+    footer {visibility: hidden;}
+    
+    /* Üstteki renkli şeridi gizle (Opsiyonel) */
+    header {visibility: hidden;}
+</style>
+""", unsafe_allow_html=True)
+
 # ==========================================
 # 📦 KÜTÜPHANE KONTROLLERİ
 # ==========================================
@@ -850,3 +866,4 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role": "assistant", "content": resp})
             except Exception as e: st.error(f"Hata: {e}")
+
