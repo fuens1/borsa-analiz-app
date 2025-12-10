@@ -631,7 +631,7 @@ with c1:
             """
 
         # ==========================================
-        # 🧠 GELİŞMİŞ MOD PROMPTU (DİNAMİK OLUŞTURMA)
+        # 🧠 GELİŞMİŞ MOD PROMPTU (TAM LİSTE EKLENDİ)
         # ==========================================
         else:
             limit_txt = f"(DİKKAT: EN AZ {max_items} TANE MADDELİ ANALİZ YAP.)"
@@ -651,29 +651,68 @@ with c1:
             {main_headers}
 
             --- 🕵️‍♂️ MİKRO-YAPISAL ANALİZ ---
-            GÖREV: Aşağıdaki 50 maddelik listeden, **SADECE ELİMİZDEKİ VERİLERLE CEVAPLANABİLECEK OLANLARI** seç ve analiz et.
-            ❌ Eğer bir maddenin cevabı görsellerde yoksa, o maddeyi rapora HİÇ YAZMA, ATLA.
+            GÖREV: Aşağıdaki 50 maddelik detaylı kontrol listesini taramanı istiyorum.
+            ANCAK: **SADECE ELİMİZDEKİ GÖRSELLERDE CEVABI OLAN MADDELERİ RAPORA YAZ.**
+            ❌ Eğer bir maddenin cevabı görsellerde/verilerde yoksa, o maddeyi rapora HİÇ YAZMA, ATLA. Boşuna "Veri yok" deme.
             
-            (Kontrol Listesi Referansı - Sadece verisi olanları al):
-            1. 💰 GÜNÜN AĞIRLIKLI MALİYET ANALİZİ (KADEME)
-            2. 🤖 ROBOT VE ALGORİTMA TARAYICISI (AKD)
-            3. 👑 TAHTA YAPICININ KAR/ZARAR DURUMU
-            4. 🎭 ALGI YÖNETİMİ & TUZAK RADARI
-            5. 🥊 "DİĞER"LER SAVAŞI (AKD)
-            6. 🏦 TAKAS - AKD UYUMSUZLUĞU
-            7. 🕵️‍♂️ VİRMANLI ALIM TESPİTİ
-            8. 📊 TAKAS KONSANTRASYONU
-            9. 🧱 SATIŞ DUVARI (DERİNLİK)
-            10. 🌡️ ANLIK BASKI DENGESİ (DERİNLİK)
-            ... (Ve diğer tüm teknik maddeler. Sadece verisi olanı yorumla, gerisini sil.)
-            
+            (Kontrol Listesi):
+            1. 💰 GÜNÜN AĞIRLIKLI MALİYET ANALİZİ (KADEME): Fiyat yoğunluk bölgesinin neresinde?
+            2. 🤖 ROBOT VE ALGORİTMA TARAYICISI (AKD): BofA, İnfo, Yatırım Finansman devrede mi?
+            3. 👑 TAHTA YAPICININ KAR/ZARAR DURUMU: En çok alan kurum karda mı zararda mı?
+            4. 🎭 ALGI YÖNETİMİ & TUZAK RADARI: Derinlikteki emirler gerçek mi, siliniyor mu?
+            5. 🥊 "DİĞER"LER SAVAŞI (AKD): Küçük yatırımcı (Diğer) alıyor mu satıyor mu?
+            6. 🏦 TAKAS - AKD UYUMSUZLUĞU: Alan kurum saklamada malı tutuyor mu?
+            7. 🕵️‍♂️ VİRMANLI ALIM TESPİTİ: Takas ile AKD arasında virman şüphesi var mı?
+            8. 📊 TAKAS KONSANTRASYONU: Mal ne kadar toplu? (İlk 5 kurum oranı)
+            9. 🧱 SATIŞ DUVARI VE PSİKOLOJİK DİRENÇ: Derinlikte nerede blok satış var?
+            10. 🌡️ ANLIK BASKI DENGESİ: Derinlikte alıcılar mı istekli satıcılar mı?
+            11. ⚖️ AOF (AĞIRLIKLI ORTALAMA) SAPMASI: Fiyat AOF'un altında mı üstünde mi?
+            12. ✂️ MAKAS (SPREAD) VE LİKİDİTE RİSKİ: Kademe aralıkları açık mı?
+            13. 🏹 AGRESİF vs. PASİF İŞLEM: İşlemler aktiften (satış kademesinden) mi geçiyor?
+            14. 🐋 LOT BÜYÜKLÜĞÜ ANALİZİ: Kademede geçen lotlar büyük mü (Balina) küçük mü?
+            15. 🕳️ KADEMELERDEKİ 'HAVA BOŞLUKLARI': Alt kademeler dolu mu boş mu?
+            16. ⚔️ ALICI / SATICI GÜÇ RASYOSU (AKD): İlk 5 Alıcı / İlk 5 Satıcı oranı.
+            17. 📍 POC (POINT OF CONTROL): En çok işlem hacminin geçtiği fiyat seviyesi.
+            18. 🧠 PSİKOLOJİK RAKAM SAVAŞLARI: .00 veya .50'li seviyelerde yığılma var mı?
+            19. 🤝 EKÜRİ (PASLAŞAN) KURUMLAR: BofA ile YK veya Info beraber mi hareket ediyor?
+            20. 📉 PANİK SATIŞI İZLERİ: Kademede küçük lotlarla şelale düşüşü var mı?
+            21. 🕒 KREDİLİ İŞLEM KURUMLARI: A1, Marbaş, Osmanlı, Info ne yönde işlem yapıyor?
+            22. 🪜 MERDİVEN (STEP-UP) DESTEK: Alış emirleri fiyata yakınlaşarak mı geliyor?
+            23. 🩸 DİPTEN DÖNÜŞ VAR MI? Günün en düşüğünden tepki gelmiş mi?
+            24. 🧢 TAVAN / TABAN KİLİT POTANSİYELİ: Tavan/Taban kademesinde ne kadar lot var?
+            25. 🧬 GERÇEK YABANCI MI, BIYIKLI YABANCI MI? Takas değişimleri ne diyor?
+            26. 🏎️ İŞLEM YOĞUNLUĞU GÖRSELİ: İşlemler ne kadar sık geçiyor?
+            27. 🧱 BLOK SATIŞ KARŞILAMA: Büyük satışlar hemen karşılanıyor mu?
+            28. ⚖️ ORTALAMA MALİYET YÜKSELTME (MARKUP): Fiyat yükselirken hacim artıyor mu?
+            29. 🧮 GİZLİ TOPLAMA OPERASYONU: AKD'de dağınık alım, Takasta toplu birikim var mı?
+            30. 🏛️ KURUM KARAKTER ANALİZİ: Oyuncular trader mı yoksa kurumsal mı?
+            31. 🧊 GİZLİ EMİR (ICEBERG) TESPİTİ: Görünenden daha fazla işlem geçiyor mu?
+            32. 🌪️ HACİM / FİYAT UYUMSUZLUĞU (CHURNING): Hacim var ama fiyat gitmiyor mu?
+            33. 🚫 ALIM/SATIM İPTALİ: Derinlikte iptal edilen emirler var mı?
+            34. 🔄 GÜN İÇİ DÖNÜŞ (REVERSAL) SİNYALİ: Mum veya kademe dönüş işareti veriyor mu?
+            35. 💰 NET PARA GİRİŞ/ÇIKIŞ GÖRÜNTÜSÜ: Para girişi pozitif mi?
+            36. 📉 GAP (FİYAT BOŞLUĞU) RİSKİ: Haber veya açılış kaynaklı boşluk var mı?
+            37. 🛡️ PİVOT SEVİYESİ KONUMU: Fiyat pivotun neresinde?
+            38. 🎢 KADEME DOLULUĞU: Tahta sığ mı (manipülasyona açık) yoksa derin mi?
+            39. 🏦 BANK OF AMERICA (BofA) ETKİSİ: Tahtayı tek başına mı domine ediyor?
+            40. ⏳ KAPANIŞA DOĞRU DURUM: Gün sonu risk iştahı nasıl?
+            41. ♻️ DEVİR HIZI (TURNOVER): Takastaki mal ne kadar el değiştirmiş?
+            42. 🕸️ DESTEK ALTI İŞLEM HACMİ: Destek kırılınca hacim artmış mı (Stop patlatma)?
+            43. 📅 TAKAS SAKLAMA DEĞİŞİMİ: Haftalık/Aylık değişimde kim topluyor?
+            44. 📊 ENDEKSE DUYARLILIK: Endeks hareketine tepkisi nasıl?
+            45. 📐 DERİNLİK EĞİM (SLOPE) ANALİZİ: Alış tarafı mı daha dik, satış tarafı mı?
+            46. 🌑 KARANLIK ODA TAHMİNİ: Eşleşme fiyatı teorik olarak nerede?
+            47. 🕯️ İŞLEM SIKLIĞI (YOĞUNLUK): Trade sıklığı robot varlığına işaret ediyor mu?
+            48. 🏗️ KURUMSAL vs. BİREYSEL SAVAŞI: Kim daha baskın?
+            49. 🚩 GÜN İÇİ FORMASYON: Bayrak, Flama, OBO vb. mikro formasyon var mı?
+            50. 💎 ELMAS DEĞERİNDE SON SÖZ: Tüm bunlara göre TEK CÜMLE: Yön neresi?
+
             --- FİNAL ---
             ## 🐋 GENEL SENTEZ
             ## 🧭 YÖN / FİYAT OLASILIĞI
             ## 💯 SKOR KARTI & TRENDMETRE (TABLO - Sadece Verisi Olanlar)
             ## 🚀 İŞLEM PLANI
             """
-
         input_data.append(prompt)
         
         # Eğer ne görsel ne API yoksa
@@ -776,3 +815,4 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role": "assistant", "content": resp})
             except Exception as e: st.error(f"Hata: {e}")
+
