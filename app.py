@@ -519,6 +519,10 @@ if start_btn:
     input_data = []
     context_str = ""
     
+if start_btn:
+    input_data = []
+    context_str = ""
+    
     # 1. API Verileri
     if st.session_state.api_depth_data:
         context_str += f"\n\n--- CANLI DERİNLİK API VERİSİ ---\n{json.dumps(st.session_state.api_depth_data, indent=2, ensure_ascii=False)}"
@@ -544,95 +548,123 @@ if start_btn:
     has_k = add_imgs(img_k, st.session_state["pasted_Kademe"], st.session_state.tg_img_kademe)
     has_t = add_imgs(img_t, st.session_state["pasted_Takas"], st.session_state.tg_img_takas)
 
-    # --- YENİ PROMPT MANTIĞI ---
+    # --- HANGİ VERİLER VAR? (Görsel veya API) ---
+    show_depth = has_d or st.session_state.api_depth_data
+    show_akd = has_a or st.session_state.api_akd_data
+    show_kademe = has_k
+    show_takas = has_t
+
+    # --- DİNAMİK ŞABLON OLUŞTURUCU (Verisi olmayan başlık eklenmeyecek) ---
+    def build_template(is_advanced, item_count):
+        template = ""
+        counter = 1
+        
+        # 1. Derinlik
+        if show_depth:
+            title = f"DETAYLI DERİNLİK ANALİZİ (Min. {item_count} Madde)" if is_advanced else f"DERİNLİK ÖZETİ (En az 10 Madde)"
+            template += f"## {counter}. 💹 {title}\n"
+            counter += 1
+            
+        # 2. AKD
+        if show_akd:
+            title = f"DETAYLI AKD (ARACI KURUM) ANALİZİ (Min. {item_count} Madde)" if is_advanced else f"AKD ÖZETİ (En az 10 Madde)"
+            template += f"## {counter}. 🤵 {title}\n"
+            counter += 1
+            
+        # 3. Kademe
+        if show_kademe:
+            title = f"DETAYLI KADEME ANALİZİ (Min. {item_count} Madde)" if is_advanced else f"KADEME ANALİZİ (En az 10 Madde)"
+            template += f"## {counter}. 📊 {title}\n"
+            counter += 1
+            
+        # 4. Takas
+        if show_takas:
+            title = f"DETAYLI TAKAS ANALİZİ (Min. {item_count} Madde)" if is_advanced else f"TAKAS ANALİZİ (En az 10 Madde)"
+            template += f"## {counter}. 🌍 {title}\n"
+            counter += 1
+        
+        # Sabit Bölümler (Her zaman göster)
+        if is_advanced:
+            template += f"## {counter}. 🌡️ GENEL SENTIMENT VE PİYASA ALGISI (Min. {item_count} Madde)\n"
+            counter += 1
+            template += f"## {counter}. 🐋 GENEL SENTEZ VE BÜYÜK RESİM (Min. {item_count} Madde)\n"
+            counter += 1
+            template += f"## {counter}. 🚀 STRATEJİK İŞLEM PLANI VE HEDEFLER (Min. {item_count} Madde)\n"
+        else:
+            template += f"## {counter}. 🛡️ DESTEK & DİRENÇ (Rakamlar)(En Az 10 Adet)\n"
+            counter += 1
+            template += f"## {counter}. 🐋 BALİNA İZİ (Genel Yorum)\n"
+            counter += 1
+            template += f"## {counter}. 🚀 İŞLEM PLANI (Net Strateji)\n"
+            
+        return template
+
+    # Mod Kontrolü ve Şablonun Oluşturulması
+    is_advanced_mode = "GELİŞMİŞ" in analysis_mode
+    dynamic_template = build_template(is_advanced_mode, max_items)
+
+    # --- PROMPT KURALLARI ---
     base_rules = """
     Sen Borsa Uzmanısın. Hissenin kodunu tespit et.
-    FORMAT KURALLARI:
+    
+    🛑 FORMAT KURALLARI (KESİN UYULACAK):
     1. ASLA PARAGRAF YAZMA. Sadece madde madde (Bullet points).
-    2. Renkleri kullan: :green[Olumlu], :red[Olumsuz], :blue[Nötr].
+    2. MADDE SIRALAMASI: Her başlık altında maddeleri KARIŞIK YAZMA. Şu sırayı takip et:
+       * ÖNCE: ✅ :green[**POZİTİF / OLUMLU VERİLER**]
+       * SONRA: 🔵 :blue[**NÖTR / BİLGİ VERİLERİ**]
+       * EN SON: 🔻 :red[**NEGATİF / OLUMSUZ VERİLER**]
+    3. Verisi olmayan (şablonda yer almayan) konular hakkında asla yorum uydurma.
     """
 
-    if "SADE" in analysis_mode:
-        # SADE MOD: Toplamda en az 15 madde olması için her başlığa "En az 3 madde" talimatı verdik.
+    if not is_advanced_mode:
+        # SADE MOD
         prompt = f"""
         {base_rules}
-        GÖREV: Aşağıdaki 7 başlığı analiz et.
-        KRİTİK KURAL: Raporun tamamında TOPLAM EN AZ 15-20 arası dolu dolu analiz maddesi olsun. 
-        Her başlığın altına en az 10-11 detaylı madde yazarak ilerle.
+        GÖREV: Sadece aşağıda listelenen başlıkları analiz et. Verisi olmayanları pas geç.
+        KRİTİK KURAL: Raporun tamamında TOPLAM EN AZ 15-20 arası analiz maddesi olsun. 
+        Her başlığın altına en az 10 detaylı madde yazarak ilerle.
         
         --- VERİLER ---
         {context_str}
         
-        --- RAPOR ŞABLONU ---
-        ## 1. 💹 DERİNLİK ÖZETİ (En az 10 Madde)
-        ## 2. 🤵 AKD ÖZETİ (En az 10 Madde)
-        ## 3. 📊 KADEME ANALİZİ (En az 10 Madde)
-        ## 4. 🌍 TAKAS ANALİZİ (En az 10 Madde)
-        ## 5. 🛡️ DESTEK & DİRENÇ (Rakamlar)(En Az 10 Adet) 
-        ## 6. 🐋 BALİNA İZİ (Genel Yorum)
-        ## 7. 🚀 İŞLEM PLANI (Net Strateji)
+        --- RAPOR ŞABLONU (Sadece Verisi Olanlar) ---
+        {dynamic_template}
         """
     else:
-        # GELİŞMİŞ MOD: Slider'dan gelen 'max_items' (min 15) her başlığa zorlanıyor.
+        # GELİŞMİŞ MOD
         prompt = f"""
         {base_rules}
-        GÖREV: Aşağıdaki ana başlıkları EN İNCE AYRINTISINA KADAR analiz et.
+        GÖREV: Aşağıdaki şablonda yer alan başlıkları EN İNCE AYRINTISINA KADAR analiz et.
         
-        🛑 ZORUNLU KURAL: Her ana başlığın altına (Derinlik, AKD, Kademe, Takas vb.) EN AZ {max_items} ADET analiz maddesi yazacaksın. 
-        3-5 madde yazıp bırakma. Görsellerdeki en ufak detayı, lot sayılarını, kurumları tek tek incele ve 15 maddeye tamamla.
+        🛑 ZORUNLU KURAL: Her başlığın altına EN AZ {max_items} ADET analiz maddesi yazacaksın. 
+        Görsellerdeki en ufak detayı, lot sayılarını, kurumları tek tek incele.
         
         --- VERİLER ---
         {context_str}
         
-        --- RAPOR ŞABLONU (HER BÖLÜM {max_items} MADDE OLACAK) ---
-        
-        ## 1. 💹 DETAYLI DERİNLİK ANALİZİ
-        (Alış/Satış baskısı, bekleyen emirler, kademe boşlukları... En az {max_items} madde)
-
-        ## 2. 🤵 DETAYLI AKD (ARACI KURUM) ANALİZİ
-        (Alıcılar, satıcılar, maliyetler, robotlar... En az {max_items} madde)
-
-        ## 3. 📊 DETAYLI KADEME ANALİZİ
-        (İşlem yoğunluğu, fiyat hareketleri, pasif/aktif emirler... En az {max_items} madde)
-
-        ## 4. 🌍 DETAYLI TAKAS ANALİZİ
-        (Saklama değişimleri, yabancı takası, virmanlar... En az {max_items} madde)
-
-        ## 5. 🌡️ GENEL SENTIMENT VE PİYASA ALGISI
-        (Psikolojik durum, korku/açgözlülük... En az {max_items} madde)
-
-        ## 6. 🐋 GENEL SENTEZ VE BÜYÜK RESİM
-        (Tüm verilerin birleşimi... En az {max_items} madde)
-
-        ## 7. 🚀 STRATEJİK İŞLEM PLANI VE HEDEFLER
-        (Kısa/Orta/Uzun vade senaryolar, Stop ve Kar Al noktaları... En az {max_items} madde)
+        --- RAPOR ŞABLONU (Sadece Verisi Olanlar - Her Bölüm Min {max_items} Madde) ---
+        {dynamic_template}
         """
     
     input_data.append(prompt)
 
-    # --- BURADAN SONRASI AYNI (STREAMING KISMI) ---
-    count = 0
-    if has_d: count += 1
-    if has_a: count += 1
-    if has_k: count += 1
-    if has_t: count += 1
+    # --- VERİ KONTROLÜ VE ÇALIŞTIRMA ---
+    # En az bir veri (Görsel, API veya Haber metni) var mı?
+    total_data_points = 0
+    if show_depth: total_data_points += 1
+    if show_akd: total_data_points += 1
+    if show_kademe: total_data_points += 1
+    if show_takas: total_data_points += 1
     
-    if count == 0 and not context_str:
-        st.warning("⚠️ Veri Yok!")
+    if total_data_points == 0 and not context_str:
+        st.warning("⚠️ Analiz için yeterli veri yok! Lütfen görsel yükleyin veya API/Haber verisi çekin.")
     else:
         placeholder = st.empty()
         full_response = ""
-        # ... (Streaming kodlarınız burada devam eder) ...
-        # Mevcut kodunuzdaki streaming bloğunu (with st.spinner...) buraya aynen devam ettirin.
+        
         with st.spinner("Analiz hazırlanıyor..."):
-             # ... (API KEY DÖNGÜSÜ BURAYA GELECEK) ...
-             # Mevcut kodunuzdaki gibi:
+             # API Key Döngüsü ve İstek (Mevcut kodun aynısı)
              local_keys = api_keys.copy()
-             # ...
-             # ...
-             # ... Bu kısım değişmediği için kısaltıyorum
-             
-             # Geçici çözüm olarak akış kodunu buraya tam entegre edelim ki hata olmasın:
              try:
                 if working_key in local_keys:
                     local_keys.remove(working_key)
@@ -684,6 +716,7 @@ if st.session_state.analysis_result and not 'placeholder' in locals():
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role":"assistant", "content":resp})
             except: st.error("Hata.")
+
 
 
 
