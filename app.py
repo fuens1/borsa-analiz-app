@@ -480,10 +480,13 @@ def render_category_panel(title, cat_name, tg_session_key, uploader_key):
     if st.session_state[tg_session_key]:
         with st.container(border=True):
             st.caption("📲 Telegram'dan Alındı")
-            st.image(st.session_state[tg_session_key], use_container_width=True)
+            # 👇 AŞAĞIDAKİ SATIR DEĞİŞTİ (use_container_width yerine width eklendi)
+            st.image(st.session_state[tg_session_key], width=10, caption="TG Verisi") 
+            
             if st.button("🗑️ Kaldır", key=f"del_tg_{cat_name}"):
                 st.session_state[tg_session_key] = None
                 st.rerun()
+
     
     # --- 2. DOSYA YÜKLEME ---
     # File uploader zaten kendi içinde silme (X) özelliğine sahiptir.
@@ -680,4 +683,5 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role":"assistant", "content":resp})
             except: st.error("Hata.")
+
 
