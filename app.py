@@ -100,9 +100,10 @@ def get_valid_model(key):
     # Multimodal (Görsel Analiz Yapabilen) modelleri kontrol et
     for model_name in ['gemini-2.5-flash', 'gemini-2.5-flash-live', 'gemini-2.0-flash-live']:
         try:
+            # Modelin gerçekten çalışıp çalışmadığını kontrol et
             model = genai.GenerativeModel(model_name)
             model.generate_content(test_prompt)
-            return model_name
+            return model_name # Çalışan ilk Flash modelini döndür
         except Exception as e:
             error_str = str(e).lower()
             if "invalid" in error_str or "400" in error_str:
@@ -389,21 +390,27 @@ if st.session_state.api_depth_data is not None or st.session_state.api_akd_data 
         else: st.error("API AKD 🔴")
 
 # Keylerin uygulama genelinde kullanılabilir olması için
-valid_model_name = None
+valid_model_name = 'gemini-2.5-flash' # Analiz için en güçlü modeli varsay
 working_key = None
 
-# Kodun başlangıcında aktif ve multimodal (Flash) bir model bulmaya çalış
-for k in api_keys:
-    mod = get_valid_model(k)
-    if mod: 
-        valid_model_name = mod
-        working_key = k 
-        break
-
-if not valid_model_name:
-    st.error("❌ Aktif Model Bulunamadı. Lütfen API anahtarlarınızı kontrol edin. (En az bir Flash modeli gereklidir.)")
+# Kodun başlangıcında sadece en az bir anahtarın varlığını kontrol ediyoruz.
+if not api_keys:
+    st.error("❌ Aktif Model Bulunamadı. Lütfen API anahtarlarınızı kontrol edin. (Anahtar havuzu boş.)")
     if not st.session_state.is_admin: 
         st.stop()
+else:
+    # İlk çalışan (Flash) modeli bulmaya çalış
+    for k in api_keys:
+        mod = get_valid_model(k)
+        if mod: 
+            valid_model_name = mod
+            working_key = k 
+            break
+    
+    if not working_key:
+        st.error("❌ Aktif Model Bulunamadı. Lütfen API anahtarlarınızı kontrol edin. (En az bir Flash modeli gereklidir.)")
+        if not st.session_state.is_admin: 
+            st.stop()
 
 # --- UPLOAD SECTION ---
 file_key_suffix = str(st.session_state.reset_counter)
