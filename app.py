@@ -311,15 +311,43 @@ def fetch_data_via_bridge(symbol, data_type):
 with st.sidebar:
     st.header("🔑 Anahtar Havuzu")
     if st.button("🔄 Anahtarları Test Et"):
+        st.session_state.key_status = {} # Yeni durum kaydı
         prog = st.progress(0)
+        
+        # Sadece basit bir içerik üreterek kotayı test et.
+        test_prompt = "Hello" 
+        
         for i, k in enumerate(api_keys):
+            test_success = False
             try:
                 genai.configure(api_key=k)
-                list(genai.list_models())
-                st.markdown(f"🔑 `...{k[-4:]}` : <span class='key-status-pass'>✅</span>", unsafe_allow_html=True)
-            except: st.markdown(f"🔑 `...{k[-4:]}` : <span class='key-status-fail'>❌</span>", unsafe_allow_html=True)
+                
+                # Modelin kotasını test etmek için basit bir çağrı yap
+                model = genai.GenerativeModel('gemini-2.5-flash')
+                response = model.generate_content(test_prompt)
+                
+                if response.text:
+                    st.markdown(f"🔑 `...{k[-4:]}` : <span class='key-status-pass'>✅ Çalışıyor</span>", unsafe_allow_html=True)
+                    st.session_state.key_status[k] = "pass"
+                else:
+                    st.markdown(f"🔑 `...{k[-4:]}` : <span class='key-status-fail'>❌ Model Yanıtlamadı</span>", unsafe_allow_html=True)
+                    st.session_state.key_status[k] = "fail"
+            
+            except Exception as e:
+                if "429" in str(e) or "quota" in str(e).lower():
+                    st.markdown(f"🔑 `...{k[-4:]}` : <span class='key-status-limit'>⚠️ Kota Dolu (429)</span>", unsafe_allow_html=True)
+                    st.session_state.key_status[k] = "limit"
+                else:
+                    st.markdown(f"🔑 `...{k[-4:]}` : <span class='key-status-fail'>❌ Bağlantı Hatası</span>", unsafe_allow_html=True)
+                    st.session_state.key_status[k] = "fail"
+            
             prog.progress((i+1)/len(api_keys))
+        prog.empty()
     
+    # Yeni eklenen kısım: Test sonucu varsa key durumlarını göster.
+    if "key_status" in st.session_state:
+        st.caption("ℹ️ 'Kota Dolu' uyarısı alan keyler ana analizde otomatik atlanacaktır.")
+
     st.markdown("---")
     
     # --- TELEGRAM KÖPRÜ PANELİ ---
@@ -850,3 +878,4 @@ if st.session_state.analysis_result:
                 resp = st.write_stream(parser)
                 st.session_state.messages.append({"role": "assistant", "content": resp})
             except Exception as e: st.error(f"Hata: {e}")
+
