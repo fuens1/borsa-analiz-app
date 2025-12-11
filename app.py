@@ -648,13 +648,14 @@ with c2:
     # MOD SEÇİM EKRANI
     st.markdown("##### 🛠️ Analiz Ayarları")
     
-    # --- GÜNCELLENMİŞ MODEL SEÇİMİ (CHECKBOX) ---
+    # --- MODEL SEÇİMİ (CHECKBOX) ---
     use_lite_model = st.checkbox(
         "⚡ Lite Modeli Kullan (Daha Hızlı)",
         key="use_lite_model_checkbox",
-        help="İşaretlerseniz, varsayılan Flash modeli yerine Lite modelini kullanır."
+        value=False, # Varsayılan olarak Flash seçili
+        help="İşaretlenirse, daha az detaylı Lite modeli kullanılır. İşaretlenmezse, varsayılan Flash modeli kullanılır."
     )
-    # --- END GÜNCELLENMİŞ MODEL SEÇİMİ ---
+    # --- END MODEL SEÇİMİ ---
     
     analysis_mode = st.radio(
         "Analiz Modu Seçiniz:",
@@ -732,6 +733,21 @@ with c1:
         3. 📝 **BİÇİM:** ASLA PARAGRAF YAZMA. Madde madde ilerle.
         4. 🎨 **RENK:** :green[**OLUMLU**], :blue[**NÖTR**], :red[**OLUMSUZ**] kelimeleri / cümleleri vurgula.
         """
+        
+        # --- DESTEK/DİRENÇ BÖLÜMÜNÜN STANDART PROMPT TANIMI ---
+        destek_direnc_prompt = """
+        ## 🛡️ GÜÇLÜ/ZAYIF DESTEK VE DİRENÇ ANALİZİ
+        (Grafik ve derinlik verilerine bakarak EN AZ 10 ADET Destek seviyesi ve EN AZ 10 ADET Direnç seviyesi yaz.)
+        (HER SEVİYE İÇİN MUTLAKA ŞU FORMATI KULLAN: **[FİYAT]** (%Güç): [GÜÇLÜ/ZAYIF OLMA NEDENİ]. Örnek: **100.50** (%85): Derinlikte 500k lotluk yığılma olması. Fiyat: **50.00** (%20): Yalnızca psikolojik destek olması. Güç yüzdesi 0 ile 100 arasında olmalı.)
+        """
+        
+        # --- DESTEK/DİRENÇ GÜÇ SIRALAMASI PROMPT TANIMI ---
+        guc_siralama_prompt = """
+        ## 🏅 GÜÇ VE ÖNEM SIRALAMASI
+        (Yukarıda bulduğun destek ve direnç seviyelerini, bulduğun güç derecesine göre, EN ÖNEMLİDEN EN AZ ÖNEMLİYE doğru AZALAN SIRADA AYRI AYRI listele.)
+        * **DESTEKLER (Güçlüden Zayıfa):** [Fiyat] (%Güç), [Fiyat] (%Güç), ...
+        * **DİRENÇLER (Güçlüden Zayıfa):** [Fiyat] (%Güç), [Fiyat] (%Güç), ...
+        """
 
         if "SADE" in analysis_mode:
             req_sections = ""
@@ -744,12 +760,8 @@ with c1:
             --- ⚡ SADE MOD SEÇİLDİ ---
             {req_sections}
 
-            ## 🛡️ GÜÇLÜ/ZAYIF DESTEK VE DİRENÇ ANALİZİ
-            (Grafik ve derinlik verilerine bakarak EN AZ 10 ADET Destek seviyesi ve EN AZ 10 ADET Direnç seviyesi yaz.)
-            (Hepsine çok güçlü, çok güçlü deme. Güçlerinin seviyesini belirt ve güçleri daha gerçekçi söyle. Yüzdelik bazda güçlerini göster.)
-            (Onların da altında ayrı olarak "GÜÇ SIRALAMASI" başlığı altında, destek ve dirençleri ayrı ayrı yüzdelil güçlerine göre sırala.)
-            * :green[**Destekler:** ...]
-            * :red[**Dirençler:** ...]
+            {destek_direnc_prompt}
+            (Sade modda sadece bu tek başlığı kullan. Güç sıralamasını dahil etme.)
 
             ## 🐋 GENEL SENTEZ (BALİNA İZİ)
             (Büyük oyuncuların ne yapmaya çalıştığını madde madde özetle. En az 10 madde.)
@@ -776,24 +788,19 @@ with c1:
 
             ## 🧱 KRİTİK DESTEK BÖLGELERİ (EN AZ 15 ADET)
             (Elindeki derinlik, kademe ve AKD verilerini kullanarak EN AZ 15 tane destek noktası belirle.)
-            (HER MADDEDE MUTLAKA AÇIKLAMA OLACAK: Neden burası destek? "Çok güçlü alış bölgesi", "Fiyat buradan sürekli dönüyor", "Derinlikte 1M lot alıcı var" gibi detaylar ver.)
-            (Hepsine çok güçlü, çok güçlü deme. Güçlerinin seviyesini belirt ve güçleri daha gerçekçi söyle. Hatta gerekirse %'lik bazda gösterip, altta da ayrı olarak güce göre sırala.)
-            1. **[FİYAT]** - [GÜÇ DERECESİ]: ...
-            2. **[FİYAT]** - [GÜÇ DERECESİ]: ...
+            (HER MADDEDE MUTLAKA AÇIKLAMA OLACAK: Neden burası destek? Örnek: **[FİYAT]** (%85): "Derinlikte 1M lot alıcı var", "Fiyat buradan sürekli dönüyor" gibi detaylar ver.)
+            1. **[FİYAT]** (%Güç): [NEDENİ]
+            2. **[FİYAT]** (%Güç): [NEDENİ]
             ... (15 maddeye tamamla)
 
             ## 🚧 KRİTİK DİRENÇ BÖLGELERİ (EN AZ 15 ADET)
             (Elindeki verilere göre EN AZ 15 tane direnç/satış noktası belirle.)
-            (HER MADDEDE AÇIKLAMA YAP: "Burada satış duvarı var", "Maliyetlenme burada yoğun", "Psikolojik sınır" gibi.)
-            (Hepsine çok güçlü, çok güçlü deme. Güçlerinin seviyesini belirt ve güçleri daha gerçekçi söyle. Hatta gerekirse %'lik bazda gösterip, altta da ayrı olarak güce göre sırala.)
-            1. **[FİYAT]** - [GÜÇ DERECESİ]: ...
-            2. **[FİYAT]** - [GÜÇ DERECESİ]: ...
+            (HER MADDEDE AÇIKLAMA YAP: Örnek: **[FİYAT]** (%90): "Burada satış duvarı var", "Maliyetlenme burada yoğun" gibi.)
+            1. **[FİYAT]** (%Güç): [NEDENİ]
+            2. **[FİYAT]** (%Güç): [NEDENİ]
             ... (15 maddeye tamamla)
-
-            ## 🏅 GÜÇ VE ÖNEM SIRALAMASI
-            (Yukarıda bulduğun destek ve direnç seviyelerini, bulduğun güç derecesine göre, EN ÖNEMLİDEN EN AZ ÖNEMLİYE doğru AZALAN SIRADA AYRI AYRI listele.)
-            * **DESTEKLER (Güçlüden Zayıfa):** [Fiyat] (%Güç), [Fiyat] (%Güç), ...
-            * **DİRENÇLER (Güçlüden Zayıfa):** [Fiyat] (%Güç), [Fiyat] (%Güç), ...
+            
+            {guc_siralama_prompt}
             
             ## ⚖️ KİLİT RAKAM (PİVOT)
             Hissenin "Tamam mı devam mı" dediği o tek rakam hangisi?
@@ -821,6 +828,8 @@ with c1:
             
             --- İSTENEN RAPOR BAŞLIKLARI ---
             {main_headers}
+
+            {destek_direnc_prompt}
 
             --- 🕵️‍♂️ MİKRO-YAPISAL ANALİZ ---
             GÖREV: Aşağıdaki 50 maddelik detaylı kontrol listesini taramanı istiyorum.
