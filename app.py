@@ -82,6 +82,10 @@ st.set_page_config(page_title="BIST Yapay Zeka PRO", layout="wide", page_icon="�
 
 st.markdown("""
 <style>
+    /* Yönetici panelindeki key durumlarının daha küçük ve kompakt görünmesi için stiller */
+    .st-emotion-cache-n1sltv p {
+        font-size: 10px; /* Kenar çubuğundaki paragraf yazılarını küçültme */
+    }
     .main { background-color: #0e1117; }
     h1 { color: #00d4ff !important; }
     h2 { color: #ffbd45 !important; border-bottom: 2px solid #ffbd45; padding-bottom: 10px;}
@@ -108,9 +112,19 @@ st.markdown("""
     .live-data-btn { background-color: #d90429; border: 1px solid #ef233c; }
     .live-data-btn:hover { background-color: #ef233c; }
 
-    .key-status-pass { color: #00ff00; font-weight: bold; }
-    .key-status-fail { color: #ff4444; font-weight: bold; }
-    .key-status-limit { color: #ffbd45; font-weight: bold; }
+    /* Anahtar Durum Stilleri */
+    .key-status-pass { color: #00ff00; font-weight: bold; font-size: x-small; }
+    .key-status-fail { color: #ff4444; font-weight: bold; font-size: x-small; }
+    .key-status-limit { color: #ffbd45; font-weight: bold; font-size: x-small; }
+
+    /* Key Listesinde Sil Butonunu Minik Yapma */
+    div.stButton > button:first-child[kind="minimal"] {
+        padding: 0 4px; /* Buton içi boşluğu azalt */
+        font-size: 8px; /* Yazı fontunu küçült */
+        min-height: 20px; /* Minimum yüksekliği ayarla */
+        line-height: 0;
+        margin-top: -10px; /* Üstteki elemana yaklaştır */
+    }
 
     .element-container:has(> .stJson) { display: none; }
 </style>
@@ -130,12 +144,11 @@ if "tg_img_takas" not in st.session_state: st.session_state.tg_img_takas = None
 if "key_status" not in st.session_state: st.session_state.key_status = {}
 
 # --- API KEY INITIALIZATION (YÖNETİCİ TARAFINDAN DEĞİŞTİRİLECEK) ---
-# Secrets'tan yükle ve session state'e kaydet (sadece ilk yüklemede)
 if "api_keys" not in st.session_state:
     api_keys_raw = st.secrets.get("GOOGLE_API_KEY", "")
     st.session_state.api_keys = [k.strip() for k in api_keys_raw.split(",") if k.strip()]
 
-api_keys = st.session_state.api_keys # Artık ana key listemiz session state'te
+api_keys = st.session_state.api_keys 
 
 # --- AUTH LOGIC ---
 query_params = st.query_params
@@ -274,9 +287,8 @@ for k in api_keys:
 
 if not valid_model_name:
     st.error("❌ Aktif Model Bulunamadı. Lütfen API anahtarlarınızı kontrol edin.")
-    if not st.session_state.is_admin: # Admin değilse durdur
+    if not st.session_state.is_admin: 
         st.stop()
-    # Admin ise devam et, ancak API çağrıları çalışmayacak.
 
 # 🔥 HIZLANDIRMA 1: Görsel Sıkıştırma Fonksiyonu
 def compress_image(image, max_size=(800, 800)):
@@ -374,29 +386,7 @@ with col2:
     st.markdown("---") 
     img_t = render_category_panel("4. Takas 🌍", "Takas", "tg_img_takas", f"t_{file_key_suffix}")
 
-# --- SIDEBAR & TELEGRAM BRIDGE (Yeniden Yapılandırıldı) ---
-
-# Yardımcı fonksiyonlar (Yönetici Paneli için)
-def add_api_key():
-    new_key = st.session_state.new_api_key_input.strip()
-    if new_key and new_key not in st.session_state.api_keys:
-        st.session_state.api_keys.append(new_key)
-        st.session_state.new_api_key_input = ""
-        st.rerun()
-
-def delete_api_key(key_to_delete):
-    if key_to_delete in st.session_state.api_keys:
-        st.session_state.api_keys.remove(key_to_delete)
-        
-        # Silinen key'in test durumunu da sil
-        if key_to_delete in st.session_state.key_status:
-            del st.session_state.key_status[key_to_delete]
-            
-        st.rerun()
-
-with st.sidebar:
-    
-# --- SIDEBAR & TELEGRAM BRIDGE (Yeniden Yapılandırıldı) ---
+# --- SIDEBAR & TELEGRAM BRIDGE ---
 
 # Yardımcı fonksiyonlar (Yönetici Paneli için)
 def add_api_key():
@@ -434,7 +424,6 @@ with st.sidebar:
 
         # 2. API Key Yönetimi
         with st.expander("🔑 API Anahtar Havuzu Yönetimi", expanded=True):
-            # Key sayısını göster
             st.markdown(f"<span style='font-size: small;'>Aktif Key Sayısı: {len(api_keys)}</span>", unsafe_allow_html=True)
             
             # Yeni Anahtar Ekleme Formu
@@ -445,7 +434,7 @@ with st.sidebar:
             st.markdown("---")
             st.markdown("<h6 style='margin-top: 0px;'>Anahtarlar ve Durumları</h6>", unsafe_allow_html=True)
             
-            # --- YAZILARI MİNİK YAPAN YENİ LİSTELEME (CSS ile) ---
+            # --- EN KOMPAKT KEY LİSTELEME ---
             
             for k in api_keys:
                 # Kolon dağılımı: Sil butonu (1), Key (3), Durum (2)
@@ -467,8 +456,8 @@ with st.sidebar:
                 
                 # SİLME BUTONU
                 with cols[0]:
-                    # Kompakt sil butonu (st.button'u küçük bir markdown içinde kullanıyoruz)
-                    if st.button("❌", key=f"del_key_{k[-4:]}_v4", on_click=delete_api_key, args=(k,)):
+                    # Kompakt butonu kullanıyoruz (kind="minimal" ile butonu küçültmeyi denedik)
+                    if st.button("❌", key=f"del_key_{k[-4:]}_v4", on_click=delete_api_key, args=(k,), help="Anahtarı Sil"):
                         pass
                 
                 # KEY GÖRÜNÜMÜ
@@ -506,15 +495,14 @@ with st.sidebar:
                 st.rerun()
         
         st.markdown("---")
-
+        
     # ------------------------------------------------------------------
     # TÜM KULLANICILAR İÇİN: Telegram ve Çıkış
     # ------------------------------------------------------------------
     
     st.header("📲 Telegram Köprüsü")
-    tg_ticker = st.text_input("Hisse Kodu (TG):", api_ticker_input, key="tg_ticker_final").upper() # Key çakışmasını önlemek için key değiştirdim
+    tg_ticker = st.text_input("Hisse Kodu (TG):", api_ticker_input, key="tg_ticker_final").upper() 
     
-    # ... (Geri kalan Telegram butonları aynı) ...
     col_t1, col_t2 = st.columns(2)
     with col_t1:
         if st.button("📉 Derinlik Verileri Al", key="tg_dr"):
@@ -625,9 +613,21 @@ with c1:
         is_takas_avail = has_t
         
         # --- PROMPT MİMARİSİ (Aynı kaldı) ---
-        # ... (prompt oluşturma mantığı buraya gelir) ...
-        # [KODUZUN PROMPT MANTIK KISMI AŞAĞIDADIR - Değiştirilmedi]
+        base_role = f"""
+        Sen Borsa Uzmanısın ve Kıdemli Veri Analistisin.
+        GÖREV: SADECE sana sağlanan görselleri ve verileri kullanarak analiz yap.
+        🚨 Hisse kodunu görselden veya veriden tespit et.
         
+        --- MEVCUT VERİ SETİ ---
+        {context_str}
+        
+        --- ⚠️ KRİTİK KURALLAR (HAYATİ ÖNEM TAŞIR) ---
+        1. 🚫 **YASAK:** Elimizde verisi olmayan hiçbir başlığı rapora ekleme.
+        2. 🚫 **YASAK:** "Mevcut Veri Seti Bilgilendirmesi" veya giriş cümlesi yazma. Direkt analize başla.
+        3. 📝 **BİÇİM:** ASLA PARAGRAF YAZMA. Madde madde ilerle.
+        4. 🎨 **RENK:** :green[**OLUMLU**], :blue[**NÖTR**], :red[**OLUMSUZ**] kelimeleri / cümleleri vurgula.
+        """
+
         if "SADE" in analysis_mode:
             req_sections = ""
             if is_depth_avail: req_sections += """\n## 💹 DERİNLİK ANALİZİ (EN AZ 10 MADDE)\n(Alıcı/Satıcı dengesi, bekleyen emirler, baskı durumu vb.)\n"""
@@ -773,9 +773,7 @@ with c1:
             """
 
         input_data.append(prompt)
-        # [KODUZUN PROMPT MANTIK KISMI SONU]
         
-        # Eğer ne görsel ne API yoksa
         count = 0
         if has_d: count += 1
         if has_a: count += 1
@@ -793,7 +791,6 @@ with c1:
                 try:
                     stream_active = False
                     
-                    # Keyleri karıştır ki hep aynı keye yük binmesin
                     local_keys = api_keys.copy()
                     if working_key in local_keys:
                         local_keys.remove(working_key)
@@ -803,26 +800,23 @@ with c1:
                         try:
                             genai.configure(api_key=k)
                             model = genai.GenerativeModel(valid_model_name)
-                            # STREAMING AÇIK
                             stream = model.generate_content(input_data, stream=True)
                             
                             st.session_state.active_working_key = k
                             working_key = k
                             stream_active = True
                             
-                            # Akış Başlıyor
                             for chunk in stream:
                                 if chunk.text:
                                     full_response += chunk.text
-                                    placeholder.markdown(full_response + "▌") # İmleç efekti
+                                    placeholder.markdown(full_response + "▌") 
                             
-                            placeholder.markdown(full_response) # Son hali
+                            placeholder.markdown(full_response) 
                             st.session_state.analysis_result = full_response
                             st.session_state.loaded_count = count
-                            break # Başarılı olduysa döngüden çık
+                            break 
                             
                         except Exception as e:
-                            # Kota hatası (429) ise, bir sonraki anahtarı dene
                             if "429" in str(e) or "quota" in str(e).lower(): 
                                 continue
                             else: 
@@ -881,7 +875,7 @@ if st.session_state.analysis_result:
                     model = genai.GenerativeModel(valid_model_name)
                     stream = model.generate_content(final_prompt, stream=True)
                     
-                    st.session_state.active_working_key = k # Çalışan anahtarı kaydet
+                    st.session_state.active_working_key = k 
                     key_found = True
                     
                     def parser():
@@ -890,21 +884,17 @@ if st.session_state.analysis_result:
                     
                     resp = st.write_stream(parser)
                     full_resp = resp
-                    break # Başarılı olduysa döngüden çık
+                    break 
                     
                 except Exception as e:
-                    # Kota hatası (429) ise, bir sonraki anahtarı dene
                     if "429" in str(e) or "quota" in str(e).lower():
                         st.warning(f"⚠️ Anahtar `...{k[-4:]}` kotası doldu. Bir sonraki anahtar deneniyor.")
-                        continue # Döngüye devam et
+                        continue 
                     else:
                         st.error(f"Genel Hata: {e}")
-                        break # Diğer bilinmeyen hatalarda döngüyü kır
+                        break 
             
             if key_found:
                 st.session_state.messages.append({"role": "assistant", "content": full_resp})
             else:
                 st.error("❌ Sohbet: Tüm API anahtarlarının kotası dolu veya geçersiz. Lütfen daha sonra deneyin.")
-
-
-
