@@ -83,14 +83,12 @@ def get_model(key):
     """API key ile kullanılabilecek modeli bulur"""
     try:
         genai.configure(api_key=key)
-        # Önce gemini-2.5-flash-lite'ı dene, yoksa gemini-2.5-flash'ı dene
+        # Sadece Flash'ı döndürüyoruz. Lite'ın kontrolünü analiz aşamasında yapacağız.
         models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
         
-        # 1. Flash'ı döndür
         for m in models:
             if "gemini-2.5-flash" in m: return m
         
-        # 2. Veya listedeki ilk modeli döndür
         return models[0] if models else None
     except: return None
 
@@ -238,7 +236,6 @@ if "analysis_result" not in st.session_state: st.session_state.analysis_result =
 if "messages" not in st.session_state: st.session_state.messages = []
 if "loaded_count" not in st.session_state: st.session_state.loaded_count = 0
 if "active_working_key" not in st.session_state: st.session_state.active_working_key = None
-# KEY STATUS ARTIK SÖZLÜK İÇİNDE SÖZLÜK OLARAK GÜNCELLENDİ
 if "key_status" not in st.session_state: st.session_state.key_status = {}
 
 # API ve Telegram verileri
@@ -642,9 +639,28 @@ with st.sidebar:
 st.markdown("---")
 c1, c2 = st.columns([1, 1])
 
+# --- YENİ EKLENEN MODEL SEÇİMİ ---
+MODEL_OPTIONS = {
+    "gemini-2.5-flash": "🚀 Flash (Daha Hızlı ve Güncel)",
+    "gemini-2.5-flash-lite": "⚡ Lite (Daha Hızlı/Daha Az Detay)",
+}
+DEFAULT_MODEL_KEY = "gemini-2.5-flash"
+
+# Modelin tam adını ve kullanıcının seçtiği anahtarı saklamak için
+if "selected_model_key" not in st.session_state: st.session_state.selected_model_key = DEFAULT_MODEL_KEY
+
 with c2:
     # MOD SEÇİM EKRANI
     st.markdown("##### 🛠️ Analiz Ayarları")
+    
+    st.session_state.selected_model_key = st.selectbox(
+        "🧠 Model Seçimi:",
+        options=list(MODEL_OPTIONS.keys()),
+        format_func=lambda x: MODEL_OPTIONS[x],
+        key="model_selector",
+        help="Lite modeli daha az detaylı ancak potansiyel olarak daha hızlı olabilir."
+    )
+    
     analysis_mode = st.radio(
         "Analiz Modu Seçiniz:",
         options=[
@@ -840,7 +856,7 @@ with c1:
             24. 🧢 TAVAN / TABAN KİLİT POTANSİYELİ: Tavan/Taban kademesinde ne kadar lot var?
             25. 🧬 GERÇEK YABANCI MI, BIYIKLI YABANCI MI? Takas değişimleri ne diyor?
             26. 🏎️ İŞLEM YOĞUNLUĞU GÖRSELİ: İşlemler ne kadar sık geçiyor?
-            27. 🧱 BLOK SATIŞ KARŞILAMA: Büyük satışlar hemen karşılanıyor mu?
+            27. 🧱 BLOK SATIŞ KARŞILAMA: Büyük satışlar hemen karşılanıyor mı?
             28. ⚖️ ORTALAMA MALİYET YÜKSELTME (MARKUP): Fiyat yükselirken hacim artıyor mu?
             29. 🧮 GİZLİ TOPLAMA OPERASYONU: AKD'de dağınık alım, Takasta toplu birikim var mı?
             30. 🏛️ KURUM KARAKTER ANALİZİ: Oyuncular trader mı yoksa kurumsal mı?
@@ -883,25 +899,31 @@ with c1:
         if count == 0 and not context_str:
             st.warning("⚠️ Lütfen analiz için veri yükleyin (Görsel, API veya Telegram).")
         else:
-            # 🔥 HIZLANDIRMA 2: Streaming (Canlı Akış)
+            # --- MODEL VE YEDEK STRATEJİSİ ---
+            primary_model = st.session_state.selected_model_key
+            # Yüksek öncelikli modelin kotası dolarsa Flash'a geçecek şekilde yedekleme
+            if primary_model == "gemini-2.5-flash-lite":
+                model_priority = ["gemini-2.5-flash-lite", "gemini-2.5-flash"]
+            else:
+                model_priority = ["gemini-2.5-flash"]
+            
             placeholder = st.empty()
             full_response = ""
             
-            with st.spinner("Analiz Başlatılıyor... (Akış birazdan başlayacak)"):
-                try:
-                    stream_active = False
+            with st.spinner(f"Analiz ({MODEL_OPTIONS[primary_model]}) ile Başlatılıyor... (Akış birazdan başlayacak)"):
+                stream_active = False
+                
+                # Çalışan key'i en başa al
+                local_keys = api_keys.copy()
+                if working_key and working_key in local_keys:
+                    local_keys.remove(working_key)
+                    local_keys.insert(0, working_key)
                     
-                    # Çalışan key'i en başa al
-                    local_keys = api_keys.copy()
-                    if working_key and working_key in local_keys:
-                        local_keys.remove(working_key)
-                        local_keys.insert(0, working_key)
-                        
-                    for k in local_keys:
+                for k in local_keys:
+                    for model_name in model_priority:
                         try:
                             genai.configure(api_key=k)
-                            # Çalışan modeli kullan
-                            model = genai.GenerativeModel(valid_model_name)
+                            model = genai.GenerativeModel(model_name)
                             stream = model.generate_content(input_data, stream=True)
                             
                             st.session_state.active_working_key = k
@@ -916,26 +938,35 @@ with c1:
                             placeholder.markdown(full_response) 
                             st.session_state.analysis_result = full_response
                             st.session_state.loaded_count = count
-                            break 
+                            break # Model başarılı oldu, bir sonraki key'e geçmeye gerek yok
                             
                         except Exception as e:
                             error_str = str(e).lower()
                             if "429" in error_str or "quota" in error_str: 
+                                # Kota hatası, bir sonraki model/key denenmeli
+                                if model_name == model_priority[-1]: # Son modelde de kota dolduysa
+                                    st.warning(f"⚠️ Anahtar `...{k[-4:]}` tüm modeller için dolu.")
+                                else:
+                                    # Lite dolduysa Flash'a geçecek (döngü devam ediyor)
+                                    pass 
                                 continue
-                            elif "expired" in error_str or "invalid" in error_str or "400" in error_str:
-                                # Süresi dolmuş/geçersiz anahtar hatası: atla
-                                st.warning(f"⚠️ Anahtar `...{k[-4:]}` süresi doldu/geçersiz. Bir sonraki deneniyor.")
+                            elif "expired" in error_str or "invalid" in error_str or "400" in error_str or "model" in error_str:
+                                # Süresi dolmuş/geçersiz anahtar veya model yok hatası
+                                if model_name == model_priority[-1]:
+                                    st.warning(f"⚠️ Anahtar `...{k[-4:]}` geçersiz. Bir sonraki deneniyor.")
                                 continue
                             else: 
                                 st.error(f"Hata: {e}"); 
-                                break
-                    
-                    if not stream_active:
-                            st.error("Tüm kotalar dolu veya bağlantı hatası.")
-                            
-                except Exception as e:
-                    st.error(f"Genel Hata: {e}")
+                                break # Beklenmedik hata, durdur
 
+                    if stream_active:
+                        break # Key başarılı oldu, dış döngüyü de kır
+
+                if not stream_active:
+                    st.error("Tüm kotalar dolu veya bağlantı hatası.")
+                            
+                
+                
 # ==========================================
 # 💬 SONUÇ VE SOHBET (FİNAL BÖLÜMÜ)
 # ==========================================
@@ -960,6 +991,8 @@ if st.session_state.analysis_result:
 
         with st.chat_message("assistant"):
             
+            # Sohbet için Flash kullanılıyor (valid_model_name, genel çalışan model adını tutuyor)
+            
             # --- DİNAMİK KEY YÖNETİMİ ---
             local_keys = api_keys.copy()
             if st.session_state.active_working_key and st.session_state.active_working_key in local_keys:
@@ -978,7 +1011,7 @@ if st.session_state.analysis_result:
                     final_prompt = f"{sys_inst}\n\nRAPOR:\n{st.session_state.analysis_result}\n\nSORU:\n{q}"
                     
                     genai.configure(api_key=k)
-                    model = genai.GenerativeModel(valid_model_name)
+                    model = genai.GenerativeModel(valid_model_name) # Genel çalışan Flash modelini kullan
                     stream = model.generate_content(final_prompt, stream=True)
                     
                     st.session_state.active_working_key = k 
