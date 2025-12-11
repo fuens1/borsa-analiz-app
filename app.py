@@ -74,20 +74,41 @@ def save_global_config(config):
 
 global_config = load_global_config()
 
+# ==========================================
+# 🚀 ADIM 1: BÖLGESEL KOTA TANIMLAMASI
+# ==========================================
+# Kotaları 500.000 yaptığınız bölgeyi buraya girin. 
+# Örn: europe-west4, me-central1, vb.
+GEMINI_REGION = "europe-west4" 
+
 
 # ==========================================
-# 🎯 MERKEZİ FONKSİYON TANIMLARI (NameError'ı Çözmek İçin Buraya Taşındı)
+# 🎯 MERKEZİ FONKSİYON TANIMLARI
 # ==========================================
 
 def get_model(key):
-    """API key ile kullanılabilecek modeli bulur"""
+    """API key ile kullanılabilecek modeli bulur ve bölgesel uç noktayı yapılandırır."""
     try:
-        genai.configure(api_key=key)
+        # BÖLGESEL UÇ NOKTAYI KULLAN
+        base_url = f"https://{GEMINI_REGION}-aiplatform.googleapis.com"
+        genai.configure(api_key=key, client_options={"api_endpoint": base_url})
+        
         models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        
         for m in models: 
             if "gemini-1.5-flash" in m: return m
         return models[0] if models else None
-    except: return None
+    
+    except Exception as e: 
+        # Bölgesel bağlantı başarısız olursa, global ile tekrar dene (Yedek)
+        try:
+            genai.configure(api_key=key) 
+            models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+            for m in models: 
+                if "gemini-1.5-flash" in m: return m
+            return models[0] if models else None
+        except:
+            return None
 
 def compress_image(image, max_size=(800, 800)):
     """Görselleri analiz için küçültür ve hızlandırır"""
@@ -371,12 +392,39 @@ if st.session_state.api_depth_data is not None or st.session_state.api_akd_data 
 valid_model_name = None
 working_key = None
 
+# --- BÖLGESEL UÇ NOKTA KONFİGÜRASYONU ---
+# Bu bölge, 500.000 kotasını yükselttiğiniz bölge olmalıdır.
+# get_model fonksiyonu bu GEMINI_REGION değişkenini kullanacaktır.
+def configure_regional_genai(key):
+    """Bölgesel uç noktayı ayarlayarak GenAI'yı yapılandırır."""
+    try:
+        # Vertex AI Regional Endpoint formatını kullan
+        base_url = f"https://{GEMINI_REGION}-aiplatform.googleapis.com"
+        genai.configure(api_key=key, client_options={"api_endpoint": base_url})
+        return True
+    except Exception as e:
+        # Eğer bölgesel yapılandırma başarısız olursa (örn. key hatası), False döndür.
+        return False
+
 for k in api_keys:
-    mod = get_model(k)
-    if mod: 
-        valid_model_name = mod
-        working_key = k 
-        break
+    # 1. Bölgesel yapılandırmayı dene
+    if configure_regional_genai(k):
+        mod = get_model(k)
+        if mod: 
+            valid_model_name = mod
+            working_key = k 
+            break
+    
+    # 2. Bölgesel yapılandırma başarısız olursa, global ile tekrar dene (Yedek)
+    try:
+        genai.configure(api_key=k)
+        mod = get_model(k)
+        if mod:
+            valid_model_name = mod
+            working_key = k
+            break
+    except:
+        continue # Deneme başarısız
 
 if not valid_model_name:
     st.error("❌ Aktif Model Bulunamadı. Lütfen API anahtarlarınızı kontrol edin.")
@@ -516,7 +564,7 @@ with st.sidebar:
                         status_text = f"<span style='font-size: x-small;' class='key-status-pass'>✅ OK</span>"
                     elif status == "limit":
                         status_text = f"<span style='font-size: x-small;' class='key-status-limit'>⚠️ KOTA</span>"
-                    elif status == "expired": # Yeni 400 Expired durumu
+                    elif status == "expired": # 400 Expired durumu
                          status_text = f"<span style='font-size: x-small;' class='key-status-fail'>❌ SÜRE BİTTİ</span>"
                     elif status == "fail":
                         status_text = f"<span style='font-size: x-small;' class='key-status-fail'>❌ HATA</span>"
@@ -546,8 +594,11 @@ with st.sidebar:
                 
                 for i, k in enumerate(api_keys):
                     try:
-                        genai.configure(api_key=k)
-                        model = genai.GenerativeModel('gemini-2.5-flash')
+                        # Test ederken de bölgesel uç noktayı kullan
+                        base_url = f"https://{GEMINI_REGION}-aiplatform.googleapis.com"
+                        genai.configure(api_key=k, client_options={"api_endpoint": base_url})
+                        
+                        model = genai.GenerativeModel('gemini-1.5-flash')
                         model.generate_content(test_prompt)
                         
                         st.session_state.key_status[k] = "pass"
@@ -556,7 +607,6 @@ with st.sidebar:
                         error_str = str(e).lower()
                         if "429" in error_str or "quota" in error_str:
                             st.session_state.key_status[k] = "limit"
-                        # 400 Expired veya Invalid hatası kontrolü
                         elif "expired" in error_str or "invalid" in error_str or "400" in error_str:
                              st.session_state.key_status[k] = "expired"
                         else:
@@ -876,7 +926,10 @@ with c1:
                         
                     for k in local_keys:
                         try:
-                            genai.configure(api_key=k)
+                            # ⚠️ BÖLGESEL UÇ NOKTA KONFİGÜRASYONU BURADA YAPILIYOR
+                            base_url = f"https://{GEMINI_REGION}-aiplatform.googleapis.com"
+                            genai.configure(api_key=k, client_options={"api_endpoint": base_url})
+                            
                             model = genai.GenerativeModel(valid_model_name)
                             stream = model.generate_content(input_data, stream=True)
                             
@@ -899,7 +952,6 @@ with c1:
                             if "429" in error_str or "quota" in error_str: 
                                 continue
                             elif "expired" in error_str or "invalid" in error_str or "400" in error_str:
-                                # Süresi dolmuş/geçersiz anahtar hatası: atla
                                 st.warning(f"⚠️ Anahtar `...{k[-4:]}` süresi doldu/geçersiz. Bir sonraki deneniyor.")
                                 continue
                             else: 
@@ -953,7 +1005,10 @@ if st.session_state.analysis_result:
                     )
                     final_prompt = f"{sys_inst}\n\nRAPOR:\n{st.session_state.analysis_result}\n\nSORU:\n{q}"
                     
-                    genai.configure(api_key=k)
+                    # ⚠️ BÖLGESEL UÇ NOKTA KONFİGÜRASYONU BURADA YAPILIYOR
+                    base_url = f"https://{GEMINI_REGION}-aiplatform.googleapis.com"
+                    genai.configure(api_key=k, client_options={"api_endpoint": base_url})
+                    
                     model = genai.GenerativeModel(valid_model_name)
                     stream = model.generate_content(final_prompt, stream=True)
                     
@@ -984,5 +1039,3 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": full_resp})
             else:
                 st.error("❌ Sohbet: Tüm API anahtarlarının kotası dolu veya geçersiz. Lütfen daha sonra deneyin.")
-
-
