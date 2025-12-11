@@ -483,13 +483,15 @@ col1, col2 = st.columns(2)
 with col1:
     img_d = render_category_panel("1. Derinlik 💹", "Derinlik", "tg_img_derinlik", f"d_{file_key_suffix}")
     st.markdown("---") 
-    img_k = render_category_panel("3. Kademe 📊", "Kademe", f"k_{file_key_suffix}")
+    # DÜZELTİLDİ: "tg_img_kademe" argümanı eklendi
+    img_k = render_category_panel("3. Kademe 📊", "Kademe", "tg_img_kademe", f"k_{file_key_suffix}")
 
 with col2:
+    # DÜZELTİLDİ: "tg_img_akd" argümanı eklendi
     img_a = render_category_panel("2. AKD 🤵", "AKD", "tg_img_akd", f"a_{file_key_suffix}")
     st.markdown("---") 
-    img_t = render_category_panel("4. Takas 🌍", "Takas", f"t_{file_key_suffix}")
-
+    # DÜZELTİLDİ: "tg_img_takas" argümanı eklendi
+    img_t = render_category_panel("4. Takas 🌍", "Takas", "tg_img_takas", f"t_{file_key_suffix}")
 # --- SIDEBAR & TELEGRAM BRIDGE ---
 
 # Yardımcı fonksiyonlar (Yönetici Paneli için)
@@ -1040,3 +1042,4 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": full_resp})
             else:
                 st.error("❌ Sohbet: Tüm API anahtarlarının kotası dolu veya geçersiz. Lütfen daha sonra deneyin.")
+
