@@ -376,6 +376,8 @@ with col2:
 
 # --- SIDEBAR & TELEGRAM BRIDGE (Yeniden Yapılandırıldı) ---
 
+# --- SIDEBAR & TELEGRAM BRIDGE (Yeniden Yapılandırıldı) ---
+
 # Yardımcı fonksiyonlar (Yönetici Paneli için)
 def add_api_key():
     new_key = st.session_state.new_api_key_input.strip()
@@ -387,6 +389,11 @@ def add_api_key():
 def delete_api_key(key_to_delete):
     if key_to_delete in st.session_state.api_keys:
         st.session_state.api_keys.remove(key_to_delete)
+        
+        # Silinen key'in test durumunu da sil
+        if key_to_delete in st.session_state.key_status:
+            del st.session_state.key_status[key_to_delete]
+            
         st.rerun()
 
 with st.sidebar:
@@ -415,24 +422,40 @@ with st.sidebar:
                  pass
             
             st.markdown("---")
-            st.markdown("##### 🔑 Mevcut Anahtarlar (Son 4 Hane)")
+            st.markdown("##### 🔑 Anahtarlar ve Durumları")
             
-            # Anahtarları Listele ve Silme Butonları
-            cols = st.columns([3, 1])
+            # --- GÜNCELLENMİŞ ANAHTAR LİSTELEME VE SİLME ---
+            
             for k in api_keys:
-                key_display = f"`...{k[-4:]}`"
-                status_html = ""
+                cols = st.columns([1, 4, 1])
                 
-                # Test durumu gösterimi
+                key_display = f"`...{k[-4:]}`"
+                status_text = ""
+                
+                # Test durumu gösterimi ve metin ataması
                 if k in st.session_state.key_status:
                     status = st.session_state.key_status[k]
-                    if status == "pass": status_html = f"<span class='key-status-pass'>✅</span>"
-                    elif status == "limit": status_html = f"<span class='key-status-limit'>⚠️</span>"
-                    elif status == "fail": status_html = f"<span class='key-status-fail'>❌</span>"
+                    if status == "pass":
+                        status_text = f"<span class='key-status-pass'>✅ ÇALIŞIYOR</span>"
+                    elif status == "limit":
+                        status_text = f"<span class='key-status-limit'>⚠️ KOTA DOLU</span>"
+                    elif status == "fail":
+                        status_text = f"<span class='key-status-fail'>❌ HATALI KEY</span>"
+                else:
+                    status_text = "<span class='key-status-limit'>❓ Test Edilmedi</span>"
                 
-                cols[0].markdown(f"{key_display} {status_html}", unsafe_allow_html=True)
-                if cols[1].button("🗑️ Sil", key=f"del_key_{k[-4:]}", on_click=delete_api_key, args=(k,)):
-                    pass
+                # SİLME BUTONU
+                with cols[0]:
+                    if st.button("❌", key=f"del_key_{k[-4:]}_v2", on_click=delete_api_key, args=(k,)):
+                        pass
+                
+                # KEY GÖRÜNÜMÜ VE DURUM
+                with cols[1]:
+                    st.markdown(key_display)
+
+                with cols[2]:
+                    st.markdown(status_text, unsafe_allow_html=True)
+
 
             st.markdown("---")
             
@@ -860,3 +883,4 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": full_resp})
             else:
                 st.error("❌ Sohbet: Tüm API anahtarlarının kotası dolu veya geçersiz. Lütfen daha sonra deneyin.")
+
