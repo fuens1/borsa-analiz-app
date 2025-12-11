@@ -74,41 +74,20 @@ def save_global_config(config):
 
 global_config = load_global_config()
 
-# ==========================================
-# 🚀 ADIM 1: BÖLGESEL KOTA TANIMLAMASI
-# ==========================================
-# Kotaları 500.000 yaptığınız bölgeyi buraya girin. 
-# Örn: europe-west4, me-central1, vb.
-GEMINI_REGION = "europe-west4" 
-
 
 # ==========================================
-# 🎯 MERKEZİ FONKSİYON TANIMLARI
+# 🎯 MERKEZİ FONKSİYON TANIMLARI (Bölgesel URL Kaldırıldı)
 # ==========================================
 
 def get_model(key):
-    """API key ile kullanılabilecek modeli bulur ve bölgesel uç noktayı yapılandırır."""
+    """API key ile kullanılabilecek modeli bulur (GLOBAL Uç Nokta)"""
     try:
-        # BÖLGESEL UÇ NOKTAYI KULLAN
-        base_url = f"https://{GEMINI_REGION}-aiplatform.googleapis.com"
-        genai.configure(api_key=key, client_options={"api_endpoint": base_url})
-        
+        genai.configure(api_key=key)
         models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        
         for m in models: 
             if "gemini-1.5-flash" in m: return m
         return models[0] if models else None
-    
-    except Exception as e: 
-        # Bölgesel bağlantı başarısız olursa, global ile tekrar dene (Yedek)
-        try:
-            genai.configure(api_key=key) 
-            models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-            for m in models: 
-                if "gemini-1.5-flash" in m: return m
-            return models[0] if models else None
-        except:
-            return None
+    except: return None
 
 def compress_image(image, max_size=(800, 800)):
     """Görselleri analiz için küçültür ve hızlandırır"""
@@ -393,8 +372,9 @@ valid_model_name = None
 working_key = None
 
 # --- BÖLGESEL UÇ NOKTA KONFİGÜRASYONU ---
-# Bu bölge, 500.000 kotasını yükselttiğiniz bölge olmalıdır.
-# get_model fonksiyonu bu GEMINI_REGION değişkenini kullanacaktır.
+# KOTASI 500K YAPILAN BÖLGE BURADA TANIMLANIR.
+GEMINI_REGION = "europe-west4" 
+
 def configure_regional_genai(key):
     """Bölgesel uç noktayı ayarlayarak GenAI'yı yapılandırır."""
     try:
@@ -403,11 +383,12 @@ def configure_regional_genai(key):
         genai.configure(api_key=key, client_options={"api_endpoint": base_url})
         return True
     except Exception as e:
-        # Eğer bölgesel yapılandırma başarısız olursa (örn. key hatası), False döndür.
+        # Eğer bölgesel yapılandırma başarısız olursa, False döndür.
         return False
 
+# İlk çalışan anahtarı ve modeli bulma döngüsü
 for k in api_keys:
-    # 1. Bölgesel yapılandırmayı dene
+    # 1. Bölgesel yapılandırmayı dene (Yüksek kota bu bölgede)
     if configure_regional_genai(k):
         mod = get_model(k)
         if mod: 
@@ -594,10 +575,10 @@ with st.sidebar:
                 
                 for i, k in enumerate(api_keys):
                     try:
-                        # Test ederken de bölgesel uç noktayı kullan
+                        # TEST ESNASINDA BÖLGESEL KONFİGÜRASYON
                         base_url = f"https://{GEMINI_REGION}-aiplatform.googleapis.com"
                         genai.configure(api_key=k, client_options={"api_endpoint": base_url})
-                        
+
                         model = genai.GenerativeModel('gemini-1.5-flash')
                         model.generate_content(test_prompt)
                         
@@ -926,7 +907,7 @@ with c1:
                         
                     for k in local_keys:
                         try:
-                            # ⚠️ BÖLGESEL UÇ NOKTA KONFİGÜRASYONU BURADA YAPILIYOR
+                            # BÖLGESEL KONFİGÜRASYON DENEMESİ
                             base_url = f"https://{GEMINI_REGION}-aiplatform.googleapis.com"
                             genai.configure(api_key=k, client_options={"api_endpoint": base_url})
                             
@@ -1005,7 +986,7 @@ if st.session_state.analysis_result:
                     )
                     final_prompt = f"{sys_inst}\n\nRAPOR:\n{st.session_state.analysis_result}\n\nSORU:\n{q}"
                     
-                    # ⚠️ BÖLGESEL UÇ NOKTA KONFİGÜRASYONU BURADA YAPILIYOR
+                    # BÖLGESEL UÇ NOKTA KONFİGÜRASYONU BURADA YAPILIYOR
                     base_url = f"https://{GEMINI_REGION}-aiplatform.googleapis.com"
                     genai.configure(api_key=k, client_options={"api_endpoint": base_url})
                     
