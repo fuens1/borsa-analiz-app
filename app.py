@@ -76,18 +76,34 @@ global_config = load_global_config()
 
 
 # ==========================================
-# 🎯 MERKEZİ FONKSİYON TANIMLARI (Bölgesel URL Kaldırıldı)
+# 🎯 MERKEZİ FONKSİYON TANIMLARI
 # ==========================================
 
+# --- BÖLGESEL UÇ NOKTA TANIMI (Sadece değişken olarak kalır) ---
+GEMINI_REGION = "europe-west4" 
+GEMINI_BASE_URL = f"https://{GEMINI_REGION}-aiplatform.googleapis.com" # 500K Kotanın olduğu endpoint
+
 def get_model(key):
-    """API key ile kullanılabilecek modeli bulur (GLOBAL Uç Nokta)"""
+    """API key ile kullanılabilecek modeli bulur (GLOBAL Uç Nokta ile Test)"""
     try:
+        # Sadece anahtarın geçerli olup olmadığını kontrol et
         genai.configure(api_key=key)
         models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
         for m in models: 
             if "gemini-1.5-flash" in m: return m
         return models[0] if models else None
     except: return None
+
+def configure_genai_with_region(key):
+    """Belirtilen anahtarı bölgesel URL ile yapılandırır (Model çağrısı öncesi kullanılır)"""
+    try:
+        genai.configure(api_key=key, client_options={"api_endpoint": GEMINI_BASE_URL})
+        return True
+    except:
+        # Eğer bölgesel yapılandırma başarısız olursa, global ile dene
+        genai.configure(api_key=key)
+        return False
+
 
 def compress_image(image, max_size=(800, 800)):
     """Görselleri analiz için küçültür ve hızlandırır"""
@@ -374,38 +390,25 @@ working_key = None
 # --- BÖLGESEL UÇ NOKTA KONFİGÜRASYONU ---
 # KOTASI 500K YAPILAN BÖLGE BURADA TANIMLANIR.
 GEMINI_REGION = "europe-west4" 
+GEMINI_BASE_URL = f"https://{GEMINI_REGION}-aiplatform.googleapis.com" # 500K Kotanın olduğu endpoint
 
 def configure_regional_genai(key):
     """Bölgesel uç noktayı ayarlayarak GenAI'yı yapılandırır."""
     try:
-        # Vertex AI Regional Endpoint formatını kullan
-        base_url = f"https://{GEMINI_REGION}-aiplatform.googleapis.com"
-        genai.configure(api_key=key, client_options={"api_endpoint": base_url})
+        genai.configure(api_key=key, client_options={"api_endpoint": GEMINI_BASE_URL})
         return True
-    except Exception as e:
-        # Eğer bölgesel yapılandırma başarısız olursa, False döndür.
+    except:
         return False
 
 # İlk çalışan anahtarı ve modeli bulma döngüsü
 for k in api_keys:
-    # 1. Bölgesel yapılandırmayı dene (Yüksek kota bu bölgede)
-    if configure_regional_genai(k):
-        mod = get_model(k)
-        if mod: 
-            valid_model_name = mod
-            working_key = k 
-            break
     
-    # 2. Bölgesel yapılandırma başarısız olursa, global ile tekrar dene (Yedek)
-    try:
-        genai.configure(api_key=k)
-        mod = get_model(k)
-        if mod:
-            valid_model_name = mod
-            working_key = k
-            break
-    except:
-        continue # Deneme başarısız
+    # 1. Anahtar geçerli mi? (Global uç nokta ile test)
+    mod = get_model(k)
+    if mod: 
+        valid_model_name = mod
+        working_key = k 
+        break
 
 if not valid_model_name:
     st.error("❌ Aktif Model Bulunamadı. Lütfen API anahtarlarınızı kontrol edin.")
@@ -575,11 +578,10 @@ with st.sidebar:
                 
                 for i, k in enumerate(api_keys):
                     try:
-                        # TEST ESNASINDA BÖLGESEL KONFİGÜRASYON
-                        base_url = f"https://{GEMINI_REGION}-aiplatform.googleapis.com"
-                        genai.configure(api_key=k, client_options={"api_endpoint": base_url})
+                        # TEST ESNASINDA BÖLGESEL KONFİGÜRASYON (Kotayı zorlamak için)
+                        configure_regional_genai(k)
 
-                        model = genai.GenerativeModel('gemini-1.5-flash')
+                        model = genai.GenerativeModel('gemini-2.5-flash')
                         model.generate_content(test_prompt)
                         
                         st.session_state.key_status[k] = "pass"
@@ -907,9 +909,8 @@ with c1:
                         
                     for k in local_keys:
                         try:
-                            # BÖLGESEL KONFİGÜRASYON DENEMESİ
-                            base_url = f"https://{GEMINI_REGION}-aiplatform.googleapis.com"
-                            genai.configure(api_key=k, client_options={"api_endpoint": base_url})
+                            # BÖLGESEL UÇ NOKTA KONFİGÜRASYONU: Yüksek kotayı kullan
+                            configure_regional_genai(k)
                             
                             model = genai.GenerativeModel(valid_model_name)
                             stream = model.generate_content(input_data, stream=True)
@@ -987,8 +988,7 @@ if st.session_state.analysis_result:
                     final_prompt = f"{sys_inst}\n\nRAPOR:\n{st.session_state.analysis_result}\n\nSORU:\n{q}"
                     
                     # BÖLGESEL UÇ NOKTA KONFİGÜRASYONU BURADA YAPILIYOR
-                    base_url = f"https://{GEMINI_REGION}-aiplatform.googleapis.com"
-                    genai.configure(api_key=k, client_options={"api_endpoint": base_url})
+                    configure_regional_genai(k)
                     
                     model = genai.GenerativeModel(valid_model_name)
                     stream = model.generate_content(final_prompt, stream=True)
