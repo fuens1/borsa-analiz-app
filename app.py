@@ -537,29 +537,33 @@ with st.sidebar:
 
             st.markdown("---")
             
-            # Anahtarları Test Et Butonu (Sadece Admin'e Özel)
-            if st.button("🔄 Anahtarları Kontrol Et (Kota Testi)", use_container_width=True, key="admin_key_test"):
-                st.session_state.key_status = {}
-                prog = st.progress(0)
-                test_prompt = "Hello" 
-                
-                for i, k in enumerate(api_keys):
-                    try:
-                        genai.configure(api_key=k)
-                        model = genai.GenerativeModel('gemini-2.5-flash')
-                        model.generate_content(test_prompt)
-                        
-                        st.session_state.key_status[k] = "pass"
-                    
-                    except Exception as e:
-                        if "429" in str(e) or "quota" in str(e).lower():
-                            st.session_state.key_status[k] = "limit"
-                        else:
-                            st.session_state.key_status[k] = "fail"
-                    
-                    prog.progress((i+1)/len(api_keys))
-                prog.empty()
-                st.rerun()
+# --- Yönetici Paneli içindeki Anahtarları Kontrol Et butonu ---
+if st.button("🔄 Anahtarları Kontrol Et (Kota Testi)", use_container_width=True, key="admin_key_test"):
+    st.session_state.key_status = {}
+    prog = st.progress(0)
+    test_prompt = "Hello" 
+    
+    for i, k in enumerate(api_keys):
+        try:
+            genai.configure(api_key=k)
+            model = genai.GenerativeModel('gemini-2.5-flash')
+            model.generate_content(test_prompt)
+            
+            st.session_state.key_status[k] = "pass"
+        
+        except Exception as e:
+            error_str = str(e).lower()
+            if "429" in error_str or "quota" in error_str:
+                st.session_state.key_status[k] = "limit"
+            elif "expired" in error_str or "invalid" in error_str or "400" in error_str:
+                # API Key Expired (400) hatasını özel olarak işaretle
+                st.session_state.key_status[k] = "expired" 
+            else:
+                st.session_state.key_status[k] = "fail"
+        
+        prog.progress((i+1)/len(api_keys))
+    prog.empty()
+    st.rerun()
         
         st.markdown("---")
         
@@ -965,3 +969,4 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": full_resp})
             else:
                 st.error("❌ Sohbet: Tüm API anahtarlarının kotası dolu veya geçersiz. Lütfen daha sonra deneyin.")
+
