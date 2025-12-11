@@ -74,6 +74,96 @@ def save_global_config(config):
 
 global_config = load_global_config()
 
+
+# ==========================================
+# 🎯 MERKEZİ FONKSİYON TANIMLARI (NameError'ı Çözmek İçin Buraya Taşındı)
+# ==========================================
+
+def get_model(key):
+    """API key ile kullanılabilecek modeli bulur"""
+    try:
+        genai.configure(api_key=key)
+        models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        for m in models: 
+            if "gemini-1.5-flash" in m: return m
+        return models[0] if models else None
+    except: return None
+
+def compress_image(image, max_size=(800, 800)):
+    """Görselleri analiz için küçültür ve hızlandırır"""
+    if image.mode in ("RGBA", "P"): image = image.convert("RGB")
+    image.thumbnail(max_size, Image.Resampling.LANCZOS)
+    return image
+
+def fetch_stock_news(symbol):
+    """Google News RSS (Son 24 Saat)"""
+    if not NEWS_ENABLED: return "Haber modülü aktif değil (feedparser eksik)."
+    try:
+        query = f"{symbol} Borsa KAP when:1d"
+        rss_url = f"https://news.google.com/rss/search?q={quote(query)}&hl=tr&gl=TR&ceid=TR:tr"
+        feed = feedparser.parse(rss_url)
+        news_list = []
+        for entry in feed.entries[:5]: 
+            published = entry.published_parsed
+            date_str = time.strftime("%d.%m.%Y %H:%M", published) if published else "Tarih Yok"
+            news_list.append(f"- {entry.title} ({date_str})")
+        if not news_list: return "Son 24 saatte önemli haber yok."
+        return "\n".join(news_list)
+    except Exception as e:
+        return f"Haber çekme hatası: {str(e)}"
+
+def fetch_data_via_bridge(symbol, data_type):
+    """Firebase üzerinden PC'deki bridge.py ile konuşur"""
+    if not firebase_ready:
+        st.error("Veritabanı bağlantısı yok.")
+        return None
+
+    status_area = st.empty()
+    try:
+        # 1. EMİR GÖNDER
+        status_area.info(f"📡 {symbol} için {data_type} isteniyor... PC'ye bağlanılıyor.")
+        
+        ref_req = db.reference('bridge/request')
+        ref_req.set({
+            'symbol': symbol,
+            'type': data_type,
+            'status': 'pending',
+            'timestamp': time.time()
+        })
+        
+        # 2. CEVABI BEKLE (25 Saniye)
+        progress_bar = st.progress(0)
+        for i in range(25):
+            time.sleep(1)
+            progress_bar.progress((i + 1) / 25)
+            
+            status = ref_req.get().get('status')
+            
+            if status == 'processing':
+                status_area.warning("⏳ Robot emri aldı, Telegram'dan yanıt bekleniyor...")
+            
+            elif status == 'completed':
+                status_area.success("✅ Veri Alındı!")
+                progress_bar.empty()
+                
+                # Resmi indir
+                ref_res = db.reference('bridge/response')
+                data = ref_res.get()
+                if data and 'image_base64' in data:
+                    img_bytes = base64.b64decode(data['image_base64'])
+                    return Image.open(io.BytesIO(img_bytes))
+                break
+                
+            elif status == 'timeout':
+                status_area.error("❌ Zaman aşımı. Hedef bot cevap vermedi.")
+                break
+        else:
+            status_area.error("❌ Yanıt yok. PC'deki 'bridge.py' çalışıyor mu?")
+            
+    except Exception as e:
+        status_area.error(f"Hata: {e}")
+    return None
+
 # ==========================================
 # 🎨 SAYFA AYARLARI
 # ==========================================
@@ -84,7 +174,7 @@ st.markdown("""
 <style>
     /* Yönetici panelindeki key durumlarının daha küçük ve kompakt görünmesi için stiller */
     .st-emotion-cache-n1sltv p {
-        font-size: 10px; /* Kenar çubuğundaki paragraf yazılarını küçültme */
+        font-size: 10px;
     }
     .main { background-color: #0e1117; }
     h1 { color: #00d4ff !important; }
@@ -117,29 +207,32 @@ st.markdown("""
     .key-status-fail { color: #ff4444; font-weight: bold; font-size: x-small; }
     .key-status-limit { color: #ffbd45; font-weight: bold; font-size: x-small; }
 
-    /* Key Listesinde Sil Butonunu Minik Yapma */
-    div.stButton > button:first-child[kind="minimal"] {
-        padding: 0 4px; /* Buton içi boşluğu azalt */
-        font-size: 8px; /* Yazı fontunu küçült */
-        min-height: 20px; /* Minimum yüksekliği ayarla */
+    /* Sil Butonu Stilini Düzenleme */
+    div.stButton > button[kind="secondary"]:first-child {
+        padding: 0 4px;
+        font-size: 8px;
+        min-height: 20px;
         line-height: 0;
-        margin-top: -10px; /* Üstteki elemana yaklaştır */
+        margin-top: -10px;
     }
 
     .element-container:has(> .stJson) { display: none; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- SESSION INIT (Eksiksiz Tanımlama) ---
+# ==========================================
+# --- SESSION INIT (Tüm Anahtarlar Garanti Altında) ---
+# ==========================================
 if "authenticated" not in st.session_state: st.session_state.authenticated = False
 if "is_admin" not in st.session_state: st.session_state.is_admin = False
 if "reset_counter" not in st.session_state: st.session_state.reset_counter = 0
 
-# Hata veren anahtarların tanımlanması (Sorunu çözmek için)
+# Hata veren anahtarların tanımlanması (NameError ve AttributeError çözümü)
 if "analysis_result" not in st.session_state: st.session_state.analysis_result = None
 if "messages" not in st.session_state: st.session_state.messages = []
 if "loaded_count" not in st.session_state: st.session_state.loaded_count = 0
 if "active_working_key" not in st.session_state: st.session_state.active_working_key = None
+if "key_status" not in st.session_state: st.session_state.key_status = {}
 
 # API ve Telegram verileri
 if "api_depth_data" not in st.session_state: st.session_state.api_depth_data = None
@@ -148,19 +241,18 @@ if "tg_img_derinlik" not in st.session_state: st.session_state.tg_img_derinlik =
 if "tg_img_akd" not in st.session_state: st.session_state.tg_img_akd = None
 if "tg_img_kademe" not in st.session_state: st.session_state.tg_img_kademe = None
 if "tg_img_takas" not in st.session_state: st.session_state.tg_img_takas = None
-if "key_status" not in st.session_state: st.session_state.key_status = {}
 
-# --- YAPIŞTIRILMIŞ GÖRSEL ANTAHTARLARI GARANTİ ALTINA ALINIYOR (ÇÖZÜM BURADA)
-if "api_keys" not in st.session_state: # Bu tanım da üstte olması iyi olur
+# API KEY INITIALIZATION
+if "api_keys" not in st.session_state:
     api_keys_raw = st.secrets.get("GOOGLE_API_KEY", "")
     st.session_state.api_keys = [k.strip() for k in api_keys_raw.split(",") if k.strip()]
 
-# HATA VEREN ANAHTARLARIN TANIMLANMASI
+# Hata veren anahtarların tanımlanması (KeyError çözümü)
 for cat in ["Derinlik", "AKD", "Kademe", "Takas"]:
     if f"pasted_{cat}" not in st.session_state: 
         st.session_state[f"pasted_{cat}"] = []
 
-api_keys = st.session_state.api_keys
+api_keys = st.session_state.api_keys # Artık ana key listemiz session state'te
 
 # --- AUTH LOGIC ---
 query_params = st.query_params
@@ -275,26 +367,15 @@ if st.session_state.api_depth_data is not None or st.session_state.api_akd_data 
         if st.session_state.api_akd_data: st.success("API AKD 🟢")
         else: st.error("API AKD 🔴")
 
-# --- FUNCTIONS ---
+# Keylerin uygulama genelinde kullanılabilir olması için
 valid_model_name = None
 working_key = None
 
-def get_model(key):
-    """API key ile kullanılabilecek modeli bulur"""
-    try:
-        genai.configure(api_key=key)
-        models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        for m in models: 
-            if "gemini-1.5-flash" in m: return m
-        return models[0] if models else None
-    except: return None
-
-# Keyler arasında geçerli bir model bulana kadar döner
 for k in api_keys:
     mod = get_model(k)
     if mod: 
         valid_model_name = mod
-        working_key = k # İlk çalışan key'i başlangıç olarak tut
+        working_key = k 
         break
 
 if not valid_model_name:
@@ -302,32 +383,7 @@ if not valid_model_name:
     if not st.session_state.is_admin: 
         st.stop()
 
-# 🔥 HIZLANDIRMA 1: Görsel Sıkıştırma Fonksiyonu
-def compress_image(image, max_size=(800, 800)):
-    """Görselleri analiz için küçültür ve hızlandırır"""
-    if image.mode in ("RGBA", "P"): image = image.convert("RGB")
-    image.thumbnail(max_size, Image.Resampling.LANCZOS)
-    return image
-
-# --- YENİ HABER ÇEKME ---
-def fetch_stock_news(symbol):
-    """Google News RSS (Son 24 Saat)"""
-    if not NEWS_ENABLED: return "Haber modülü aktif değil (feedparser eksik)."
-    try:
-        query = f"{symbol} Borsa KAP when:1d"
-        rss_url = f"https://news.google.com/rss/search?q={quote(query)}&hl=tr&gl=TR&ceid=TR:tr"
-        feed = feedparser.parse(rss_url)
-        news_list = []
-        for entry in feed.entries[:5]: 
-            published = entry.published_parsed
-            date_str = time.strftime("%d.%m.%Y %H:%M", published) if published else "Tarih Yok"
-            news_list.append(f"- {entry.title} ({date_str})")
-        if not news_list: return "Son 24 saatte önemli haber yok."
-        return "\n".join(news_list)
-    except Exception as e:
-        return f"Haber çekme hatası: {str(e)}"
-
-# --- UPLOAD SECTION (OTOMATİK GÖSTERİM EKLENDİ) ---
+# --- UPLOAD SECTION ---
 file_key_suffix = str(st.session_state.reset_counter)
 
 def handle_paste(cat):
@@ -468,8 +524,7 @@ with st.sidebar:
                 
                 # SİLME BUTONU
                 with cols[0]:
-                    # Kompakt butonu kullanıyoruz (kind="minimal" ile butonu küçültmeyi denedik)
-                    if st.button("❌", key=f"del_key_{k[-4:]}_v4", on_click=delete_api_key, args=(k,), help="Anahtarı Sil"):
+                    if st.button("❌", key=f"del_key_{k[-4:]}_v4", on_click=delete_api_key, args=(k,)):
                         pass
                 
                 # KEY GÖRÜNÜMÜ
@@ -624,7 +679,7 @@ with c1:
         is_kademe_avail = has_k
         is_takas_avail = has_t
         
-        # --- PROMPT MİMARİSİ (Aynı kaldı) ---
+        # --- PROMPT MİMARİSİ ---
         base_role = f"""
         Sen Borsa Uzmanısın ve Kıdemli Veri Analistisin.
         GÖREV: SADECE sana sağlanan görselleri ve verileri kullanarak analiz yap.
@@ -845,10 +900,10 @@ with c1:
 # 💬 SONUÇ VE SOHBET (FİNAL BÖLÜMÜ)
 # ==========================================
 if st.session_state.analysis_result:
-    if not 'placeholder' in locals():
-        st.markdown("## 🐋 Kurumsal Rapor")
-        st.markdown(st.session_state.analysis_result)
-        st.markdown("---")
+    # Hata veren 'placeholder' local değişken kontrolü kaldırıldı
+    st.markdown("## 🐋 Kurumsal Rapor")
+    st.markdown(st.session_state.analysis_result)
+    st.markdown("---")
 
     st.subheader("💬 Analist ile Sohbet")
     
@@ -910,5 +965,3 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": full_resp})
             else:
                 st.error("❌ Sohbet: Tüm API anahtarlarının kotası dolu veya geçersiz. Lütfen daha sonra deneyin.")
-
-
