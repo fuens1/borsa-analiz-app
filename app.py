@@ -713,6 +713,7 @@ with c1:
 
             ## 🛡️ GÜÇLÜ/ZAYIF DESTEK VE DİRENÇ ANALİZİ
             (Grafik ve derinlik verilerine bakarak EN AZ 10 ADET Destek seviyesi ve EN AZ 10 ADET Direnç seviyesi yaz.)
+            (Hepsine çok güçlü, çok güçlü deme. Güçlerinin seviyesini belirt ve güçleri daha gerçekçi söyle. Hatta gerekirse %'lik bazda gösterip, altta da ayrı olarak güce göre sırala.)
             * :green[**Destekler:** ...]
             * :red[**Dirençler:** ...]
 
@@ -749,6 +750,7 @@ with c1:
             ## 🚧 KRİTİK DİRENÇ BÖLGELERİ (EN AZ 15 ADET)
             (Elindeki verilere göre EN AZ 15 tane direnç/satış noktası belirle.)
             (HER MADDEDE AÇIKLAMA YAP: "Burada satış duvarı var", "Maliyetlenme burada yoğun", "Psikolojik sınır" gibi.)
+            (Hepsine çok güçlü, çok güçlü deme. Güçlerinin seviyesini belirt ve güçleri daha gerçekçi söyle. Hatta gerekirse %'lik bazda gösterip, altta da ayrı olarak güce göre sırala.)
             1. **[FİYAT]** - [GÜÇ DERECESİ]: ...
             2. **[FİYAT]** - [GÜÇ DERECESİ]: ...
             ... (15 maddeye tamamla)
@@ -978,3 +980,4 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": full_resp})
             else:
                 st.error("❌ Sohbet: Tüm API anahtarlarının kotası dolu veya geçersiz. Lütfen daha sonra deneyin.")
+
