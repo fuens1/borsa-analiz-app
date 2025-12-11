@@ -252,7 +252,7 @@ for cat in ["Derinlik", "AKD", "Kademe", "Takas"]:
     if f"pasted_{cat}" not in st.session_state: 
         st.session_state[f"pasted_{cat}"] = []
 
-api_keys = st.session_state.api_keys # Artık ana key listemiz session state'te
+api_keys = st.session_state.api_keys 
 
 # --- AUTH LOGIC ---
 query_params = st.query_params
@@ -502,10 +502,9 @@ with st.sidebar:
             st.markdown("---")
             st.markdown("<h6 style='margin-top: 0px;'>Anahtarlar ve Durumları</h6>", unsafe_allow_html=True)
             
-            # --- EN KOMPAKT KEY LİSTELEME ---
+            # --- EN KOMPAKT KEY LİSTELEME (400 Hatası Kontrolü Dahil) ---
             
             for k in api_keys:
-                # Kolon dağılımı: Sil butonu (1), Key (3), Durum (2)
                 cols = st.columns([1, 3, 2])
                 
                 key_display = f"<span style='font-size: x-small; font-weight: bold;'>...{k[-4:]}</span>"
@@ -517,6 +516,8 @@ with st.sidebar:
                         status_text = f"<span style='font-size: x-small;' class='key-status-pass'>✅ OK</span>"
                     elif status == "limit":
                         status_text = f"<span style='font-size: x-small;' class='key-status-limit'>⚠️ KOTA</span>"
+                    elif status == "expired": # Yeni 400 Expired durumu
+                         status_text = f"<span style='font-size: x-small;' class='key-status-fail'>❌ SÜRE BİTTİ</span>"
                     elif status == "fail":
                         status_text = f"<span style='font-size: x-small;' class='key-status-fail'>❌ HATA</span>"
                 else:
@@ -537,33 +538,33 @@ with st.sidebar:
 
             st.markdown("---")
             
-# --- Yönetici Paneli içindeki Anahtarları Kontrol Et butonu ---
-if st.button("🔄 Anahtarları Kontrol Et (Kota Testi)", use_container_width=True, key="admin_key_test"):
-    st.session_state.key_status = {}
-    prog = st.progress(0)
-    test_prompt = "Hello" 
-    
-    for i, k in enumerate(api_keys):
-        try:
-            genai.configure(api_key=k)
-            model = genai.GenerativeModel('gemini-2.5-flash')
-            model.generate_content(test_prompt)
-            
-            st.session_state.key_status[k] = "pass"
-        
-        except Exception as e:
-            error_str = str(e).lower()
-            if "429" in error_str or "quota" in error_str:
-                st.session_state.key_status[k] = "limit"
-            elif "expired" in error_str or "invalid" in error_str or "400" in error_str:
-                # API Key Expired (400) hatasını özel olarak işaretle
-                st.session_state.key_status[k] = "expired" 
-            else:
-                st.session_state.key_status[k] = "fail"
-        
-        prog.progress((i+1)/len(api_keys))
-    prog.empty()
-    st.rerun()
+            # Anahtarları Test Et Butonu (Sadece Admin'e Özel)
+            if st.button("🔄 Anahtarları Kontrol Et (Kota Testi)", use_container_width=True, key="admin_key_test"):
+                st.session_state.key_status = {}
+                prog = st.progress(0)
+                test_prompt = "Hello" 
+                
+                for i, k in enumerate(api_keys):
+                    try:
+                        genai.configure(api_key=k)
+                        model = genai.GenerativeModel('gemini-2.5-flash')
+                        model.generate_content(test_prompt)
+                        
+                        st.session_state.key_status[k] = "pass"
+                    
+                    except Exception as e:
+                        error_str = str(e).lower()
+                        if "429" in error_str or "quota" in error_str:
+                            st.session_state.key_status[k] = "limit"
+                        # 400 Expired veya Invalid hatası kontrolü
+                        elif "expired" in error_str or "invalid" in error_str or "400" in error_str:
+                             st.session_state.key_status[k] = "expired"
+                        else:
+                            st.session_state.key_status[k] = "fail"
+                    
+                    prog.progress((i+1)/len(api_keys))
+                prog.empty()
+                st.rerun()
         
         st.markdown("---")
         
@@ -888,7 +889,12 @@ with c1:
                             break 
                             
                         except Exception as e:
-                            if "429" in str(e) or "quota" in str(e).lower(): 
+                            error_str = str(e).lower()
+                            if "429" in error_str or "quota" in error_str: 
+                                continue
+                            elif "expired" in error_str or "invalid" in error_str or "400" in error_str:
+                                # Süresi dolmuş/geçersiz anahtar hatası: atla
+                                st.warning(f"⚠️ Anahtar `...{k[-4:]}` süresi doldu/geçersiz. Bir sonraki deneniyor.")
                                 continue
                             else: 
                                 st.error(f"Hata: {e}"); 
@@ -904,7 +910,6 @@ with c1:
 # 💬 SONUÇ VE SOHBET (FİNAL BÖLÜMÜ)
 # ==========================================
 if st.session_state.analysis_result:
-    # Hata veren 'placeholder' local değişken kontrolü kaldırıldı
     st.markdown("## 🐋 Kurumsal Rapor")
     st.markdown(st.session_state.analysis_result)
     st.markdown("---")
@@ -958,9 +963,13 @@ if st.session_state.analysis_result:
                     break 
                     
                 except Exception as e:
-                    if "429" in str(e) or "quota" in str(e).lower():
+                    error_str = str(e).lower()
+                    if "429" in error_str or "quota" in error_str:
                         st.warning(f"⚠️ Anahtar `...{k[-4:]}` kotası doldu. Bir sonraki anahtar deneniyor.")
                         continue 
+                    elif "expired" in error_str or "invalid" in error_str or "400" in error_str:
+                        st.warning(f"⚠️ Anahtar `...{k[-4:]}` süresi doldu/geçersiz. Bir sonraki deneniyor.")
+                        continue
                     else:
                         st.error(f"Genel Hata: {e}")
                         break 
@@ -969,4 +978,3 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": full_resp})
             else:
                 st.error("❌ Sohbet: Tüm API anahtarlarının kotası dolu veya geçersiz. Lütfen daha sonra deneyin.")
-
