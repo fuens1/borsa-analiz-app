@@ -23,7 +23,7 @@ try:
     import feedparser
     NEWS_ENABLED = True
 except ImportError:
-    NEWS_ENABLED = False
+    PASTE_ENABLED = False
 
 # Firebase Kontrolü
 try:
@@ -80,13 +80,13 @@ global_config = load_global_config()
 # ==========================================
 
 # --- BÖLGESEL UÇ NOKTA TANIMI (500K Kotası İçin) ---
+# DİKKAT: Bu bölge, kotanın yükseltildiği bölge olmalıdır.
 GEMINI_REGION = "europe-west4" 
 GEMINI_BASE_URL = f"https://{GEMINI_REGION}-aiplatform.googleapis.com" 
 
 def get_model(key):
     """API key ile kullanılabilecek modeli bulur (GLOBAL Uç Nokta ile Test)"""
     try:
-        # Sadece anahtarın geçerli olup olmadığını kontrol et
         genai.configure(api_key=key)
         models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
         for m in models: 
@@ -94,7 +94,7 @@ def get_model(key):
         return models[0] if models else None
     except: return None
 
-def configure_genai_with_region(key):
+def configure_regional_genai(key):
     """Belirtilen anahtarı bölgesel URL ile yapılandırır (Model çağrısı öncesi kullanılır)"""
     try:
         # Yüksek kotalı bölgesel uç noktayı kullanmayı dener
@@ -483,15 +483,14 @@ col1, col2 = st.columns(2)
 with col1:
     img_d = render_category_panel("1. Derinlik 💹", "Derinlik", "tg_img_derinlik", f"d_{file_key_suffix}")
     st.markdown("---") 
-    # DÜZELTİLDİ: "tg_img_kademe" argümanı eklendi
-    img_k = render_category_panel("3. Kademe 📊", "Kademe", "tg_img_kademe", f"k_{file_key_suffix}")
+    img_k = render_category_panel("3. Kademe 📊", "Kademe", "tg_img_kademe", f"k_{file_key_suffix}") # Düzeltildi
+    
 
 with col2:
-    # DÜZELTİLDİ: "tg_img_akd" argümanı eklendi
-    img_a = render_category_panel("2. AKD 🤵", "AKD", "tg_img_akd", f"a_{file_key_suffix}")
+    img_a = render_category_panel("2. AKD 🤵", "AKD", "tg_img_akd", f"a_{file_key_suffix}") # Düzeltildi
     st.markdown("---") 
-    # DÜZELTİLDİ: "tg_img_takas" argümanı eklendi
-    img_t = render_category_panel("4. Takas 🌍", "Takas", "tg_img_takas", f"t_{file_key_suffix}")
+    img_t = render_category_panel("4. Takas 🌍", "Takas", "tg_img_takas", f"t_{file_key_suffix}") # Düzeltildi
+
 # --- SIDEBAR & TELEGRAM BRIDGE ---
 
 # Yardımcı fonksiyonlar (Yönetici Paneli için)
@@ -872,14 +871,14 @@ with c1:
             24. 🧢 TAVAN / TABAN KİLİT POTANSİYELİ: Tavan/Taban kademesinde ne kadar lot var?
             25. 🧬 GERÇEK YABANCI MI, BIYIKLI YABANCI MI? Takas değişimleri ne diyor?
             26. 🏎️ İŞLEM YOĞUNLUĞU GÖRSELİ: İşlemler ne kadar sık geçiyor?
-            27. 🧱 BLOK SATIŞ KARŞILAMA: Büyük satışlar hemen karşılanıyor mı?
+            27. 🧱 BLOK SATIŞ KARŞILAMA: Büyük satışlar hemen karşılanıyor mu?
             28. ⚖️ ORTALAMA MALİYET YÜKSELTME (MARKUP): Fiyat yükselirken hacim artıyor mu?
             29. 🧮 GİZLİ TOPLAMA OPERASYONU: AKD'de dağınık alım, Takasta toplu birikim var mı?
             30. 🏛️ KURUM KARAKTER ANALİZİ: Oyuncular trader mı yoksa kurumsal mı?
             31. 🧊 GİZLİ EMİR (ICEBERG) TESPİTİ: Görünenden daha fazla işlem geçiyor mu?
             32. 🌪️ HACİM / FİYAT UYUMSUZLUĞU (CHURNING): Hacim var ama fiyat gitmiyor mu?
             33. 🚫 ALIM/SATIM İPTALİ: Derinlikte iptal edilen emirler var mı?
-            34. 🔄 GÜN İÇİ DÖNÜŞ (REVERSAL) SİNYALİ: Mum veya kademe dönüş işareti veriyor mu?
+            34. 🔄 GÜN İÇİ DÖNÜŞ (REVERSAL) SİNYALİ: Mum veya kademe dönüş işareti veriyor mı?
             35. 💰 NET PARA GİRİŞ/ÇIKIŞ GÖRÜNTÜSÜ: Para girişi pozitif mi?
             36. 📉 GAP (FİYAT BOŞLUĞU) RİSKİ: Haber veya açılış kaynaklı boşluk var mı?
             37. 🛡️ PİVOT SEVİYESİ KONUMU: Fiyat pivotun neresinde?
@@ -1042,4 +1041,3 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": full_resp})
             else:
                 st.error("❌ Sohbet: Tüm API anahtarlarının kotası dolu veya geçersiz. Lütfen daha sonra deneyin.")
-
