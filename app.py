@@ -79,7 +79,7 @@ global_config = load_global_config()
 # 🎯 MERKEZİ FONKSİYON TANIMLARI & MODEL LİSTESİ
 # ==========================================
 
-# Model öncelik sırasını belirliyoruz (Yüksek Uyum -> Orta Uyum)
+# Model listesi, kullanıcının seçebileceği ve test edilebilecek tüm modelleri içerir.
 MODEL_PRIORITY_LIST = [
     'gemini-2.5-flash',
     'gemini-2.5-flash-live',
@@ -88,26 +88,28 @@ MODEL_PRIORITY_LIST = [
     'gemma-3-12b',
     'gemma-3-4b'
 ]
+# Tüm modelleri içeren liste (TTS, Robotics vb. hariç)
+MODEL_SELECTION_OPTIONS = MODEL_PRIORITY_LIST + ['gemini-2.5-flash-lite']
 
-def get_valid_model(key):
+
+def get_model(key):
     """
-    API key ile multimodal (Flash) modellerden ilk çalışanını bulur. 
-    Uygulamanın çalışması için en az bir multimodal model gereklidir.
+    API key ile kullanılabilecek ilk Flash modelini bulur (Sadece Hızlı Başlangıç Kontrolü için).
     """
     genai.configure(api_key=key)
     test_prompt = "Hello"
 
-    # Multimodal (Görsel Analiz Yapabilen) modelleri kontrol et
+    # Sadece multimodal (Flash) modelleri kontrol et
     for model_name in ['gemini-2.5-flash', 'gemini-2.5-flash-live', 'gemini-2.0-flash-live']:
         try:
-            # Modelin gerçekten çalışıp çalışmadığını kontrol et
             model = genai.GenerativeModel(model_name)
             model.generate_content(test_prompt)
-            return model_name # Çalışan ilk Flash modelini döndür
+            return model_name 
         except Exception as e:
             error_str = str(e).lower()
             if "invalid" in error_str or "400" in error_str:
                 return None 
+            # Kota veya bulunamama durumunda devam et
 
     return None
 
@@ -255,6 +257,7 @@ if "messages" not in st.session_state: st.session_state.messages = []
 if "loaded_count" not in st.session_state: st.session_state.loaded_count = 0
 if "active_working_key" not in st.session_state: st.session_state.active_working_key = None
 if "key_status" not in st.session_state: st.session_state.key_status = {}
+if "selected_model" not in st.session_state: st.session_state.selected_model = MODEL_PRIORITY_LIST[0]
 
 # API ve Telegram verileri
 if "api_depth_data" not in st.session_state: st.session_state.api_depth_data = None
@@ -343,7 +346,7 @@ with col_reset:
         st.session_state.tg_img_kademe = None
         st.session_state.tg_img_takas = None
         
-        keys_to_keep = ["authenticated", "is_admin", "reset_counter", "api_depth_data", "api_akd_data", "tg_img_derinlik", "tg_img_akd", "tg_img_kademe", "tg_img_takas", "key_status", "api_keys"]
+        keys_to_keep = ["authenticated", "is_admin", "reset_counter", "api_depth_data", "api_akd_data", "tg_img_derinlik", "tg_img_akd", "tg_img_kademe", "tg_img_takas", "key_status", "api_keys", "selected_model"]
         for key in list(st.session_state.keys()):
             if key not in keys_to_keep: del st.session_state[key]
         for cat in ["Derinlik", "AKD", "Kademe", "Takas"]:
@@ -390,24 +393,26 @@ if st.session_state.api_depth_data is not None or st.session_state.api_akd_data 
         else: st.error("API AKD 🔴")
 
 # Keylerin uygulama genelinde kullanılabilir olması için
-valid_model_name = 'gemini-2.5-flash' # Analiz için en güçlü modeli varsay
+valid_model_name = st.session_state.selected_model # Kullanıcının seçtiği model artık varsayılan model
 working_key = None
 
-# Kodun başlangıcında aktif ve multimodal (Flash) bir model bulmaya çalış
+# Kodun başlangıcında aktif ve multimodal (Flash) bir anahtar bulmaya çalış
 if not api_keys:
-    st.error("❌ Aktif Model Bulunamadı. Lütfen API anahtarlarınızı kontrol edin. (Anahtar havuzu boş.)")
+    st.error("❌ API Anahtar Havuzu Boş! Yönetici, lütfen yeni anahtar ekleyin.")
     if not st.session_state.is_admin: 
         st.stop()
 else:
-    # İlk çalışan (Flash) modeli bulmaya çalış
+    # İlk çalışan (Flash) modeli ve anahtarını bulmaya çalış (Sadece güvenlik kontrolü için)
+    temp_valid_model = None
+    temp_working_key = None
     for k in api_keys:
-        mod = get_valid_model(k)
+        mod = get_model(k)
         if mod: 
-            valid_model_name = mod
-            working_key = k 
+            temp_valid_model = mod
+            temp_working_key = k 
             break
     
-    if not working_key:
+    if not temp_working_key:
         st.error("❌ Aktif Model Bulunamadı. Lütfen API anahtarlarınızı kontrol edin. (En az bir Flash modeli gereklidir.)")
         if not st.session_state.is_admin: 
             st.stop()
@@ -735,6 +740,16 @@ with c2:
         st.caption("ℹ️ Sade Mod: Her başlık için en az 10 madde analiz edilir.")
 
 with c1:
+    st.markdown("##### 🤖 Model Seçimi")
+    # Yeni model seçim kutusu
+    st.session_state.selected_model = st.selectbox(
+        "Analiz Modelini Seçin:",
+        options=MODEL_SELECTION_OPTIONS,
+        index=MODEL_SELECTION_OPTIONS.index(st.session_state.selected_model),
+        key="model_selector",
+        help="Analiz için kullanılacak ana model. Multimodal veriler için (Grafikler) 'flash' modellerini seçin."
+    )
+    
     st.markdown("<br>", unsafe_allow_html=True)
     # Buton tasarımı
     if st.button("🐋 ANALİZİ BAŞLAT", type="primary", use_container_width=True):
@@ -915,7 +930,7 @@ with c1:
             29. 🧮 GİZLİ TOPLAMA OPERASYONU: AKD'de dağınık alım, Takasta toplu birikim var mı?
             30. 🏛️ KURUM KARAKTER ANALİZİ: Oyuncular trader mı yoksa kurumsal mı?
             31. 🧊 GİZLİ EMİR (ICEBERG) TESPİTİ: Görünenden daha fazla işlem geçiyor mu?
-            32. 🌪️ HACİM / FİYAT UYUMSUZLUĞU (CHURNING): Hacim var ama fiyat gitmiyor mı?
+            32. 🌪️ HACİM / FİYAT UYUMSUZLUĞU (CHURNING): Hacim var ama fiyat gitmiyor mu?
             33. 🚫 ALIM/SATIM İPTALİ: Derinlikte iptal edilen emirler var mı?
             34. 🔄 GÜN İÇİ DÖNÜŞ (REVERSAL) SİNYALİ: Mum veya kademe dönüş işareti veriyor mu?
             35. 💰 NET PARA GİRİŞ/ÇIKIŞ GÖRÜNTÜSÜ: Para girişi pozitif mi?
@@ -957,13 +972,20 @@ with c1:
             placeholder = st.empty()
             full_response = ""
             
-            with st.spinner("Analiz Başlatılıyor... (Akış birazdan başlayacak)"):
+            # Seçilen modeli al
+            selected_model_name = st.session_state.selected_model
+            
+            # Seçilen modelin ve yedeklerinin olduğu listeyi oluştur
+            # Bu listede önce seçilen model, sonra diğer yedekler yer alacak.
+            analysis_model_priority = [selected_model_name] + [m for m in MODEL_PRIORITY_LIST if m != selected_model_name]
+            
+            with st.spinner(f"Analiz Başlatılıyor... ({selected_model_name} ile)"):
                 try:
                     stream_active = False
                     
                     local_keys = api_keys.copy()
                     # Aktif çalışan anahtarı öne al
-                    if working_key in local_keys:
+                    if working_key in local_keys and working_key:
                         local_keys.remove(working_key)
                         local_keys.insert(0, working_key)
                         
@@ -972,8 +994,8 @@ with c1:
                     for k in local_keys:
                         genai.configure(api_key=k)
                         
-                        # Öncelik sırasındaki modelleri tek tek dene (En iyiden en zayıfa)
-                        for model_name in MODEL_PRIORITY_LIST:
+                        # Öncelik sırasındaki modelleri tek tek dene
+                        for model_name in analysis_model_priority:
                             try:
                                 # Model servisi ile bağlantı kur ve akışı başlat
                                 model = genai.GenerativeModel(model_name)
@@ -1003,21 +1025,15 @@ with c1:
                             except Exception as e:
                                 error_str = str(e).lower()
                                 
-                                # Hata yakalama: 429 (Kota) veya 400 (Geçersiz Model/Anahtar)
                                 if "429" in error_str or "quota" in error_str: 
-                                    # Kota dolu: Bir sonraki modeli dene (aynı anahtar ile)
                                     st.warning(f"⚠️ Anahtar `...{k[-4:]}` için {model_name} kotası dolu. Bir sonraki model deneniyor.")
                                     continue 
                                 elif "invalid" in error_str or "400" in error_str or "key" in error_str:
-                                    # Anahtarın kendisi geçersiz/süresi dolmuş: Bu anahtarı atla, bir sonraki anahtara geç (dış döngü)
                                     st.warning(f"⚠️ Anahtar `...{k[-4:]}` süresi doldu/geçersiz. Bir sonraki anahtar deneniyor.")
                                     break 
                                 else: 
-                                    # Diğer hatalar
                                     st.error(f"Hata ({model_name} / ...{k[-4:]}): {e}"); 
                                     break 
-                        
-                        # İç döngü (model döngüsü) bitti. StopIteration sinyali gelmediyse dış döngüye devam et (bir sonraki anahtar)
                         
                     if not stream_active:
                              st.error("Tüm anahtarların kotaları dolu veya bağlantı hatası.")
@@ -1060,13 +1076,13 @@ if st.session_state.analysis_result:
             key_found = False
             full_resp = ""
             
-            # Sohbet modelini (Analysis'de kullanılan model) ve öncelikli modelleri dene
-            CHAT_MODEL_PRIORITY_LIST = [valid_model_name] + [m for m in MODEL_PRIORITY_LIST if m not in [valid_model_name, None]]
-            
+            # Sohbet için model önceliği: Önce Analizde kullanılan model, sonra diğer yedekler
+            chat_model_priority = [st.session_state.selected_model] + [m for m in MODEL_PRIORITY_LIST if m != st.session_state.selected_model]
+
             for k in local_keys:
                 genai.configure(api_key=k)
                 
-                for model_name in CHAT_MODEL_PRIORITY_LIST:
+                for model_name in chat_model_priority:
                     try:
                         sys_inst = (
                             "GÖREV: Sadece rapora sadık kal." if chat_scope == "📝 RAPOR"
