@@ -89,22 +89,15 @@ MODEL_PRIORITY_LIST = [
     'gemma-3-4b'
 ]
 
-# Koddaki get_valid_model fonksiyonunu geçici olarak değiştirin:
 def get_valid_model(key):
-    """Sadece anahtarın geçerli olup olmadığını kontrol eder."""
-    try:
-        genai.configure(api_key=key)
-        # Hızlı bir test için basit bir metin modeli kullanın
-        models = genai.list_models()
-        for m in models:
-            if 'generateContent' in m.supported_generation_methods:
-                # Çalışan ilk modeli döndür
-                return m.name 
-        return None
-    except:
-        return None
+    """
+    API key ile multimodal (Flash) modellerden ilk çalışanını bulur. 
+    Uygulamanın çalışması için en az bir multimodal model gereklidir.
+    """
+    genai.configure(api_key=key)
+    test_prompt = "Hello"
 
-    # Sadece multimodal modelleri kontrol et (Uygulamanın temel görevi için en az bir Flash modeli gerekiyor)
+    # Multimodal (Görsel Analiz Yapabilen) modelleri kontrol et
     for model_name in ['gemini-2.5-flash', 'gemini-2.5-flash-live', 'gemini-2.0-flash-live']:
         try:
             model = genai.GenerativeModel(model_name)
@@ -114,7 +107,6 @@ def get_valid_model(key):
             error_str = str(e).lower()
             if "invalid" in error_str or "400" in error_str:
                 return None 
-            # Kota hatası (429) veya diğer hatalarda döngü devam eder.
 
     return None
 
@@ -532,10 +524,10 @@ with st.sidebar:
             st.markdown("---")
             st.markdown("<h6 style='margin-top: 0px;'>Anahtarlar ve Durumları</h6>", unsafe_allow_html=True)
             
-            # --- EN KOMPAKT KEY LİSTELEME (GÜNCELLENDİ) ---
+            # --- EN KOMPAKT KEY LİSTELEME (KOTA DETAYI GÖSTERİMİ) ---
             
             for k in api_keys:
-                cols = st.columns([1, 2, 3]) # Kolon boyutları güncellendi
+                cols = st.columns([1, 2, 3]) 
                 
                 key_display = f"<span style='font-size: x-small; font-weight: bold;'>...{k[-4:]}</span>"
                 
@@ -591,7 +583,7 @@ with st.sidebar:
 
             st.markdown("---")
             
-            # Anahtarları Test Et Butonu (GÜNCELLENDİ)
+            # Anahtarları Test Et Butonu (DETAYLI KOTA KONTROLÜ)
             if st.button("🔄 Anahtarları Kontrol Et (Tüm Model Kotası Testi)", use_container_width=True, key="admin_key_test_full"):
                 st.session_state.key_status = {}
                 prog = st.progress(0)
@@ -602,6 +594,11 @@ with st.sidebar:
                     key_overall_status = "pass"
                     
                     for model_name in MODEL_PRIORITY_LIST:
+                        # Anahtar geçersiz veya genel hatalı bulunduysa, kalan modelleri atla
+                        if key_overall_status in ["expired", "fail"]:
+                            key_model_status[model_name] = key_overall_status 
+                            continue 
+                            
                         try:
                             genai.configure(api_key=k)
                             model = genai.GenerativeModel(model_name)
@@ -611,22 +608,32 @@ with st.sidebar:
                         
                         except Exception as e:
                             error_str = str(e).lower()
+                            
                             if "429" in error_str or "quota" in error_str:
                                 key_model_status[model_name] = "limit"
-                                # En az bir kota doluysa genel durum limit olur
+                                
                                 if key_overall_status == "pass":
                                     key_overall_status = "limit" 
                             
-                            # 400 Expired veya Invalid hatası kontrolü
                             elif "expired" in error_str or "invalid" in error_str or "400" in error_str:
                                  key_model_status[model_name] = "expired"
                                  key_overall_status = "expired"
-                                 # Anahtar geçersizse tüm modeli denemeyi bırak
+                                 
+                                 # Kalan modellere de "expired" durumunu atayalım
+                                 remaining_models = MODEL_PRIORITY_LIST[MODEL_PRIORITY_LIST.index(model_name) + 1:]
+                                 for rem_model in remaining_models:
+                                     key_model_status[rem_model] = "expired"
                                  break 
+
                             else:
+                                # Diğer beklenmedik hatalar
                                 key_model_status[model_name] = "fail"
                                 key_overall_status = "fail"
-                                # Diğer hatalarda da bu anahtardan çık
+                                
+                                # Kalan modellere de "fail" durumunu atayalım
+                                remaining_models = MODEL_PRIORITY_LIST[MODEL_PRIORITY_LIST.index(model_name) + 1:]
+                                for rem_model in remaining_models:
+                                     key_model_status[rem_model] = "fail"
                                 break 
                         
                     st.session_state.key_status[k] = {
@@ -642,7 +649,6 @@ with st.sidebar:
         
     # ------------------------------------------------------------------
     # TÜM KULLANICILAR İÇİN: Telegram ve Çıkış
-    # ... (Geri kalan SIDEBAR kısmı aynı kalır)
     # ------------------------------------------------------------------
     
     st.header("📲 Telegram Köprüsü")
@@ -1090,4 +1096,3 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": full_resp})
             else:
                 st.error("❌ Sohbet: Tüm API anahtarlarının ve model kotalarının dolu veya geçersiz. Lütfen daha sonra deneyin.")
-
