@@ -130,7 +130,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- SESSION INIT ---
+# --- SESSION INIT (Güncellenmiş Hali) ---
 if "authenticated" not in st.session_state: st.session_state.authenticated = False
 if "is_admin" not in st.session_state: st.session_state.is_admin = False
 if "reset_counter" not in st.session_state: st.session_state.reset_counter = 0
@@ -143,12 +143,17 @@ if "tg_img_kademe" not in st.session_state: st.session_state.tg_img_kademe = Non
 if "tg_img_takas" not in st.session_state: st.session_state.tg_img_takas = None
 if "key_status" not in st.session_state: st.session_state.key_status = {}
 
-# --- API KEY INITIALIZATION (YÖNETİCİ TARAFINDAN DEĞİŞTİRİLECEK) ---
-if "api_keys" not in st.session_state:
+# --- YAPIŞTIRILMIŞ GÖRSEL ANTAHTARLARI GARANTİ ALTINA ALINIYOR (ÇÖZÜM BURADA)
+if "api_keys" not in st.session_state: # Bu tanım da üstte olması iyi olur
     api_keys_raw = st.secrets.get("GOOGLE_API_KEY", "")
     st.session_state.api_keys = [k.strip() for k in api_keys_raw.split(",") if k.strip()]
 
-api_keys = st.session_state.api_keys 
+# HATA VEREN ANAHTARLARIN TANIMLANMASI
+for cat in ["Derinlik", "AKD", "Kademe", "Takas"]:
+    if f"pasted_{cat}" not in st.session_state: 
+        st.session_state[f"pasted_{cat}"] = []
+
+api_keys = st.session_state.api_keys
 
 # --- AUTH LOGIC ---
 query_params = st.query_params
@@ -898,3 +903,4 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": full_resp})
             else:
                 st.error("❌ Sohbet: Tüm API anahtarlarının kotası dolu veya geçersiz. Lütfen daha sonra deneyin.")
+
