@@ -130,13 +130,20 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- SESSION INIT (Güncellenmiş Hali) ---
+# --- SESSION INIT (Eksiksiz Tanımlama) ---
 if "authenticated" not in st.session_state: st.session_state.authenticated = False
 if "is_admin" not in st.session_state: st.session_state.is_admin = False
 if "reset_counter" not in st.session_state: st.session_state.reset_counter = 0
+
+# Hata veren anahtarların tanımlanması (Sorunu çözmek için)
+if "analysis_result" not in st.session_state: st.session_state.analysis_result = None
+if "messages" not in st.session_state: st.session_state.messages = []
+if "loaded_count" not in st.session_state: st.session_state.loaded_count = 0
+if "active_working_key" not in st.session_state: st.session_state.active_working_key = None
+
+# API ve Telegram verileri
 if "api_depth_data" not in st.session_state: st.session_state.api_depth_data = None
 if "api_akd_data" not in st.session_state: st.session_state.api_akd_data = None
-# Telegram Görüntüleri
 if "tg_img_derinlik" not in st.session_state: st.session_state.tg_img_derinlik = None
 if "tg_img_akd" not in st.session_state: st.session_state.tg_img_akd = None
 if "tg_img_kademe" not in st.session_state: st.session_state.tg_img_kademe = None
@@ -903,4 +910,5 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": full_resp})
             else:
                 st.error("❌ Sohbet: Tüm API anahtarlarının kotası dolu veya geçersiz. Lütfen daha sonra deneyin.")
+
 
