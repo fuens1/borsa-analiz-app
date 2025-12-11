@@ -607,7 +607,7 @@ with st.sidebar:
                     key_overall_status = "pass"
                     
                     for model_name in MODEL_PRIORITY_LIST:
-                        # Anahtar geçersiz veya genel hatalı bulunduysa, kalan modelleri atla
+                        # Anahtar geçersiz veya genel hatalı bulunduysa, kalan modellere atla
                         if key_overall_status in ["expired", "fail"]:
                             key_model_status[model_name] = key_overall_status 
                             continue 
@@ -915,7 +915,7 @@ with c1:
             29. 🧮 GİZLİ TOPLAMA OPERASYONU: AKD'de dağınık alım, Takasta toplu birikim var mı?
             30. 🏛️ KURUM KARAKTER ANALİZİ: Oyuncular trader mı yoksa kurumsal mı?
             31. 🧊 GİZLİ EMİR (ICEBERG) TESPİTİ: Görünenden daha fazla işlem geçiyor mu?
-            32. 🌪️ HACİM / FİYAT UYUMSUZLUĞU (CHURNING): Hacim var ama fiyat gitmiyor mu?
+            32. 🌪️ HACİM / FİYAT UYUMSUZLUĞU (CHURNING): Hacim var ama fiyat gitmiyor mı?
             33. 🚫 ALIM/SATIM İPTALİ: Derinlikte iptal edilen emirler var mı?
             34. 🔄 GÜN İÇİ DÖNÜŞ (REVERSAL) SİNYALİ: Mum veya kademe dönüş işareti veriyor mu?
             35. 💰 NET PARA GİRİŞ/ÇIKIŞ GÖRÜNTÜSÜ: Para girişi pozitif mi?
