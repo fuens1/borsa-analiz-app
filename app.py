@@ -650,9 +650,9 @@ with c2:
     
     # --- GÜNCELLENMİŞ MODEL SEÇİMİ (CHECKBOX) ---
     use_lite_model = st.checkbox(
-        "⚡ Hızlı Lite Modeli Kullan (gemini-2.5-flash-lite)",
+        "⚡ Lite Modeli Kullan (Daha Hızlı)",
         key="use_lite_model_checkbox",
-        help="İşaretlerseniz, daha az detaylı ancak potansiyel olarak daha hızlı olan Lite modelini kullanır. İşaretlenmezse, varsayılan Flash modeli kullanılır."
+        help="İşaretlerseniz, varsayılan Flash modeli yerine Lite modelini kullanır."
     )
     # --- END GÜNCELLENMİŞ MODEL SEÇİMİ ---
     
@@ -778,7 +778,6 @@ with c1:
             (Elindeki derinlik, kademe ve AKD verilerini kullanarak EN AZ 15 tane destek noktası belirle.)
             (HER MADDEDE MUTLAKA AÇIKLAMA OLACAK: Neden burası destek? "Çok güçlü alış bölgesi", "Fiyat buradan sürekli dönüyor", "Derinlikte 1M lot alıcı var" gibi detaylar ver.)
             (Hepsine çok güçlü, çok güçlü deme. Güçlerinin seviyesini belirt ve güçleri daha gerçekçi söyle. Hatta gerekirse %'lik bazda gösterip, altta da ayrı olarak güce göre sırala.)
-            (Onların da altında ayrı olarak "GÜÇ SIRALAMASI" başlığı altında, destek ve dirençleri ayrı ayrı yüzdelil güçlerine göre sırala.)
             1. **[FİYAT]** - [GÜÇ DERECESİ]: ...
             2. **[FİYAT]** - [GÜÇ DERECESİ]: ...
             ... (15 maddeye tamamla)
@@ -787,11 +786,15 @@ with c1:
             (Elindeki verilere göre EN AZ 15 tane direnç/satış noktası belirle.)
             (HER MADDEDE AÇIKLAMA YAP: "Burada satış duvarı var", "Maliyetlenme burada yoğun", "Psikolojik sınır" gibi.)
             (Hepsine çok güçlü, çok güçlü deme. Güçlerinin seviyesini belirt ve güçleri daha gerçekçi söyle. Hatta gerekirse %'lik bazda gösterip, altta da ayrı olarak güce göre sırala.)
-            (Onların da altında ayrı olarak "GÜÇ SIRALAMASI" başlığı altında, destek ve dirençleri ayrı ayrı yüzdelil güçlerine göre sırala.)
             1. **[FİYAT]** - [GÜÇ DERECESİ]: ...
             2. **[FİYAT]** - [GÜÇ DERECESİ]: ...
             ... (15 maddeye tamamla)
 
+            ## 🏅 GÜÇ VE ÖNEM SIRALAMASI
+            (Yukarıda bulduğun destek ve direnç seviyelerini, bulduğun güç derecesine göre, EN ÖNEMLİDEN EN AZ ÖNEMLİYE doğru AZALAN SIRADA AYRI AYRI listele.)
+            * **DESTEKLER (Güçlüden Zayıfa):** [Fiyat] (%Güç), [Fiyat] (%Güç), ...
+            * **DİRENÇLER (Güçlüden Zayıfa):** [Fiyat] (%Güç), [Fiyat] (%Güç), ...
+            
             ## ⚖️ KİLİT RAKAM (PİVOT)
             Hissenin "Tamam mı devam mı" dediği o tek rakam hangisi?
 
@@ -851,7 +854,7 @@ with c1:
             24. 🧢 TAVAN / TABAN KİLİT POTANSİYELİ: Tavan/Taban kademesinde ne kadar lot var?
             25. 🧬 GERÇEK YABANCI MI, BIYIKLI YABANCI MI? Takas değişimleri ne diyor?
             26. 🏎️ İŞLEM YOĞUNLUĞU GÖRSELİ: İşlemler ne kadar sık geçiyor?
-            27. 🧱 BLOK SATIŞ KARŞILAMA: Büyük satışlar hemen karşılanıyor mı?
+            27. 🧱 BLOK SATIŞ KARŞILAMA: Büyük satışlar hemen karşılanıyor mu?
             28. ⚖️ ORTALAMA MALİYET YÜKSELTME (MARKUP): Fiyat yükselirken hacim artıyor mu?
             29. 🧮 GİZLİ TOPLAMA OPERASYONU: AKD'de dağınık alım, Takasta toplu birikim var mı?
             30. 🏛️ KURUM KARAKTER ANALİZİ: Oyuncular trader mı yoksa kurumsal mı?
@@ -907,7 +910,7 @@ with c1:
             placeholder = st.empty()
             full_response = ""
             
-            with st.spinner(f"Analiz ({MODEL_OPTIONS[primary_model]}) ile Başlatılıyor... (Akış birazdan başlayacak)"):
+            with st.spinner(f"Analiz ({MODEL_OPTIONS.get(primary_model, primary_model)}) ile Başlatılıyor... (Akış birazdan başlayacak)"):
                 stream_active = False
                 
                 # Çalışan key'i en başa al
