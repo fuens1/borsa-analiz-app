@@ -393,7 +393,7 @@ if st.session_state.api_depth_data is not None or st.session_state.api_akd_data 
 valid_model_name = 'gemini-2.5-flash' # Analiz için en güçlü modeli varsay
 working_key = None
 
-# Kodun başlangıcında sadece en az bir anahtarın varlığını kontrol ediyoruz.
+# Kodun başlangıcında aktif ve multimodal (Flash) bir model bulmaya çalış
 if not api_keys:
     st.error("❌ Aktif Model Bulunamadı. Lütfen API anahtarlarınızı kontrol edin. (Anahtar havuzu boş.)")
     if not st.session_state.is_admin: 
@@ -576,15 +576,21 @@ with st.sidebar:
                         details = ""
                         for model_name in MODEL_PRIORITY_LIST:
                             model_status = model_statuses.get(model_name, "")
+                            
+                            # Model isimlerini kısaltarak göster
+                            display_name = model_name.replace('gemini-2.5-', '').replace('gemini-2.0-', '').replace('gemma-3-', '')
+                            
                             if model_status == "pass":
-                                # Model isimlerini kısaltarak göster
-                                display_name = model_name.replace('gemini-2.5-', '').replace('gemini-2.0-', '').replace('gemma-3-', '')
                                 details += f"<span style='color: #00ff00; font-size: x-small;'>{display_name} OK</span>, "
                             elif model_status == "limit":
-                                display_name = model_name.replace('gemini-2.5-', '').replace('gemini-2.0-', '').replace('gemma-3-', '')
                                 details += f"<span style='color: #ffbd45; font-size: x-small;'>{display_name} KOTA</span>, "
+                            elif model_status == "expired" or model_status == "fail":
+                                # Genel hata durumunda bile, hangi modelin hata verdiğini göster (sadece bu model için)
+                                details += f"<span style='color: #ff4444; font-size: x-small;'>{display_name} HATA</span>, "
+                            # Eğer model henüz denenmediyse (kod kesildiği için), gösterme
                         
                         if details:
+                            # Detayları, genel durumun hemen altında daha küçük bir fontla göster
                             st.markdown(f"<p style='margin-top:-5px; font-size: 8px;'>{details.strip(', ')}</p>", unsafe_allow_html=True)
 
 
