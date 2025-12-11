@@ -23,7 +23,7 @@ try:
     import feedparser
     NEWS_ENABLED = True
 except ImportError:
-    NEWS_ENABLED = False
+    PASTE_ENABLED = False
 
 # Firebase Kontrolü
 try:
@@ -639,27 +639,22 @@ with st.sidebar:
 st.markdown("---")
 c1, c2 = st.columns([1, 1])
 
-# --- YENİ EKLENEN MODEL SEÇİMİ ---
 MODEL_OPTIONS = {
-    "gemini-2.5-flash": "🚀 Flash (Daha Hızlı ve Güncel)",
-    "gemini-2.5-flash-lite": "⚡ Lite (Daha Hızlı/Daha Az Detay)",
+    "gemini-2.5-flash": "🚀 Flash",
+    "gemini-2.5-flash-lite": "⚡ Lite",
 }
-DEFAULT_MODEL_KEY = "gemini-2.5-flash"
-
-# Modelin tam adını ve kullanıcının seçtiği anahtarı saklamak için
-if "selected_model_key" not in st.session_state: st.session_state.selected_model_key = DEFAULT_MODEL_KEY
 
 with c2:
     # MOD SEÇİM EKRANI
     st.markdown("##### 🛠️ Analiz Ayarları")
     
-    st.session_state.selected_model_key = st.selectbox(
-        "🧠 Model Seçimi:",
-        options=list(MODEL_OPTIONS.keys()),
-        format_func=lambda x: MODEL_OPTIONS[x],
-        key="model_selector",
-        help="Lite modeli daha az detaylı ancak potansiyel olarak daha hızlı olabilir."
+    # --- GÜNCELLENMİŞ MODEL SEÇİMİ (CHECKBOX) ---
+    use_lite_model = st.checkbox(
+        "⚡ Hızlı Lite Modeli Kullan (gemini-2.5-flash-lite)",
+        key="use_lite_model_checkbox",
+        help="İşaretlerseniz, daha az detaylı ancak potansiyel olarak daha hızlı olan Lite modelini kullanır. İşaretlenmezse, varsayılan Flash modeli kullanılır."
     )
+    # --- END GÜNCELLENMİŞ MODEL SEÇİMİ ---
     
     analysis_mode = st.radio(
         "Analiz Modu Seçiniz:",
@@ -900,12 +895,14 @@ with c1:
             st.warning("⚠️ Lütfen analiz için veri yükleyin (Görsel, API veya Telegram).")
         else:
             # --- MODEL VE YEDEK STRATEJİSİ ---
-            primary_model = st.session_state.selected_model_key
-            # Yüksek öncelikli modelin kotası dolarsa Flash'a geçecek şekilde yedekleme
-            if primary_model == "gemini-2.5-flash-lite":
+            if st.session_state.get("use_lite_model_checkbox"):
+                primary_model = "gemini-2.5-flash-lite"
+                # Lite başarısız olursa Flash'a yedeklen
                 model_priority = ["gemini-2.5-flash-lite", "gemini-2.5-flash"]
             else:
-                model_priority = ["gemini-2.5-flash"]
+                primary_model = "gemini-2.5-flash"
+                # Flash başarısız olursa Lite'a yedeklen
+                model_priority = ["gemini-2.5-flash", "gemini-2.5-flash-lite"] 
             
             placeholder = st.empty()
             full_response = ""
@@ -938,7 +935,7 @@ with c1:
                             placeholder.markdown(full_response) 
                             st.session_state.analysis_result = full_response
                             st.session_state.loaded_count = count
-                            break # Model başarılı oldu, bir sonraki key'e geçmeye gerek yok
+                            break # Model başarılı oldu, bir sonraki key'e ve modele geçmeye gerek yok
                             
                         except Exception as e:
                             error_str = str(e).lower()
