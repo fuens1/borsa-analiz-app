@@ -76,42 +76,23 @@ global_config = load_global_config()
 
 
 # ==========================================
-# 🎯 MERKEZİ FONKSİYON TANIMLARI & MODEL LİSTESİ
+# 🎯 MERKEZİ FONKSİYON TANIMLARI
 # ==========================================
 
-# Model listesi, kullanıcının seçebileceği ve test edilebilecek tüm modelleri içerir.
-MODEL_PRIORITY_LIST = [
-    'gemini-2.5-flash',
-    'gemini-2.5-flash-live',
-    'gemini-2.0-flash-live',
-    'gemma-3-27b',
-    'gemma-3-12b',
-    'gemma-3-4b'
-]
-# Tüm modelleri içeren liste (TTS, Robotics vb. hariç)
-MODEL_SELECTION_OPTIONS = MODEL_PRIORITY_LIST + ['gemini-2.5-flash-lite']
-
-
 def get_model(key):
-    """
-    API key ile kullanılabilecek ilk Flash modelini bulur (Sadece Hızlı Başlangıç Kontrolü için).
-    """
-    genai.configure(api_key=key)
-    test_prompt = "Hello"
-
-    # Sadece multimodal (Flash) modelleri kontrol et
-    for model_name in ['gemini-2.5-flash', 'gemini-2.5-flash-live', 'gemini-2.0-flash-live']:
-        try:
-            model = genai.GenerativeModel(model_name)
-            model.generate_content(test_prompt)
-            return model_name 
-        except Exception as e:
-            error_str = str(e).lower()
-            if "invalid" in error_str or "400" in error_str:
-                return None 
-            # Kota veya bulunamama durumunda devam et
-
-    return None
+    """API key ile kullanılabilecek modeli bulur"""
+    try:
+        genai.configure(api_key=key)
+        # Önce gemini-2.5-flash-lite'ı dene, yoksa gemini-2.5-flash'ı dene
+        models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        
+        # 1. Flash'ı döndür
+        for m in models:
+            if "gemini-2.5-flash" in m: return m
+        
+        # 2. Veya listedeki ilk modeli döndür
+        return models[0] if models else None
+    except: return None
 
 def compress_image(image, max_size=(800, 800)):
     """Görselleri analiz için küçültür ve hızlandırır"""
@@ -161,7 +142,8 @@ def fetch_data_via_bridge(symbol, data_type):
             time.sleep(1)
             progress_bar.progress((i + 1) / 25)
             
-            status = ref_req.get().get('status')
+            status_data = ref_req.get()
+            status = status_data.get('status') if status_data else None
             
             if status == 'processing':
                 status_area.warning("⏳ Robot emri aldı, Telegram'dan yanıt bekleniyor...")
@@ -256,8 +238,8 @@ if "analysis_result" not in st.session_state: st.session_state.analysis_result =
 if "messages" not in st.session_state: st.session_state.messages = []
 if "loaded_count" not in st.session_state: st.session_state.loaded_count = 0
 if "active_working_key" not in st.session_state: st.session_state.active_working_key = None
+# KEY STATUS ARTIK SÖZLÜK İÇİNDE SÖZLÜK OLARAK GÜNCELLENDİ
 if "key_status" not in st.session_state: st.session_state.key_status = {}
-if "selected_model" not in st.session_state: st.session_state.selected_model = MODEL_PRIORITY_LIST[0]
 
 # API ve Telegram verileri
 if "api_depth_data" not in st.session_state: st.session_state.api_depth_data = None
@@ -346,7 +328,7 @@ with col_reset:
         st.session_state.tg_img_kademe = None
         st.session_state.tg_img_takas = None
         
-        keys_to_keep = ["authenticated", "is_admin", "reset_counter", "api_depth_data", "api_akd_data", "tg_img_derinlik", "tg_img_akd", "tg_img_kademe", "tg_img_takas", "key_status", "api_keys", "selected_model"]
+        keys_to_keep = ["authenticated", "is_admin", "reset_counter", "api_depth_data", "api_akd_data", "tg_img_derinlik", "tg_img_akd", "tg_img_kademe", "tg_img_takas", "key_status", "api_keys"]
         for key in list(st.session_state.keys()):
             if key not in keys_to_keep: del st.session_state[key]
         for cat in ["Derinlik", "AKD", "Kademe", "Takas"]:
@@ -393,29 +375,20 @@ if st.session_state.api_depth_data is not None or st.session_state.api_akd_data 
         else: st.error("API AKD 🔴")
 
 # Keylerin uygulama genelinde kullanılabilir olması için
-valid_model_name = st.session_state.selected_model # Kullanıcının seçtiği model artık varsayılan model
+valid_model_name = None
 working_key = None
 
-# Kodun başlangıcında aktif ve multimodal (Flash) bir anahtar bulmaya çalış
-if not api_keys:
-    st.error("❌ API Anahtar Havuzu Boş! Yönetici, lütfen yeni anahtar ekleyin.")
+for k in api_keys:
+    mod = get_model(k)
+    if mod: 
+        valid_model_name = mod
+        working_key = k 
+        break
+
+if not valid_model_name:
+    st.error("❌ Aktif Model Bulunamadı. Lütfen API anahtarlarınızı kontrol edin.")
     if not st.session_state.is_admin: 
         st.stop()
-else:
-    # İlk çalışan (Flash) modeli ve anahtarını bulmaya çalış (Sadece güvenlik kontrolü için)
-    temp_valid_model = None
-    temp_working_key = None
-    for k in api_keys:
-        mod = get_model(k)
-        if mod: 
-            temp_valid_model = mod
-            temp_working_key = k 
-            break
-    
-    if not temp_working_key:
-        st.error("❌ Aktif Model Bulunamadı. Lütfen API anahtarlarınızı kontrol edin. (En az bir Flash modeli gereklidir.)")
-        if not st.session_state.is_admin: 
-            st.stop()
 
 # --- UPLOAD SECTION ---
 file_key_suffix = str(st.session_state.reset_counter)
@@ -531,41 +504,37 @@ with st.sidebar:
             # Yeni Anahtar Ekleme Formu
             st.text_input("Yeni Key Ekle:", type="password", key="new_api_key_input")
             if st.button("➕ Anahtarı Ekle", on_click=add_api_key, use_container_width=True):
-                 pass
+                pass
             
             st.markdown("---")
             st.markdown("<h6 style='margin-top: 0px;'>Anahtarlar ve Durumları</h6>", unsafe_allow_html=True)
             
-            # --- EN KOMPAKT KEY LİSTELEME (KOTA DETAYI GÖSTERİMİ) ---
+            # --- EN KOMPAKT KEY LİSTELEME (400 Hatası Kontrolü Dahil) ---
             
             for k in api_keys:
-                cols = st.columns([1, 2, 3]) 
+                cols = st.columns([1, 3, 2])
                 
                 key_display = f"<span style='font-size: x-small; font-weight: bold;'>...{k[-4:]}</span>"
                 
-                status_data = st.session_state.key_status.get(k, {})
-                status_overall = status_data.get("status", "pending")
-                model_statuses = status_data.get("models", {})
-                
-                status_text = ""
-                
-                if status_overall == "pass":
-                    working_count = list(model_statuses.values()).count("pass")
-                    status_text = f"<span class='key-status-pass'>✅ {working_count}/{len(MODEL_PRIORITY_LIST)} OK</span>"
-                elif status_overall == "limit":
-                    working_count = list(model_statuses.values()).count("pass")
-                    limit_count = list(model_statuses.values()).count("limit")
-                    status_text = f"<span class='key-status-limit'>⚠️ {working_count} OK, {limit_count} KOTA</span>"
-                elif status_overall == "expired":
-                     status_text = f"<span class='key-status-fail'>❌ SÜRE BİTTİ/GEÇERSİZ</span>"
-                elif status_overall == "fail":
-                    status_text = f"<span class='key-status-fail'>❌ HATA</span>"
+                # Yeni Durum Kontrolü
+                if k in st.session_state.key_status:
+                    s = st.session_state.key_status[k]
+                    # Yeni: Lite ve Flash durumlarını birleştiriyoruz.
+                    lite_status = s.get('lite', '❓')
+                    flash_status = s.get('flash', '❓')
+
+                    status_text = f"""
+                    <span style='font-size: xx-small;'>
+                    Flash Lite: {lite_status} | 
+                    Flash: {flash_status}
+                    </span>
+                    """
                 else:
-                    status_text = "<span class='key-status-limit'>❓ TEST ET</span>"
+                    status_text = "<span style='font-size: x-small;' class='key-status-limit'>❓ TEST ET</span>"
                 
                 # SİLME BUTONU
                 with cols[0]:
-                    if st.button("❌", key=f"del_key_{k[-4:]}_v5", on_click=delete_api_key, args=(k,)):
+                    if st.button("❌", key=f"del_key_{k[-4:]}_v4", on_click=delete_api_key, args=(k,)):
                         pass
                 
                 # KEY GÖRÜNÜMÜ
@@ -575,89 +544,45 @@ with st.sidebar:
                 # DURUM
                 with cols[2]:
                     st.markdown(status_text, unsafe_allow_html=True)
-                    
-                    # Eğer test yapıldıysa, hangi modellerin çalıştığını/dolduğunu göster
-                    if status_overall != "pending":
-                        details = ""
-                        for model_name in MODEL_PRIORITY_LIST:
-                            model_status = model_statuses.get(model_name, "")
-                            
-                            # Model isimlerini kısaltarak göster
-                            display_name = model_name.replace('gemini-2.5-', '').replace('gemini-2.0-', '').replace('gemma-3-', '')
-                            
-                            if model_status == "pass":
-                                details += f"<span style='color: #00ff00; font-size: x-small;'>{display_name} OK</span>, "
-                            elif model_status == "limit":
-                                details += f"<span style='color: #ffbd45; font-size: x-small;'>{display_name} KOTA</span>, "
-                            elif model_status == "expired" or model_status == "fail":
-                                # Genel hata durumunda bile, hangi modelin hata verdiğini göster (sadece bu model için)
-                                details += f"<span style='color: #ff4444; font-size: x-small;'>{display_name} HATA</span>, "
-                            # Eğer model henüz denenmediyse (kod kesildiği için), gösterme
-                        
-                        if details:
-                            # Detayları, genel durumun hemen altında daha küçük bir fontla göster
-                            st.markdown(f"<p style='margin-top:-5px; font-size: 8px;'>{details.strip(', ')}</p>", unsafe_allow_html=True)
-
 
             st.markdown("---")
             
-            # Anahtarları Test Et Butonu (DETAYLI KOTA KONTROLÜ)
-            if st.button("🔄 Anahtarları Kontrol Et (Tüm Model Kotası Testi)", use_container_width=True, key="admin_key_test_full"):
+            # Anahtarları Test Et Butonu (Sadece Admin'e Özel)
+            if st.button("🔄 Anahtarları Kontrol Et (Kota Testi)", use_container_width=True, key="admin_key_test"):
                 st.session_state.key_status = {}
                 prog = st.progress(0)
                 test_prompt = "Hello" 
                 
+                def test_model_quota(api_key, model_name):
+                    """Belirtilen model ve anahtarla test yapar."""
+                    try:
+                        genai.configure(api_key=api_key)
+                        model = genai.GenerativeModel(model_name)
+                        # Sadece bir içerik üretimi dener (kota tüketimi)
+                        model.generate_content(test_prompt)
+                        return "✅ OK"
+                    except Exception as e:
+                        error_str = str(e).lower()
+                        if "429" in error_str or "quota" in error_str:
+                            return "<span class='key-status-limit'>⚠️ KOTA</span>"
+                        elif "expired" in error_str or "invalid" in error_str or "400" in error_str:
+                            return "<span class='key-status-fail'>❌ GEÇERSİZ</span>"
+                        elif "model" in error_str and "lite" in model_name:
+                             # Model bulunamazsa
+                            return "<span class='key-status-fail'>❌ MODEL YOK</span>" 
+                        else:
+                            return "<span class='key-status-fail'>❌ HATA</span>"
+                
                 for i, k in enumerate(api_keys):
-                    key_model_status = {}
-                    key_overall_status = "pass"
+                    key_results = {}
                     
-                    for model_name in MODEL_PRIORITY_LIST:
-                        # Anahtar geçersiz veya genel hatalı bulunduysa, kalan modellere atla
-                        if key_overall_status in ["expired", "fail"]:
-                            key_model_status[model_name] = key_overall_status 
-                            continue 
-                            
-                        try:
-                            genai.configure(api_key=k)
-                            model = genai.GenerativeModel(model_name)
-                            model.generate_content(test_prompt)
-                            
-                            key_model_status[model_name] = "pass"
-                        
-                        except Exception as e:
-                            error_str = str(e).lower()
-                            
-                            if "429" in error_str or "quota" in error_str:
-                                key_model_status[model_name] = "limit"
-                                
-                                if key_overall_status == "pass":
-                                    key_overall_status = "limit" 
-                            
-                            elif "expired" in error_str or "invalid" in error_str or "400" in error_str:
-                                 key_model_status[model_name] = "expired"
-                                 key_overall_status = "expired"
-                                 
-                                 # Kalan modellere de "expired" durumunu atayalım
-                                 remaining_models = MODEL_PRIORITY_LIST[MODEL_PRIORITY_LIST.index(model_name) + 1:]
-                                 for rem_model in remaining_models:
-                                     key_model_status[rem_model] = "expired"
-                                 break 
-
-                            else:
-                                # Diğer beklenmedik hatalar
-                                key_model_status[model_name] = "fail"
-                                key_overall_status = "fail"
-                                
-                                # Kalan modellere de "fail" durumunu atayalım
-                                remaining_models = MODEL_PRIORITY_LIST[MODEL_PRIORITY_LIST.index(model_name) + 1:]
-                                for rem_model in remaining_models:
-                                     key_model_status[rem_model] = "fail"
-                                break 
-                        
-                    st.session_state.key_status[k] = {
-                        "status": key_overall_status,
-                        "models": key_model_status
-                    }
+                    # 1. gemini-2.5-flash-lite Testi
+                    key_results['lite'] = test_model_quota(k, 'gemini-2.5-flash-lite')
+                    
+                    # 2. gemini-2.5-flash Testi
+                    key_results['flash'] = test_model_quota(k, 'gemini-2.5-flash')
+                    
+                    st.session_state.key_status[k] = key_results
                     
                     prog.progress((i+1)/len(api_keys))
                 prog.empty()
@@ -740,16 +665,6 @@ with c2:
         st.caption("ℹ️ Sade Mod: Her başlık için en az 10 madde analiz edilir.")
 
 with c1:
-    st.markdown("##### 🤖 Model Seçimi")
-    # Yeni model seçim kutusu
-    st.session_state.selected_model = st.selectbox(
-        "Analiz Modelini Seçin:",
-        options=MODEL_SELECTION_OPTIONS,
-        index=MODEL_SELECTION_OPTIONS.index(st.session_state.selected_model),
-        key="model_selector",
-        help="Analiz için kullanılacak ana model. Multimodal veriler için (Grafikler) 'flash' modellerini seçin."
-    )
-    
     st.markdown("<br>", unsafe_allow_html=True)
     # Buton tasarımı
     if st.button("🐋 ANALİZİ BAŞLAT", type="primary", use_container_width=True):
@@ -925,7 +840,7 @@ with c1:
             24. 🧢 TAVAN / TABAN KİLİT POTANSİYELİ: Tavan/Taban kademesinde ne kadar lot var?
             25. 🧬 GERÇEK YABANCI MI, BIYIKLI YABANCI MI? Takas değişimleri ne diyor?
             26. 🏎️ İŞLEM YOĞUNLUĞU GÖRSELİ: İşlemler ne kadar sık geçiyor?
-            27. 🧱 BLOK SATIŞ KARŞILAMA: Büyük satışlar hemen karşılanıyor mı?
+            27. 🧱 BLOK SATIŞ KARŞILAMA: Büyük satışlar hemen karşılanıyor mu?
             28. ⚖️ ORTALAMA MALİYET YÜKSELTME (MARKUP): Fiyat yükselirken hacim artıyor mu?
             29. 🧮 GİZLİ TOPLAMA OPERASYONU: AKD'de dağınık alım, Takasta toplu birikim var mı?
             30. 🏛️ KURUM KARAKTER ANALİZİ: Oyuncular trader mı yoksa kurumsal mı?
@@ -972,76 +887,54 @@ with c1:
             placeholder = st.empty()
             full_response = ""
             
-            # Seçilen modeli al
-            selected_model_name = st.session_state.selected_model
-            
-            # Seçilen modelin ve yedeklerinin olduğu listeyi oluştur
-            # Bu listede önce seçilen model, sonra diğer yedekler yer alacak.
-            analysis_model_priority = [selected_model_name] + [m for m in MODEL_PRIORITY_LIST if m != selected_model_name]
-            
-            with st.spinner(f"Analiz Başlatılıyor... ({selected_model_name} ile)"):
+            with st.spinner("Analiz Başlatılıyor... (Akış birazdan başlayacak)"):
                 try:
                     stream_active = False
                     
+                    # Çalışan key'i en başa al
                     local_keys = api_keys.copy()
-                    # Aktif çalışan anahtarı öne al
-                    if working_key in local_keys and working_key:
+                    if working_key and working_key in local_keys:
                         local_keys.remove(working_key)
                         local_keys.insert(0, working_key)
                         
-                    # Model yedekleme mekanizması
-                    
                     for k in local_keys:
-                        genai.configure(api_key=k)
-                        
-                        # Öncelik sırasındaki modelleri tek tek dene
-                        for model_name in analysis_model_priority:
-                            try:
-                                # Model servisi ile bağlantı kur ve akışı başlat
-                                model = genai.GenerativeModel(model_name)
-                                stream = model.generate_content(input_data, stream=True)
-                                
-                                # Eğer buraya geldiyse, anahtar ve model çalışıyor demektir.
-                                st.session_state.active_working_key = k
-                                working_key = k
-                                stream_active = True
-                                
-                                # Akışı yaz
-                                for chunk in stream:
-                                    if chunk.text:
-                                        full_response += chunk.text
-                                        placeholder.markdown(full_response + "▌") 
-                                
-                                placeholder.markdown(full_response) 
-                                st.session_state.analysis_result = full_response
-                                st.session_state.loaded_count = count
-                                
-                                # Başarılı olduğumuz için dış döngüyü (anahtar döngüsü) de durdur
-                                raise StopIteration 
-                                
-                            except StopIteration:
-                                break 
-                                
-                            except Exception as e:
-                                error_str = str(e).lower()
-                                
-                                if "429" in error_str or "quota" in error_str: 
-                                    st.warning(f"⚠️ Anahtar `...{k[-4:]}` için {model_name} kotası dolu. Bir sonraki model deneniyor.")
-                                    continue 
-                                elif "invalid" in error_str or "400" in error_str or "key" in error_str:
-                                    st.warning(f"⚠️ Anahtar `...{k[-4:]}` süresi doldu/geçersiz. Bir sonraki anahtar deneniyor.")
-                                    break 
-                                else: 
-                                    st.error(f"Hata ({model_name} / ...{k[-4:]}): {e}"); 
-                                    break 
-                        
-                    if not stream_active:
-                             st.error("Tüm anahtarların kotaları dolu veya bağlantı hatası.")
+                        try:
+                            genai.configure(api_key=k)
+                            # Çalışan modeli kullan
+                            model = genai.GenerativeModel(valid_model_name)
+                            stream = model.generate_content(input_data, stream=True)
                             
-                except StopIteration:
-                    pass 
+                            st.session_state.active_working_key = k
+                            working_key = k
+                            stream_active = True
+                            
+                            for chunk in stream:
+                                if chunk.text:
+                                    full_response += chunk.text
+                                    placeholder.markdown(full_response + "▌") 
+                            
+                            placeholder.markdown(full_response) 
+                            st.session_state.analysis_result = full_response
+                            st.session_state.loaded_count = count
+                            break 
+                            
+                        except Exception as e:
+                            error_str = str(e).lower()
+                            if "429" in error_str or "quota" in error_str: 
+                                continue
+                            elif "expired" in error_str or "invalid" in error_str or "400" in error_str:
+                                # Süresi dolmuş/geçersiz anahtar hatası: atla
+                                st.warning(f"⚠️ Anahtar `...{k[-4:]}` süresi doldu/geçersiz. Bir sonraki deneniyor.")
+                                continue
+                            else: 
+                                st.error(f"Hata: {e}"); 
+                                break
+                    
+                    if not stream_active:
+                            st.error("Tüm kotalar dolu veya bağlantı hatası.")
+                            
                 except Exception as e:
-                    st.error(f"Genel Analiz Hatası: {e}")
+                    st.error(f"Genel Hata: {e}")
 
 # ==========================================
 # 💬 SONUÇ VE SOHBET (FİNAL BÖLÜMÜ)
@@ -1069,59 +962,49 @@ if st.session_state.analysis_result:
             
             # --- DİNAMİK KEY YÖNETİMİ ---
             local_keys = api_keys.copy()
-            if st.session_state.active_working_key in local_keys:
+            if st.session_state.active_working_key and st.session_state.active_working_key in local_keys:
                 local_keys.remove(st.session_state.active_working_key)
                 local_keys.insert(0, st.session_state.active_working_key)
             
             key_found = False
             full_resp = ""
             
-            # Sohbet için model önceliği: Önce Analizde kullanılan model, sonra diğer yedekler
-            chat_model_priority = [st.session_state.selected_model] + [m for m in MODEL_PRIORITY_LIST if m != st.session_state.selected_model]
-
             for k in local_keys:
-                genai.configure(api_key=k)
-                
-                for model_name in chat_model_priority:
-                    try:
-                        sys_inst = (
-                            "GÖREV: Sadece rapora sadık kal." if chat_scope == "📝 RAPOR"
-                            else "GÖREV: Raporu temel al ama genel borsa bilginle yorum kat."
-                        )
-                        final_prompt = f"{sys_inst}\n\nRAPOR:\n{st.session_state.analysis_result}\n\nSORU:\n{q}"
-                        
-                        model = genai.GenerativeModel(model_name)
-                        stream = model.generate_content(final_prompt, stream=True)
-                        
-                        st.session_state.active_working_key = k 
-                        key_found = True
-                        
-                        def parser():
-                            for ch in stream:
-                                if ch.text: yield ch.text
-                        
-                        resp = st.write_stream(parser)
-                        full_resp = resp
-                        raise StopIteration 
-                        
-                    except StopIteration:
+                try:
+                    sys_inst = (
+                        "GÖREV: Sadece rapora sadık kal." if chat_scope == "📝 RAPOR"
+                        else "GÖREV: Raporu temel al ama genel borsa bilginle yorum kat."
+                    )
+                    final_prompt = f"{sys_inst}\n\nRAPOR:\n{st.session_state.analysis_result}\n\nSORU:\n{q}"
+                    
+                    genai.configure(api_key=k)
+                    model = genai.GenerativeModel(valid_model_name)
+                    stream = model.generate_content(final_prompt, stream=True)
+                    
+                    st.session_state.active_working_key = k 
+                    key_found = True
+                    
+                    def parser():
+                        for ch in stream:
+                            if ch.text: yield ch.text
+                    
+                    resp = st.write_stream(parser)
+                    full_resp = resp
+                    break 
+                    
+                except Exception as e:
+                    error_str = str(e).lower()
+                    if "429" in error_str or "quota" in error_str:
+                        st.warning(f"⚠️ Anahtar `...{k[-4:]}` kotası doldu. Bir sonraki anahtar deneniyor.")
+                        continue 
+                    elif "expired" in error_str or "invalid" in error_str or "400" in error_str:
+                        st.warning(f"⚠️ Anahtar `...{k[-4:]}` süresi doldu/geçersiz. Bir sonraki deneniyor.")
+                        continue
+                    else:
+                        st.error(f"Genel Hata: {e}")
                         break 
-                        
-                    except Exception as e:
-                        error_str = str(e).lower()
-                        if "429" in error_str or "quota" in error_str:
-                            st.warning(f"⚠️ Anahtar `...{k[-4:]}` için {model_name} kotası doldu. Bir sonraki model deneniyor.")
-                            continue 
-                        elif "expired" in error_str or "invalid" in error_str or "400" in error_str:
-                            st.warning(f"⚠️ Anahtar `...{k[-4:]}` süresi doldu/geçersiz. Bir sonraki deneniyor.")
-                            break
-                        else:
-                            st.error(f"Sohbet Hatası ({model_name} / ...{k[-4:]}): {e}")
-                            break 
-                
-                if key_found: break
             
             if key_found:
                 st.session_state.messages.append({"role": "assistant", "content": full_resp})
             else:
-                st.error("❌ Sohbet: Tüm API anahtarlarının ve model kotalarının dolu veya geçersiz. Lütfen daha sonra deneyin.")
+                st.error("❌ Sohbet: Tüm API anahtarlarının kotası dolu veya geçersiz. Lütfen daha sonra deneyin.")
