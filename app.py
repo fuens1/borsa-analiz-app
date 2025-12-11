@@ -396,6 +396,28 @@ def delete_api_key(key_to_delete):
 
 with st.sidebar:
     
+# --- SIDEBAR & TELEGRAM BRIDGE (Yeniden Yapılandırıldı) ---
+
+# Yardımcı fonksiyonlar (Yönetici Paneli için)
+def add_api_key():
+    new_key = st.session_state.new_api_key_input.strip()
+    if new_key and new_key not in st.session_state.api_keys:
+        st.session_state.api_keys.append(new_key)
+        st.session_state.new_api_key_input = ""
+        st.rerun()
+
+def delete_api_key(key_to_delete):
+    if key_to_delete in st.session_state.api_keys:
+        st.session_state.api_keys.remove(key_to_delete)
+        
+        # Silinen key'in test durumunu da sil
+        if key_to_delete in st.session_state.key_status:
+            del st.session_state.key_status[key_to_delete]
+            
+        st.rerun()
+
+with st.sidebar:
+    
     # ------------------------------------------------------------------
     # GÜNCELLENMİŞ: YÖNETİCİ PANELİ (Sadece Admin'ler Görür)
     # ------------------------------------------------------------------
@@ -412,47 +434,50 @@ with st.sidebar:
 
         # 2. API Key Yönetimi
         with st.expander("🔑 API Anahtar Havuzu Yönetimi", expanded=True):
-            st.caption(f"Aktif Key Sayısı: {len(api_keys)}")
+            # Key sayısını göster
+            st.markdown(f"<span style='font-size: small;'>Aktif Key Sayısı: {len(api_keys)}</span>", unsafe_allow_html=True)
             
             # Yeni Anahtar Ekleme Formu
             st.text_input("Yeni Key Ekle:", type="password", key="new_api_key_input")
-            if st.button("➕ Anahtarı Ekle", on_click=add_api_key):
+            if st.button("➕ Anahtarı Ekle", on_click=add_api_key, use_container_width=True):
                  pass
             
             st.markdown("---")
-            st.markdown("##### 🔑 Anahtarlar ve Durumları")
+            st.markdown("<h6 style='margin-top: 0px;'>Anahtarlar ve Durumları</h6>", unsafe_allow_html=True)
             
-            # --- YAZILARI KÜÇÜLTEN YENİ LİSTELEME ---
+            # --- YAZILARI MİNİK YAPAN YENİ LİSTELEME (CSS ile) ---
             
             for k in api_keys:
-                cols = st.columns([1, 4, 2]) # 2. kolonu biraz genişlettim
+                # Kolon dağılımı: Sil butonu (1), Key (3), Durum (2)
+                cols = st.columns([1, 3, 2])
                 
-                key_display = f"***`...{k[-4:]}`***" # Anahtar hanesini kalın ve küçük yap
+                key_display = f"<span style='font-size: x-small; font-weight: bold;'>...{k[-4:]}</span>"
                 status_text = ""
                 
                 if k in st.session_state.key_status:
                     status = st.session_state.key_status[k]
                     if status == "pass":
-                        status_text = f"***<span class='key-status-pass'>✅ ÇALIŞIYOR</span>***"
+                        status_text = f"<span style='font-size: x-small;' class='key-status-pass'>✅ OK</span>"
                     elif status == "limit":
-                        status_text = f"***<span class='key-status-limit'>⚠️ KOTA DOLU</span>***"
+                        status_text = f"<span style='font-size: x-small;' class='key-status-limit'>⚠️ KOTA</span>"
                     elif status == "fail":
-                        status_text = f"***<span class='key-status-fail'>❌ HATALI</span>***"
+                        status_text = f"<span style='font-size: x-small;' class='key-status-fail'>❌ HATA</span>"
                 else:
-                    status_text = "***<span class='key-status-limit'>❓ Test Edilmedi</span>***"
+                    status_text = "<span style='font-size: x-small;' class='key-status-limit'>❓ TEST ET</span>"
                 
                 # SİLME BUTONU
                 with cols[0]:
-                    if st.button("❌", key=f"del_key_{k[-4:]}_v3", on_click=delete_api_key, args=(k,)):
+                    # Kompakt sil butonu (st.button'u küçük bir markdown içinde kullanıyoruz)
+                    if st.button("❌", key=f"del_key_{k[-4:]}_v4", on_click=delete_api_key, args=(k,)):
                         pass
                 
-                # KEY GÖRÜNÜMÜ VE DURUM
+                # KEY GÖRÜNÜMÜ
                 with cols[1]:
-                    st.markdown(key_display, unsafe_allow_html=True) # Anahtarı göster
+                    st.markdown(key_display, unsafe_allow_html=True)
 
+                # DURUM
                 with cols[2]:
-                    st.markdown(status_text, unsafe_allow_html=True) # Durumu göster
-
+                    st.markdown(status_text, unsafe_allow_html=True)
 
             st.markdown("---")
             
@@ -880,5 +905,6 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": full_resp})
             else:
                 st.error("❌ Sohbet: Tüm API anahtarlarının kotası dolu veya geçersiz. Lütfen daha sonra deneyin.")
+
 
 
