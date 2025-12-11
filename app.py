@@ -79,9 +79,9 @@ global_config = load_global_config()
 # 🎯 MERKEZİ FONKSİYON TANIMLARI
 # ==========================================
 
-# --- BÖLGESEL UÇ NOKTA TANIMI (Sadece değişken olarak kalır) ---
+# --- BÖLGESEL UÇ NOKTA TANIMI (500K Kotası İçin) ---
 GEMINI_REGION = "europe-west4" 
-GEMINI_BASE_URL = f"https://{GEMINI_REGION}-aiplatform.googleapis.com" # 500K Kotanın olduğu endpoint
+GEMINI_BASE_URL = f"https://{GEMINI_REGION}-aiplatform.googleapis.com" 
 
 def get_model(key):
     """API key ile kullanılabilecek modeli bulur (GLOBAL Uç Nokta ile Test)"""
@@ -97,10 +97,11 @@ def get_model(key):
 def configure_genai_with_region(key):
     """Belirtilen anahtarı bölgesel URL ile yapılandırır (Model çağrısı öncesi kullanılır)"""
     try:
+        # Yüksek kotalı bölgesel uç noktayı kullanmayı dener
         genai.configure(api_key=key, client_options={"api_endpoint": GEMINI_BASE_URL})
         return True
     except:
-        # Eğer bölgesel yapılandırma başarısız olursa, global ile dene
+        # Bölgesel başarısız olursa, global ile dener (Yedek)
         genai.configure(api_key=key)
         return False
 
@@ -393,17 +394,20 @@ GEMINI_REGION = "europe-west4"
 GEMINI_BASE_URL = f"https://{GEMINI_REGION}-aiplatform.googleapis.com" # 500K Kotanın olduğu endpoint
 
 def configure_regional_genai(key):
-    """Bölgesel uç noktayı ayarlayarak GenAI'yı yapılandırır."""
+    """Belirtilen anahtarı bölgesel URL ile yapılandırır (Model çağrısı öncesi kullanılır)"""
     try:
+        # Yüksek kotalı bölgesel uç noktayı kullanmayı dener
         genai.configure(api_key=key, client_options={"api_endpoint": GEMINI_BASE_URL})
         return True
     except:
+        # Bölgesel başarısız olursa, global ile dener (Yedek)
+        genai.configure(api_key=key)
         return False
 
 # İlk çalışan anahtarı ve modeli bulma döngüsü
 for k in api_keys:
     
-    # 1. Anahtar geçerli mi? (Global uç nokta ile test)
+    # Sadece anahtarın geçerli olup olmadığını kontrol etmek için global yapılandırma kullanılır
     mod = get_model(k)
     if mod: 
         valid_model_name = mod
@@ -479,12 +483,12 @@ col1, col2 = st.columns(2)
 with col1:
     img_d = render_category_panel("1. Derinlik 💹", "Derinlik", "tg_img_derinlik", f"d_{file_key_suffix}")
     st.markdown("---") 
-    img_k = render_category_panel("3. Kademe 📊", "Kademe", "tg_img_kademe", f"k_{file_key_suffix}")
+    img_k = render_category_panel("3. Kademe 📊", "Kademe", f"k_{file_key_suffix}")
 
 with col2:
     img_a = render_category_panel("2. AKD 🤵", "AKD", "tg_img_akd", f"a_{file_key_suffix}")
     st.markdown("---") 
-    img_t = render_category_panel("4. Takas 🌍", "Takas", "tg_img_takas", f"t_{file_key_suffix}")
+    img_t = render_category_panel("4. Takas 🌍", "Takas", f"t_{file_key_suffix}")
 
 # --- SIDEBAR & TELEGRAM BRIDGE ---
 
@@ -505,6 +509,46 @@ def delete_api_key(key_to_delete):
             del st.session_state.key_status[key_to_delete]
             
         st.rerun()
+
+# --- Yardımcı Fonksiyon: Key Testini Tetikleme ---
+def admin_test_keys():
+    """Yönetici panelindeki anahtarları test eder ve sonuçları kaydeder."""
+    api_keys_local = st.session_state.api_keys.copy()
+
+    # Eğer hiç anahtar yoksa uyarı ver
+    if not api_keys_local:
+        st.warning("Hiç API anahtarı bulunamadı.")
+        return
+
+    st.session_state.key_status = {}
+    prog = st.progress(0)
+    test_prompt = "Hello" 
+    
+    for i, k in enumerate(api_keys_local):
+        try:
+            # TEST ESNASINDA BÖLGESEL KONFİGÜRASYON (Kotayı zorlamak için)
+            configure_regional_genai(k)
+
+            model = genai.GenerativeModel('gemini-2.5-flash')
+            model.generate_content(test_prompt)
+            
+            st.session_state.key_status[k] = "pass"
+        
+        except Exception as e:
+            error_str = str(e).lower()
+            if "429" in error_str or "quota" in error_str:
+                st.session_state.key_status[k] = "limit"
+            elif "expired" in error_str or "invalid" in error_str or "400" in error_str:
+                 st.session_state.key_status[k] = "expired"
+            else:
+                st.session_state.key_status[k] = "fail"
+        
+        prog.progress((i+1)/len(api_keys_local))
+    
+    prog.empty()
+    # KRİTİK ÇÖZÜM: Test bitince sayfayı yenile ki sonuçlar görünsün
+    st.rerun() 
+
 
 with st.sidebar:
     
@@ -570,34 +614,9 @@ with st.sidebar:
 
             st.markdown("---")
             
-            # Anahtarları Test Et Butonu (Sadece Admin'e Özel)
-            if st.button("🔄 Anahtarları Kontrol Et (Kota Testi)", use_container_width=True, key="admin_key_test"):
-                st.session_state.key_status = {}
-                prog = st.progress(0)
-                test_prompt = "Hello" 
-                
-                for i, k in enumerate(api_keys):
-                    try:
-                        # TEST ESNASINDA BÖLGESEL KONFİGÜRASYON (Kotayı zorlamak için)
-                        configure_regional_genai(k)
-
-                        model = genai.GenerativeModel('gemini-2.5-flash')
-                        model.generate_content(test_prompt)
-                        
-                        st.session_state.key_status[k] = "pass"
-                    
-                    except Exception as e:
-                        error_str = str(e).lower()
-                        if "429" in error_str or "quota" in error_str:
-                            st.session_state.key_status[k] = "limit"
-                        elif "expired" in error_str or "invalid" in error_str or "400" in error_str:
-                             st.session_state.key_status[k] = "expired"
-                        else:
-                            st.session_state.key_status[k] = "fail"
-                    
-                    prog.progress((i+1)/len(api_keys))
-                prog.empty()
-                st.rerun()
+            # Anahtarları Test Et Butonu (on_click ile admin_test_keys'i çağırır)
+            if st.button("🔄 Anahtarları Kontrol Et (Kota Testi)", use_container_width=True, key="admin_key_test", on_click=admin_test_keys):
+                pass # İşlevi on_click devralır
         
         st.markdown("---")
         
@@ -851,7 +870,7 @@ with c1:
             24. 🧢 TAVAN / TABAN KİLİT POTANSİYELİ: Tavan/Taban kademesinde ne kadar lot var?
             25. 🧬 GERÇEK YABANCI MI, BIYIKLI YABANCI MI? Takas değişimleri ne diyor?
             26. 🏎️ İŞLEM YOĞUNLUĞU GÖRSELİ: İşlemler ne kadar sık geçiyor?
-            27. 🧱 BLOK SATIŞ KARŞILAMA: Büyük satışlar hemen karşılanıyor mu?
+            27. 🧱 BLOK SATIŞ KARŞILAMA: Büyük satışlar hemen karşılanıyor mı?
             28. ⚖️ ORTALAMA MALİYET YÜKSELTME (MARKUP): Fiyat yükselirken hacim artıyor mu?
             29. 🧮 GİZLİ TOPLAMA OPERASYONU: AKD'de dağınık alım, Takasta toplu birikim var mı?
             30. 🏛️ KURUM KARAKTER ANALİZİ: Oyuncular trader mı yoksa kurumsal mı?
@@ -937,7 +956,8 @@ with c1:
                                 st.warning(f"⚠️ Anahtar `...{k[-4:]}` süresi doldu/geçersiz. Bir sonraki deneniyor.")
                                 continue
                             else: 
-                                st.error(f"Hata: {e}"); 
+                                # Hata akışı durdurdu, kullanıcıya göster
+                                st.error(f"Analiz Başlatma Hatası: {e}") 
                                 break
                     
                     if not stream_active:
