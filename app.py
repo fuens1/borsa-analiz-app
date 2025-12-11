@@ -89,13 +89,20 @@ MODEL_PRIORITY_LIST = [
     'gemma-3-4b'
 ]
 
+# Koddaki get_valid_model fonksiyonunu geçici olarak değiştirin:
 def get_valid_model(key):
-    """
-    API key ile MODEL_PRIORITY_LIST'ten ilk çalışan multimodal modeli bulur.
-    Kodun başlangıcında, en az bir multimodal modelin (Flash) çalışıp çalışmadığını kontrol etmek için kullanılır.
-    """
-    genai.configure(api_key=key)
-    test_prompt = "Hello"
+    """Sadece anahtarın geçerli olup olmadığını kontrol eder."""
+    try:
+        genai.configure(api_key=key)
+        # Hızlı bir test için basit bir metin modeli kullanın
+        models = genai.list_models()
+        for m in models:
+            if 'generateContent' in m.supported_generation_methods:
+                # Çalışan ilk modeli döndür
+                return m.name 
+        return None
+    except:
+        return None
 
     # Sadece multimodal modelleri kontrol et (Uygulamanın temel görevi için en az bir Flash modeli gerekiyor)
     for model_name in ['gemini-2.5-flash', 'gemini-2.5-flash-live', 'gemini-2.0-flash-live']:
@@ -1083,3 +1090,4 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": full_resp})
             else:
                 st.error("❌ Sohbet: Tüm API anahtarlarının ve model kotalarının dolu veya geçersiz. Lütfen daha sonra deneyin.")
+
