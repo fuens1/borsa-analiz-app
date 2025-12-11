@@ -713,7 +713,8 @@ with c1:
 
             ## 🛡️ GÜÇLÜ/ZAYIF DESTEK VE DİRENÇ ANALİZİ
             (Grafik ve derinlik verilerine bakarak EN AZ 10 ADET Destek seviyesi ve EN AZ 10 ADET Direnç seviyesi yaz.)
-            (Hepsine çok güçlü, çok güçlü deme. Güçlerinin seviyesini belirt ve güçleri daha gerçekçi söyle. Hatta gerekirse %'lik bazda gösterip, altta da ayrı olarak güce göre sırala.)
+            (Hepsine çok güçlü, çok güçlü deme. Güçlerinin seviyesini belirt ve güçleri daha gerçekçi söyle. Yüzdelik bazda güçlerini göster.)
+            (Onların da altında ayrı olarak "GÜÇ SIRALAMASI" başlığı altında, destek ve dirençleri ayrı ayrı yüzdelil güçlerine göre sırala.)
             * :green[**Destekler:** ...]
             * :red[**Dirençler:** ...]
 
@@ -743,6 +744,8 @@ with c1:
             ## 🧱 KRİTİK DESTEK BÖLGELERİ (EN AZ 15 ADET)
             (Elindeki derinlik, kademe ve AKD verilerini kullanarak EN AZ 15 tane destek noktası belirle.)
             (HER MADDEDE MUTLAKA AÇIKLAMA OLACAK: Neden burası destek? "Çok güçlü alış bölgesi", "Fiyat buradan sürekli dönüyor", "Derinlikte 1M lot alıcı var" gibi detaylar ver.)
+            (Hepsine çok güçlü, çok güçlü deme. Güçlerinin seviyesini belirt ve güçleri daha gerçekçi söyle. Hatta gerekirse %'lik bazda gösterip, altta da ayrı olarak güce göre sırala.)
+            (Onların da altında ayrı olarak "GÜÇ SIRALAMASI" başlığı altında, destek ve dirençleri ayrı ayrı yüzdelil güçlerine göre sırala.)
             1. **[FİYAT]** - [GÜÇ DERECESİ]: ...
             2. **[FİYAT]** - [GÜÇ DERECESİ]: ...
             ... (15 maddeye tamamla)
@@ -751,6 +754,7 @@ with c1:
             (Elindeki verilere göre EN AZ 15 tane direnç/satış noktası belirle.)
             (HER MADDEDE AÇIKLAMA YAP: "Burada satış duvarı var", "Maliyetlenme burada yoğun", "Psikolojik sınır" gibi.)
             (Hepsine çok güçlü, çok güçlü deme. Güçlerinin seviyesini belirt ve güçleri daha gerçekçi söyle. Hatta gerekirse %'lik bazda gösterip, altta da ayrı olarak güce göre sırala.)
+            (Onların da altında ayrı olarak "GÜÇ SIRALAMASI" başlığı altında, destek ve dirençleri ayrı ayrı yüzdelil güçlerine göre sırala.)
             1. **[FİYAT]** - [GÜÇ DERECESİ]: ...
             2. **[FİYAT]** - [GÜÇ DERECESİ]: ...
             ... (15 maddeye tamamla)
@@ -980,4 +984,5 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": full_resp})
             else:
                 st.error("❌ Sohbet: Tüm API anahtarlarının kotası dolu veya geçersiz. Lütfen daha sonra deneyin.")
+
 
