@@ -23,7 +23,7 @@ try:
     import feedparser
     NEWS_ENABLED = True
 except ImportError:
-    PASTE_ENABLED = False
+    NEWS_ENABLED = False
 
 # Firebase Kontrolü
 try:
@@ -76,16 +76,11 @@ global_config = load_global_config()
 
 
 # ==========================================
-# 🎯 MERKEZİ FONKSİYON TANIMLARI
+# 🎯 MERKEZİ FONKSİYON TANIMLARI (NameError'ı Çözmek İçin Buraya Taşındı)
 # ==========================================
 
-# --- BÖLGESEL UÇ NOKTA TANIMI (500K Kotası İçin) ---
-# DİKKAT: Bu bölge, kotanın yükseltildiği bölge olmalıdır.
-GEMINI_REGION = "europe-west4" 
-GEMINI_BASE_URL = f"https://{GEMINI_REGION}-aiplatform.googleapis.com" 
-
 def get_model(key):
-    """API key ile kullanılabilecek modeli bulur (GLOBAL Uç Nokta ile Test)"""
+    """API key ile kullanılabilecek modeli bulur"""
     try:
         genai.configure(api_key=key)
         models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
@@ -93,18 +88,6 @@ def get_model(key):
             if "gemini-1.5-flash" in m: return m
         return models[0] if models else None
     except: return None
-
-def configure_regional_genai(key):
-    """Belirtilen anahtarı bölgesel URL ile yapılandırır (Model çağrısı öncesi kullanılır)"""
-    try:
-        # Yüksek kotalı bölgesel uç noktayı kullanmayı dener
-        genai.configure(api_key=key, client_options={"api_endpoint": GEMINI_BASE_URL})
-        return True
-    except:
-        # Bölgesel başarısız olursa, global ile dener (Yedek)
-        genai.configure(api_key=key)
-        return False
-
 
 def compress_image(image, max_size=(800, 800)):
     """Görselleri analiz için küçültür ve hızlandırır"""
@@ -388,26 +371,7 @@ if st.session_state.api_depth_data is not None or st.session_state.api_akd_data 
 valid_model_name = None
 working_key = None
 
-# --- BÖLGESEL UÇ NOKTA KONFİGÜRASYONU ---
-# KOTASI 500K YAPILAN BÖLGE BURADA TANIMLANIR.
-GEMINI_REGION = "europe-west4" 
-GEMINI_BASE_URL = f"https://{GEMINI_REGION}-aiplatform.googleapis.com" # 500K Kotanın olduğu endpoint
-
-def configure_regional_genai(key):
-    """Belirtilen anahtarı bölgesel URL ile yapılandırır (Model çağrısı öncesi kullanılır)"""
-    try:
-        # Yüksek kotalı bölgesel uç noktayı kullanmayı dener
-        genai.configure(api_key=key, client_options={"api_endpoint": GEMINI_BASE_URL})
-        return True
-    except:
-        # Bölgesel başarısız olursa, global ile dener (Yedek)
-        genai.configure(api_key=key)
-        return False
-
-# İlk çalışan anahtarı ve modeli bulma döngüsü
 for k in api_keys:
-    
-    # Sadece anahtarın geçerli olup olmadığını kontrol etmek için global yapılandırma kullanılır
     mod = get_model(k)
     if mod: 
         valid_model_name = mod
@@ -483,13 +447,12 @@ col1, col2 = st.columns(2)
 with col1:
     img_d = render_category_panel("1. Derinlik 💹", "Derinlik", "tg_img_derinlik", f"d_{file_key_suffix}")
     st.markdown("---") 
-    img_k = render_category_panel("3. Kademe 📊", "Kademe", "tg_img_kademe", f"k_{file_key_suffix}") # Düzeltildi
-    
+    img_k = render_category_panel("3. Kademe 📊", "Kademe", "tg_img_kademe", f"k_{file_key_suffix}")
 
 with col2:
-    img_a = render_category_panel("2. AKD 🤵", "AKD", "tg_img_akd", f"a_{file_key_suffix}") # Düzeltildi
+    img_a = render_category_panel("2. AKD 🤵", "AKD", "tg_img_akd", f"a_{file_key_suffix}")
     st.markdown("---") 
-    img_t = render_category_panel("4. Takas 🌍", "Takas", "tg_img_takas", f"t_{file_key_suffix}") # Düzeltildi
+    img_t = render_category_panel("4. Takas 🌍", "Takas", "tg_img_takas", f"t_{file_key_suffix}")
 
 # --- SIDEBAR & TELEGRAM BRIDGE ---
 
@@ -510,46 +473,6 @@ def delete_api_key(key_to_delete):
             del st.session_state.key_status[key_to_delete]
             
         st.rerun()
-
-# --- Yardımcı Fonksiyon: Key Testini Tetikleme ---
-def admin_test_keys():
-    """Yönetici panelindeki anahtarları test eder ve sonuçları kaydeder."""
-    api_keys_local = st.session_state.api_keys.copy()
-
-    # Eğer hiç anahtar yoksa uyarı ver
-    if not api_keys_local:
-        st.warning("Hiç API anahtarı bulunamadı.")
-        return
-
-    st.session_state.key_status = {}
-    prog = st.progress(0)
-    test_prompt = "Hello" 
-    
-    for i, k in enumerate(api_keys_local):
-        try:
-            # TEST ESNASINDA BÖLGESEL KONFİGÜRASYON (Kotayı zorlamak için)
-            configure_regional_genai(k)
-
-            model = genai.GenerativeModel('gemini-2.5-flash')
-            model.generate_content(test_prompt)
-            
-            st.session_state.key_status[k] = "pass"
-        
-        except Exception as e:
-            error_str = str(e).lower()
-            if "429" in error_str or "quota" in error_str:
-                st.session_state.key_status[k] = "limit"
-            elif "expired" in error_str or "invalid" in error_str or "400" in error_str:
-                 st.session_state.key_status[k] = "expired"
-            else:
-                st.session_state.key_status[k] = "fail"
-        
-        prog.progress((i+1)/len(api_keys_local))
-    
-    prog.empty()
-    # KRİTİK ÇÖZÜM: Test bitince sayfayı yenile ki sonuçlar görünsün
-    st.rerun() 
-
 
 with st.sidebar:
     
@@ -593,7 +516,7 @@ with st.sidebar:
                         status_text = f"<span style='font-size: x-small;' class='key-status-pass'>✅ OK</span>"
                     elif status == "limit":
                         status_text = f"<span style='font-size: x-small;' class='key-status-limit'>⚠️ KOTA</span>"
-                    elif status == "expired": # 400 Expired durumu
+                    elif status == "expired": # Yeni 400 Expired durumu
                          status_text = f"<span style='font-size: x-small;' class='key-status-fail'>❌ SÜRE BİTTİ</span>"
                     elif status == "fail":
                         status_text = f"<span style='font-size: x-small;' class='key-status-fail'>❌ HATA</span>"
@@ -615,9 +538,33 @@ with st.sidebar:
 
             st.markdown("---")
             
-            # Anahtarları Test Et Butonu (on_click ile admin_test_keys'i çağırır)
-            if st.button("🔄 Anahtarları Kontrol Et (Kota Testi)", use_container_width=True, key="admin_key_test", on_click=admin_test_keys):
-                pass # İşlevi on_click devralır
+            # Anahtarları Test Et Butonu (Sadece Admin'e Özel)
+            if st.button("🔄 Anahtarları Kontrol Et (Kota Testi)", use_container_width=True, key="admin_key_test"):
+                st.session_state.key_status = {}
+                prog = st.progress(0)
+                test_prompt = "Hello" 
+                
+                for i, k in enumerate(api_keys):
+                    try:
+                        genai.configure(api_key=k)
+                        model = genai.GenerativeModel('gemini-2.5-flash')
+                        model.generate_content(test_prompt)
+                        
+                        st.session_state.key_status[k] = "pass"
+                    
+                    except Exception as e:
+                        error_str = str(e).lower()
+                        if "429" in error_str or "quota" in error_str:
+                            st.session_state.key_status[k] = "limit"
+                        # 400 Expired veya Invalid hatası kontrolü
+                        elif "expired" in error_str or "invalid" in error_str or "400" in error_str:
+                             st.session_state.key_status[k] = "expired"
+                        else:
+                            st.session_state.key_status[k] = "fail"
+                    
+                    prog.progress((i+1)/len(api_keys))
+                prog.empty()
+                st.rerun()
         
         st.markdown("---")
         
@@ -878,7 +825,7 @@ with c1:
             31. 🧊 GİZLİ EMİR (ICEBERG) TESPİTİ: Görünenden daha fazla işlem geçiyor mu?
             32. 🌪️ HACİM / FİYAT UYUMSUZLUĞU (CHURNING): Hacim var ama fiyat gitmiyor mu?
             33. 🚫 ALIM/SATIM İPTALİ: Derinlikte iptal edilen emirler var mı?
-            34. 🔄 GÜN İÇİ DÖNÜŞ (REVERSAL) SİNYALİ: Mum veya kademe dönüş işareti veriyor mı?
+            34. 🔄 GÜN İÇİ DÖNÜŞ (REVERSAL) SİNYALİ: Mum veya kademe dönüş işareti veriyor mu?
             35. 💰 NET PARA GİRİŞ/ÇIKIŞ GÖRÜNTÜSÜ: Para girişi pozitif mi?
             36. 📉 GAP (FİYAT BOŞLUĞU) RİSKİ: Haber veya açılış kaynaklı boşluk var mı?
             37. 🛡️ PİVOT SEVİYESİ KONUMU: Fiyat pivotun neresinde?
@@ -929,9 +876,7 @@ with c1:
                         
                     for k in local_keys:
                         try:
-                            # BÖLGESEL UÇ NOKTA KONFİGÜRASYONU: Yüksek kotayı kullan
-                            configure_regional_genai(k)
-                            
+                            genai.configure(api_key=k)
                             model = genai.GenerativeModel(valid_model_name)
                             stream = model.generate_content(input_data, stream=True)
                             
@@ -954,11 +899,11 @@ with c1:
                             if "429" in error_str or "quota" in error_str: 
                                 continue
                             elif "expired" in error_str or "invalid" in error_str or "400" in error_str:
+                                # Süresi dolmuş/geçersiz anahtar hatası: atla
                                 st.warning(f"⚠️ Anahtar `...{k[-4:]}` süresi doldu/geçersiz. Bir sonraki deneniyor.")
                                 continue
                             else: 
-                                # Hata akışı durdurdu, kullanıcıya göster
-                                st.error(f"Analiz Başlatma Hatası: {e}") 
+                                st.error(f"Hata: {e}"); 
                                 break
                     
                     if not stream_active:
@@ -1008,9 +953,7 @@ if st.session_state.analysis_result:
                     )
                     final_prompt = f"{sys_inst}\n\nRAPOR:\n{st.session_state.analysis_result}\n\nSORU:\n{q}"
                     
-                    # BÖLGESEL UÇ NOKTA KONFİGÜRASYONU BURADA YAPILIYOR
-                    configure_regional_genai(k)
-                    
+                    genai.configure(api_key=k)
                     model = genai.GenerativeModel(valid_model_name)
                     stream = model.generate_content(final_prompt, stream=True)
                     
@@ -1041,3 +984,4 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": full_resp})
             else:
                 st.error("❌ Sohbet: Tüm API anahtarlarının kotası dolu veya geçersiz. Lütfen daha sonra deneyin.")
+
