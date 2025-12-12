@@ -86,9 +86,9 @@ def get_model(key):
         return models[0] if models else None
     except: return None
 
-# --- GÖRSEL KALİTESİ KORUMA (RAW MOD) ---
+# --- GÖRSEL KALİTESİ KORUMA (RAW MOD - ASLA SIKIŞTIRMA YOK) ---
 def compress_image(image):
-    """Görseli ASLA küçültmez."""
+    """Görseli ASLA küçültmez. Piksel kaybını önler."""
     if image.mode in ("RGBA", "P"): 
         image = image.convert("RGB")
     return image
@@ -155,39 +155,36 @@ def fetch_data_via_bridge(symbol, data_type):
     return None
 
 # ==========================================
-# 🎨 SAYFA AYARLARI VE DÜZELTİLMİŞ CSS
+# 🎨 SAYFA AYARLARI VE CERRAH TİTİZLİĞİNDE CSS
 # ==========================================
 
 st.set_page_config(page_title="BIST Yapay Zeka PRO", layout="wide", page_icon="🐋")
 
 st.markdown("""
 <style>
-    /* --- CSS DÜZELTMESİ: SIDEBAR OKUNU GERİ GETİRME --- */
+    /* --- SIDEBAR'I KURTARAN, GEREKSİZLERİ SİLEN CSS --- */
     
-    /* Header'ı tamamen silmiyoruz (display:none yapmıyoruz), çünkü Ok tuşu orada yaşıyor.
-       Bunun yerine rengini şeffaf yapıp, içindeki İSTENMEYENLERİ siliyoruz. */
-    
-    [data-testid="stHeader"] {
-        background-color: rgba(0,0,0,0); /* Şeffaf Arkaplan */
+    /* 1. Header'ı YOK ETME, Sadece Şeffaf Yap (Böylece Sol Üstteki Ok Kalır) */
+    header[data-testid="stHeader"] {
+        background-color: rgba(0,0,0,0) !important;
+        z-index: 1 !important; /* Sidebar butonunun tıklanabilir kalması için */
     }
 
-    /* Sağ üstteki menü (3 çizgi) ve Deploy butonlarını hedef alarak siliyoruz */
+    /* 2. Sadece SAĞ TARAFTAKİ Menüyü (Toolbar) Gizle */
     [data-testid="stToolbar"] {
         display: none !important;
     }
-    
-    /* Renkli üst çizgi */
+
+    /* 3. Üstteki Renkli Çizgiyi (Decoration) Gizle */
     [data-testid="stDecoration"] {
         display: none !important;
     }
 
-    /* Kırmızı Deploy Butonu */
-    .stAppDeployButton {
+    /* 4. Footer ve Sağ Alt Köşeyi Tamamen Yok Et */
+    footer {
         display: none !important;
     }
-    
-    /* Footer ve Sağ Alt Köşe */
-    footer {
+    .stAppDeployButton, [data-testid="stAppDeployButton"] {
         display: none !important;
     }
     [data-testid="stStatusWidget"] {
