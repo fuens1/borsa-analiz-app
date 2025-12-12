@@ -23,7 +23,7 @@ try:
     import feedparser
     NEWS_ENABLED = True
 except ImportError:
-    PASTE_ENABLED = False
+    NEWS_ENABLED = False
 
 # Firebase Kontrolü
 try:
@@ -735,7 +735,7 @@ with c1:
         """
         
         # --- DESTEK/DİRENÇ BÖLÜMÜNÜN STANDART PROMPT TANIMI ---
-        destek_direnc_prompt = """
+        destek_direnc_prompt_sade = """
         ## 🛡️ GÜÇLÜ/ZAYIF DESTEK VE DİRENÇ ANALİZİ
         (Grafik ve derinlik verilerine bakarak EN AZ 10 ADET Destek seviyesi ve EN AZ 10 ADET Direnç seviyesi yaz.)
         (HER SEVİYE İÇİN MUTLAKA ŞU FORMATI KULLAN: **[FİYAT]** (%Güç): [GÜÇLÜ/ZAYIF OLMA NEDENİ]. Örnek: **100.50** (%85): Derinlikte 500k lotluk yığılma olması. Fiyat: **50.00** (%20): Yalnızca psikolojik destek olması. Güç yüzdesi 0 ile 100 arasında olmalı.)
@@ -760,7 +760,7 @@ with c1:
             --- ⚡ SADE MOD SEÇİLDİ ---
             {req_sections}
 
-            {destek_direnc_prompt}
+            {destek_direnc_prompt_sade}
             (Sade modda sadece bu tek başlığı kullan. Güç sıralamasını dahil etme.)
 
             ## 🐋 GENEL SENTEZ (BALİNA İZİ)
@@ -799,7 +799,7 @@ with c1:
             1. **[FİYAT]** (%Güç): [NEDENİ]
             2. **[FİYAT]** (%Güç): [NEDENİ]
             ... (15 maddeye tamamla)
-            
+
             {guc_siralama_prompt}
             
             ## ⚖️ KİLİT RAKAM (PİVOT)
@@ -829,7 +829,7 @@ with c1:
             --- İSTENEN RAPOR BAŞLIKLARI ---
             {main_headers}
 
-            {destek_direnc_prompt}
+            {destek_direnc_prompt_sade}
 
             --- 🕵️‍♂️ MİKRO-YAPISAL ANALİZ ---
             GÖREV: Aşağıdaki 50 maddelik detaylı kontrol listesini taramanı istiyorum.
@@ -944,9 +944,12 @@ with c1:
                                     full_response += chunk.text
                                     placeholder.markdown(full_response + "▌") 
                             
-                            placeholder.markdown(full_response) 
+                            # ANALİZ BİTTİKTEN SONRA, placeholder'ı son tam yanıtla doldur.
+                            placeholder.markdown(full_response)
+                            # Session state'i güncelle, böylece rapor aşağıda tek bir kez görüntülenir.
                             st.session_state.analysis_result = full_response
                             st.session_state.loaded_count = count
+                            
                             break # Model başarılı oldu, bir sonraki key'e ve modele geçmeye gerek yok
                             
                         except Exception as e:
@@ -980,6 +983,8 @@ with c1:
 # 💬 SONUÇ VE SOHBET (FİNAL BÖLÜMÜ)
 # ==========================================
 if st.session_state.analysis_result:
+    # Bu bölüm zaten session state'ten okuduğu için, yukarıdaki akış tamamlandıktan sonra
+    # sadece bu kısım çalışarak raporun kalıcı halini gösterir.
     st.markdown("## 🐋 Kurumsal Rapor")
     st.markdown(st.session_state.analysis_result)
     st.markdown("---")
