@@ -92,8 +92,9 @@ def get_model(key):
         return models[0] if models else None
     except: return None
 
-def compress_image(image, max_size=(800, 800)):
-    """Görselleri analiz için küçültür ve hızlandırır"""
+# --- GÜNCELLEME: ARTIK GÖRSELLERİ BULANIKLAŞTIRMIYORUZ (Yüksek Kalite) ---
+def compress_image(image, max_size=(3072, 3072)): 
+    """Görselleri analiz için hazırlar (Yüksek Çözünürlük Korunur)"""
     if image.mode in ("RGBA", "P"): image = image.convert("RGB")
     image.thumbnail(max_size, Image.Resampling.LANCZOS)
     return image
@@ -428,7 +429,6 @@ def handle_paste(cat):
             key=f"paste_{cat}_{file_key_suffix}"
         )
         if res.image_data is not None:
-            # HATA DÜZELTİLDİ: Fazladan köşeli parantez kaldırıldı.
             if not st.session_state[f"pasted_{cat}"] or st.session_state[f"pasted_{cat}"][-1] != res.image_data:
                 st.session_state[f"pasted_{cat}"].append(res.image_data)
 
@@ -642,22 +642,23 @@ with c1:
         1. 🚫 **YASAK:** Elimizde verisi olmayan başlıkları rapora ekleme.
         2. 🚫 **YASAK:** Giriş cümlesi yazma. Direkt analize başla.
         3. 🎨 **RENK:** :green[**OLUMLU**], :blue[**NÖTR**], :red[**OLUMSUZ**] cümlelerin yanına ekle.
+        4. 🚫 **ASLA:** Listeyi doldurmak için AYNI ŞEYİ TEKRARLAMA ve uydurma veri yazma. Eğer listede 3 veri varsa 3 tane yaz ve bırak.
         """
         
-        # --- SADECE BALİNA SEVİYELERİ PROMPTU (YÜZDELİK SİSTEM KALDIRILDI) ---
+        # --- TEKRAR ETMEYEN ve SADECE GÖRÜNENİ YAZAN PROMPT ---
         destek_direnc_prompt_sade = """
         ## 🛡️ GÜÇLÜ/ZAYIF DESTEK VE DİRENÇ ANALİZİ
-        (YÜZDELİK GÜÇ SİSTEMİNİ KULLANMA. SADECE EN ÖNEMLİLERİ YAZ.)
-        (DİKKAT: Her fiyat seviyesini yazma. Sadece GERÇEKTEN YIĞILMA OLAN yerleri yaz.)
+        (YÜZDELİK SİSTEMİ UNUT. SADECE EN ÖNEMLİ, BALİNA GİRİŞİ OLAN YERLERİ YAZ.)
+        (DİKKAT: Listeyi doldurmaya çalışma. Sadece GERÇEKTEN MEVCUT OLAN seviyeleri yaz.)
         (EĞER bir seviyede AŞIRI YÜKSEK LOT (Balina) varsa yanına "🔥 :green[**ÇOK GÜÇLÜ ALIM**]" veya "🔥 :red[**ÇOK GÜÇLÜ SATIM**]" yaz. Yoksa hiçbir şey yazma, sadece fiyatı bırak.)
-        (FORMAT: **[FİYAT]**: [NEDENİ] [VARSA GÜÇ İBARESİ])
+        (FORMAT: **[FİYAT]**: [NEDENİ - Lot miktarı vs.] [VARSA GÜÇ İBARESİ])
         """
         
         # --- GÜÇ SIRALAMASI PROMPTU ---
         guc_siralama_prompt = """
-        ## 🏅 GÜÇ VE ÖNEM SIRALAMASI (EN KRİTİK SEVİYELER)
-        (Bulduğun seviyeleri, önem sırasına göre diz. En çok lot olandan en aza doğru.)
-        (Yanına sadece "🔥 ÇOK GÜÇLÜ" olanlarda ibare koy. Diğerlerine koyma.)
+        ## 🏅 GÜÇ VE ÖNEM SIRALAMASI
+        (Bulduğun seviyeleri, ÖNEM sırasına göre diz. En çok lot olandan en aza doğru.)
+        (Eğer sadece 3 tane önemli yer varsa, 3 tane yaz. Uydurup 10 tane yazma.)
         * **DESTEKLER (Güçlüden Zayıfa):** [Fiyat] ...
         * **DİRENÇLER (Güçlüden Zayıfa):** [Fiyat] ...
         """
@@ -682,16 +683,17 @@ with c1:
             prompt = base_role + f"""
             --- 🛡️ DESTEK-DİRENÇ VE SEVİYE ANALİZİ MODU ---
             GÖREV: Bu modda SADECE kritik fiyat seviyelerine odaklan.
+            Lütfen listeyi doldurmak için TEKRAR EDEN satırlar yazma. Sadece mevcut olanları yaz.
             
-            ## 🧱 KRİTİK DESTEK BÖLGELERİ (EN AZ 15 ADET)
+            ## 🧱 KRİTİK DESTEK BÖLGELERİ (Sadece Mevcut Olanlar)
             (Sıralamayı FİYATA GÖRE YAPMA! Lot miktarına göre önem sırasına diz.)
             1. **[FİYAT]**: [NEDENİ]
-            ... (15 maddeye tamamla)
+            ... (Sadece olan kadar yaz)
 
-            ## 🚧 KRİTİK DİRENÇ BÖLGELERİ (EN AZ 15 ADET)
+            ## 🚧 KRİTİK DİRENÇ BÖLGELERİ (Sadece Mevcut Olanlar)
             (Sıralamayı FİYATA GÖRE YAPMA! Lot miktarına göre önem sırasına diz.)
             1. **[FİYAT]**: [NEDENİ]
-            ... (15 maddeye tamamla)
+            ... (Sadece olan kadar yaz)
 
             {guc_siralama_prompt}
             
@@ -700,7 +702,7 @@ with c1:
             ## 🚀 ALIM-SATIM STRATEJİSİ
             """
         else:
-            limit_txt = f"(DİKKAT: EN AZ {max_items} TANE MADDELİ ANALİZ YAP.)"
+            limit_txt = f"(DİKKAT: SADECE VERİDE OLANLARI YAZ, UYDURMA.)"
             main_headers = ""
             if is_depth_avail: main_headers += f"## 📸 DERİNLİK ANALİZİ {limit_txt}\n"
             if is_akd_avail: main_headers += f"## 🏦 AKD ANALİZİ {limit_txt}\n"
@@ -712,7 +714,7 @@ with c1:
             {main_headers}
             {destek_direnc_prompt_sade}
             --- 🕵️‍♂️ MİKRO-YAPISAL ANALİZ (50 MADDE KONTROLÜ) ---
-            (Mevcut listeden sadece cevabı olanları yaz)
+            (Mevcut listeden sadece cevabı olanları yaz, asla aynı cevabı tekrarlama)
             --- FİNAL ---
             ## 🐋 GENEL SENTEZ
             ## 🧭 YÖN / FİYAT OLASILIĞI
