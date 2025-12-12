@@ -732,6 +732,7 @@ with c1:
         2. 🚫 **YASAK:** "Mevcut Veri Seti Bilgilendirmesi" veya giriş cümlesi yazma. Direkt analize başla.
         3. 📝 **BİÇİM:** ASLA PARAGRAF YAZMA. Madde madde ilerle.
         4. 🎨 **RENK:** :green[**OLUMLU**], :blue[**NÖTR**], :red[**OLUMSUZ**] tüm cümlelerin sonunda belirt. Ne olursa olsun tüm cümlelerin sonunda olsun. Sıralama olarak (OLUMLU-OLUMSUZ-NÖTR) şeklinde olacak ve her başlığın en altında da toplam kaç adet OLUMLU ve OLUMSUZ olduğu yazacak.
+        5. OLUMLU VE OLUMSUZ toplamları kesinlikle doğru hesapla ve toplam kısmında da green[**OLUMLU**], :red[**OLUMSUZ**] SAYILARI da aynı şekilde.
         """
         
         # --- DESTEK/DİRENÇ BÖLÜMÜNÜN STANDART PROMPT TANIMI ---
@@ -1056,4 +1057,5 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": full_resp})
             else:
                 st.error("❌ Sohbet: Tüm API anahtarlarının kotası dolu veya geçersiz. Lütfen daha sonra deneyin.")
+
 
