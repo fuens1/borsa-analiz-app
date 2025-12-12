@@ -88,10 +88,7 @@ def get_model(key):
 
 # --- ÖNEMLİ: Görseli Sıkıştırma (RAW MOD) ---
 def compress_image(image):
-    """
-    Görseli ASLA küçültmez veya sıkıştırmaz.
-    Piksel kaybını önler, böylece rakamlar birbirine karışmaz.
-    """
+    """Görseli ASLA küçültmez."""
     if image.mode in ("RGBA", "P"): 
         image = image.convert("RGB")
     return image
@@ -567,6 +564,11 @@ with c1:
         3. 🎨 **RENK:** :green[**OLUMLU**], :blue[**NÖTR**], :red[**OLUMSUZ**] cümlelerin yanına ekle.
         4. 🚫 **YASAK:** Listeyi doldurmak için aynı satırı tekrarlama. Sadece gördüğün kadarını yaz.
         5. ⚠️ **DİKKAT:** Tablodaki "Fiyat" (TL) ve "Lot/Adet" (Volume) sütunlarını karıştırma. Genellikle "Lot" sütunu daha büyük tam sayılar içerir.
+        6. 🧠 **MANTIK VE FİYAT KONTROLÜ (ÇOK ÖNEMLİ):**
+           - Önce görseldeki **ANLIK FİYATI** (Current Price) tespit et.
+           - **KURAL 1:** Anlık fiyattan **YÜKSEK** olan emirler **SATIŞ (DİRENÇ)** emirleridir. (Asla bunlara 'Alış' deme!)
+           - **KURAL 2:** Anlık fiyattan **DÜŞÜK** olan emirler **ALIŞ (DESTEK)** emirleridir.
+           - ÖRNEK: Fiyat 22.58 ise, 22.90'daki yığılma **SATIŞ (DİRENÇ)** olur. 22.10'daki yığılma **ALIŞ (DESTEK)** olur. Bunu karıştırma!
         """
         
         destek_direnc_prompt_sade = """
@@ -574,6 +576,7 @@ with c1:
         (GÖREV: SADECE VERİDE GÖRDÜĞÜN, "BALİNA GİRİŞİ" OLAN ÖNEMLİ SEVİYELERİ YAZ.)
         (DİKKAT: 15 adet yazmak zorunda DEĞİLSİN. Eğer sadece 3 tane varsa, 3 tane yaz.)
         (EĞER bir seviyede AŞIRI YÜKSEK LOT (Balina) varsa yanına "🔥 :green[**ÇOK GÜÇLÜ ALIM**]" veya "🔥 :red[**ÇOK GÜÇLÜ SATIM**]" yaz. Yoksa sadece fiyatı bırak.)
+        (Hatırlatma: Güncel fiyattan YÜKSEK olanlar SATIŞ/DİRENÇ, DÜŞÜK olanlar ALIŞ/DESTEK'tir.)
         (FORMAT: **[FİYAT]**: [NEDENİ - Lot miktarı vs.] [VARSA GÜÇ İBARESİ])
         """
         
@@ -607,12 +610,12 @@ with c1:
             GÖREV: Bu modda SADECE kritik fiyat seviyelerine odaklan.
             
             ## 🧱 KRİTİK DESTEK BÖLGELERİ (Mevcut Olanlar)
-            (Lütfen sütunları karıştırma. Lot miktarını fiyat sanma.)
+            (Hatırlatma: Güncel fiyattan DÜŞÜK olanlar DESTEKTİR.)
             1. **[FİYAT]**: [NEDENİ]
             ... (Sadece olan kadar yaz)
 
             ## 🚧 KRİTİK DİRENÇ BÖLGELERİ (Mevcut Olanlar)
-            (Lütfen sütunları karıştırma. Lot miktarını fiyat sanma.)
+            (Hatırlatma: Güncel fiyattan YÜKSEK olanlar DİRENÇTİR.)
             1. **[FİYAT]**: [NEDENİ]
             ... (Sadece olan kadar yaz)
 
@@ -634,7 +637,7 @@ with c1:
             --- 🧠 GELİŞMİŞ MOD ---
             {main_headers}
             {destek_direnc_prompt_sade}
-            --- 🕵️‍♂️ MİKRO-YAPISAL ANALİZ ---
+            --- 🕵️‍♂️ MİKRO-YAPISAL ANALİZ (50 MADDE KONTROLÜ) ---
             (Mevcut listeden sadece cevabı olanları yaz)
             --- FİNAL ---
             ## 🐋 GENEL SENTEZ
