@@ -169,20 +169,60 @@ def fetch_data_via_bridge(symbol, data_type):
     return None
 
 # ==========================================
-# 🎨 SAYFA AYARLARI VE CSS GÜNCELLEMESİ
+# 🎨 SAYFA AYARLARI VE CSS DÜZELTMESİ (ATOM BOMBASI)
 # ==========================================
 
 st.set_page_config(page_title="BIST Yapay Zeka PRO", layout="wide", page_icon="🐋")
 
 st.markdown("""
 <style>
-    /* 1. AGRESİF GİZLEME: Sağ Alt Kırmızı Buton ve Menüler */
-    .stAppDeployButton {display:none !important; visibility: hidden !important;}
-    [data-testid="stHeader"] {display:none !important; visibility: hidden !important;}
-    [data-testid="stDecoration"] {display:none !important; visibility: hidden !important;}
-    footer {display:none !important; visibility: hidden !important;}
+    /* --- CSS ATOM BOMBASI: SAĞ ALT KÖŞEYİ YOK ETME --- */
     
-    /* 2. Diğer Stiller */
+    /* 1. Header (Üst Menü) Gizle */
+    header[data-testid="stHeader"] {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    /* 2. Footer (Alt Bilgi) Gizle */
+    footer {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    /* 3. Toolbar (Sağ Üst Seçenekler) Gizle */
+    [data-testid="stToolbar"] {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    /* 4. Decoration (Renkli Çizgiler) Gizle */
+    [data-testid="stDecoration"] {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    /* 5. Deploy Butonu (Kırmızı Taç) - En Agresif Gizleme */
+    .stAppDeployButton {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        height: 0 !important;
+        width: 0 !important;
+        pointer-events: none !important;
+    }
+
+    /* 6. Viewer Badge (İzleyici Avatarı) - En Agresif Gizleme */
+    [data-testid="stStatusWidget"] {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        height: 0 !important;
+        width: 0 !important;
+        pointer-events: none !important;
+    }
+
+    /* --- DİĞER ARAYÜZ DÜZENLEMELERİ --- */
     .st-emotion-cache-n1sltv p { font-size: 10px; }
     .main { background-color: #0e1117; }
     h1 { color: #00d4ff !important; }
@@ -604,20 +644,21 @@ with c1:
         3. 🎨 **RENK:** :green[**OLUMLU**], :blue[**NÖTR**], :red[**OLUMSUZ**] cümlelerin yanına ekle.
         """
         
-        # --- GÜNCELLENMİŞ "HATA YAPMA" PROMPTU ---
+        # --- GÜNCELLENMİŞ VE SERT PROMPT ---
         destek_direnc_prompt_sade = """
         ## 🛡️ GÜÇLÜ/ZAYIF DESTEK VE DİRENÇ ANALİZİ
-        (GÖREV: Fiyatları SIRALI DEĞİL, KARIŞIK ANALİZ ET! Fiyatın yüksek veya düşük olması gücünü belirlemez.)
-        (DİKKAT: Güç yüzdelerini verirken "Lot Sayısı" ve "Hacim" verisine bak. Asla "fiyat arttıkça güç artar" gibi matematiksel bir sıralama yapma. Bu yasaktır.)
-        (HER SEVİYE İÇİN FORMAT: **[FİYAT]** (%Güç): [GÜÇLÜ/ZAYIF OLMA NEDENİ].)
+        (DİKKAT: ASLA FİYATA GÖRE KÜÇÜKTEN BÜYÜĞE SIRALAMA YAPMA! BU YASAKTIR.)
+        (GÖREV: Destek ve Dirençleri, sadece ve sadece GÜÇ PUANINA göre sırala.)
+        (DİKKAT: Güç yüzdelerini verirken "Lot Sayısı" ve "Hacim" verisine bak. "Fiyat arttıkça güç artar" mantığı YANLIŞTIR.)
+        (FORMAT: **[FİYAT]** (%Güç): [GÜÇLÜ/ZAYIF OLMA NEDENİ].)
         """
         
-        # --- AGRESİF SIRALAMA PROMPTU ---
+        # --- FİYAT KARIŞTIRMA EMİRLİ PROMPT ---
         guc_siralama_prompt = """
-        ## 🏅 GÜÇ VE ÖNEM SIRALAMASI
-        (DİKKAT: Burası çok önemli. Yukarıdaki fiyatları, SADECE verdiğin GÜÇ PUANINA göre "En Güçlüden -> En Zayıfa" doğru sırala.)
-        (YASAK OLAN: Fiyata göre küçükten büyüğe sıralamak YASAKTIR. Fiyatlar tamamen KARIŞIK görünmelidir.)
-        (Örnek Doğru Çıktı: 102.50 (%90), 98.40 (%85), 105.00 (%40)... gibi Fiyatlar karışık olmalı.)
+        ## 🏅 GÜÇ VE ÖNEM SIRALAMASI (FİYATLAR KARIŞIK OLMALI)
+        (DİKKAT: Bu listedeki fiyatlar sayısal olarak sıralı OLURSA, CEVAP HATALI KABUL EDİLECEKTİR.)
+        (GÖREV: Fiyatları unut. Sadece %GÜÇ puanına göre EN GÜÇLÜDEN EN ZAYIFA sırala.)
+        (Örnek Doğru Çıktı: 102.50 (%95), 98.10 (%90), 105.40 (%50)... -> Gördüğün gibi fiyatlar karışık, güç sıralı.)
         * **DESTEKLER (Güce Göre Azalan - Fiyatlar Karışık Olmalı):** [Fiyat] (%Güç), ...
         * **DİRENÇLER (Güce Göre Azalan - Fiyatlar Karışık Olmalı):** [Fiyat] (%Güç), ...
         """
@@ -641,7 +682,7 @@ with c1:
         elif "DESTEK" in analysis_mode:
             prompt = base_role + f"""
             --- 🛡️ DESTEK-DİRENÇ VE SEVİYE ANALİZİ MODU ---
-            GÖREV: Bu modda SADECE kritik fiyat seviyelerine ve bu seviyelerin neden önemli olduğuna odaklan.
+            GÖREV: Bu modda SADECE kritik fiyat seviyelerine odaklan.
             
             ## 🧱 KRİTİK DESTEK BÖLGELERİ (EN AZ 15 ADET)
             (Sıralamayı FİYATA GÖRE YAPMA! Karışık yaz. Lot miktarına göre güç ver.)
