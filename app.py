@@ -86,7 +86,7 @@ def get_model(key):
         return models[0] if models else None
     except: return None
 
-# --- ÖNEMLİ: Görseli Sıkıştırma (RAW MOD) ---
+# --- GÖRSEL KALİTESİ KORUMA (RAW MOD) ---
 def compress_image(image):
     """Görseli ASLA küçültmez."""
     if image.mode in ("RGBA", "P"): 
@@ -155,23 +155,47 @@ def fetch_data_via_bridge(symbol, data_type):
     return None
 
 # ==========================================
-# 🎨 SAYFA AYARLARI (BUTONLARI YOK EDEN CSS)
+# 🎨 SAYFA AYARLARI VE DÜZELTİLMİŞ CSS
 # ==========================================
 
 st.set_page_config(page_title="BIST Yapay Zeka PRO", layout="wide", page_icon="🐋")
 
 st.markdown("""
 <style>
-    /* SAĞ ALT KÖŞEYİ VE MENÜLERİ TAMAMEN SİLEN KOD */
-    header[data-testid="stHeader"] {display: none !important;}
-    footer {display: none !important;}
-    [data-testid="stToolbar"] {display: none !important;}
-    [data-testid="stDecoration"] {display: none !important;}
-    .stAppDeployButton {display: none !important;}
-    [data-testid="stAppDeployButton"] {display: none !important;}
-    [data-testid="stStatusWidget"] {display: none !important;}
+    /* --- CSS DÜZELTMESİ: SIDEBAR OKUNU GERİ GETİRME --- */
     
-    /* Genel Arayüz */
+    /* Header'ı tamamen silmiyoruz (display:none yapmıyoruz), çünkü Ok tuşu orada yaşıyor.
+       Bunun yerine rengini şeffaf yapıp, içindeki İSTENMEYENLERİ siliyoruz. */
+    
+    [data-testid="stHeader"] {
+        background-color: rgba(0,0,0,0); /* Şeffaf Arkaplan */
+    }
+
+    /* Sağ üstteki menü (3 çizgi) ve Deploy butonlarını hedef alarak siliyoruz */
+    [data-testid="stToolbar"] {
+        display: none !important;
+    }
+    
+    /* Renkli üst çizgi */
+    [data-testid="stDecoration"] {
+        display: none !important;
+    }
+
+    /* Kırmızı Deploy Butonu */
+    .stAppDeployButton {
+        display: none !important;
+    }
+    
+    /* Footer ve Sağ Alt Köşe */
+    footer {
+        display: none !important;
+    }
+    [data-testid="stStatusWidget"] {
+        display: none !important;
+    }
+
+    /* --- DİĞER ARAYÜZ --- */
+    .st-emotion-cache-n1sltv p { font-size: 10px; }
     .main { background-color: #0e1117; }
     h1 { color: #00d4ff !important; }
     h2 { color: #ffbd45 !important; border-bottom: 2px solid #ffbd45; padding-bottom: 10px;}
@@ -188,6 +212,13 @@ st.markdown("""
     .live-data-btn { background-color: #d90429; border: 1px solid #ef233c; }
     .live-data-btn:hover { background-color: #ef233c; }
 
+    .key-status-pass { color: #00ff00; font-weight: bold; font-size: x-small; }
+    .key-status-fail { color: #ff4444; font-weight: bold; font-size: x-small; }
+    .key-status-limit { color: #ffbd45; font-weight: bold; font-size: x-small; }
+
+    div.stButton > button[kind="secondary"]:first-child {
+        padding: 0 4px; font-size: 8px; min-height: 20px; line-height: 0; margin-top: -10px;
+    }
     .element-container:has(> .stJson) { display: none; }
 </style>
 """, unsafe_allow_html=True)
