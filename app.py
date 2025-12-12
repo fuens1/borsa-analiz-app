@@ -86,20 +86,14 @@ def get_model(key):
         return models[0] if models else None
     except: return None
 
-# --- GÜNCELLEME: RESİZE İPTAL (PIXEL PERFECT MOD) ---
+# --- ÖNEMLİ: Görseli Sıkıştırma (RAW MOD) ---
 def compress_image(image):
     """
-    Görseli ASLA küçültmez. Olduğu gibi (RAW) bırakır.
-    Borsa tablolarındaki ince yazıların okunabilmesi için
-    piksel kaybı olmamalıdır.
+    Görseli ASLA küçültmez veya sıkıştırmaz.
+    Piksel kaybını önler, böylece rakamlar birbirine karışmaz.
     """
-    # Sadece format uyumluluğu için RGB'ye çeviriyoruz (PNG transparency sorununu önlemek için)
     if image.mode in ("RGBA", "P"): 
         image = image.convert("RGB")
-    
-    # BURADA ARTIK RESIZE (thumbnail) YOK!
-    # image.thumbnail(...) satırı silindi.
-    
     return image
 
 def fetch_stock_news(symbol):
@@ -164,30 +158,26 @@ def fetch_data_via_bridge(symbol, data_type):
     return None
 
 # ==========================================
-# 🎨 SAYFA AYARLARI (GİZLEME KODLARI DAHİL)
+# 🎨 SAYFA AYARLARI (BUTONLARI YOK EDEN CSS)
 # ==========================================
 
 st.set_page_config(page_title="BIST Yapay Zeka PRO", layout="wide", page_icon="🐋")
 
 st.markdown("""
 <style>
-    /* CSS ATOM BOMBASI: BUTONLARI YOK ET */
-    header[data-testid="stHeader"], footer, [data-testid="stToolbar"], [data-testid="stDecoration"] {
-        display: none !important; visibility: hidden !important;
-    }
-    .stAppDeployButton, [data-testid="stAppDeployButton"] {
-        display: none !important; visibility: hidden !important; height: 0 !important; width: 0 !important;
-    }
-    [data-testid="stStatusWidget"] {
-        display: none !important; visibility: hidden !important;
-    }
-
+    /* SAĞ ALT KÖŞEYİ VE MENÜLERİ TAMAMEN SİLEN KOD */
+    header[data-testid="stHeader"] {display: none !important;}
+    footer {display: none !important;}
+    [data-testid="stToolbar"] {display: none !important;}
+    [data-testid="stDecoration"] {display: none !important;}
+    .stAppDeployButton {display: none !important;}
+    [data-testid="stAppDeployButton"] {display: none !important;}
+    [data-testid="stStatusWidget"] {display: none !important;}
+    
     /* Genel Arayüz */
-    .st-emotion-cache-n1sltv p { font-size: 10px; }
     .main { background-color: #0e1117; }
     h1 { color: #00d4ff !important; }
     h2 { color: #ffbd45 !important; border-bottom: 2px solid #ffbd45; padding-bottom: 10px;}
-    div[data-testid="stFileUploader"] { margin-bottom: 10px; }
     .stAlert { border-left: 5px solid #ffbd45; }
     
     .x-btn, .live-data-btn {
@@ -201,13 +191,6 @@ st.markdown("""
     .live-data-btn { background-color: #d90429; border: 1px solid #ef233c; }
     .live-data-btn:hover { background-color: #ef233c; }
 
-    .key-status-pass { color: #00ff00; font-weight: bold; font-size: x-small; }
-    .key-status-fail { color: #ff4444; font-weight: bold; font-size: x-small; }
-    .key-status-limit { color: #ffbd45; font-weight: bold; font-size: x-small; }
-
-    div.stButton > button[kind="secondary"]:first-child {
-        padding: 0 4px; font-size: 8px; min-height: 20px; line-height: 0; margin-top: -10px;
-    }
     .element-container:has(> .stJson) { display: none; }
 </style>
 """, unsafe_allow_html=True)
@@ -231,7 +214,7 @@ if "tg_img_akd" not in st.session_state: st.session_state.tg_img_akd = None
 if "tg_img_kademe" not in st.session_state: st.session_state.tg_img_kademe = None
 if "tg_img_takas" not in st.session_state: st.session_state.tg_img_takas = None
 
-# API KEY INITIALIZATION
+# API KEY INIT
 if "api_keys" not in st.session_state:
     api_keys_raw = st.secrets.get("GOOGLE_API_KEY", "")
     st.session_state.api_keys = [k.strip() for k in api_keys_raw.split(",") if k.strip()]
@@ -582,31 +565,32 @@ with c1:
         1. 🚫 **YASAK:** Elimizde verisi olmayan başlıkları rapora ekleme.
         2. 🚫 **YASAK:** Giriş cümlesi yazma. Direkt analize başla.
         3. 🎨 **RENK:** :green[**OLUMLU**], :blue[**NÖTR**], :red[**OLUMSUZ**] cümlelerin yanına ekle.
-        4. 🚫 **ASLA:** Listeyi doldurmak için AYNI ŞEYİ TEKRARLAMA ve uydurma veri yazma. Eğer listede 3 veri varsa 3 tane yaz ve bırak.
+        4. 🚫 **YASAK:** Listeyi doldurmak için aynı satırı tekrarlama. Sadece gördüğün kadarını yaz.
+        5. ⚠️ **DİKKAT:** Tablodaki "Fiyat" (TL) ve "Lot/Adet" (Volume) sütunlarını karıştırma. Genellikle "Lot" sütunu daha büyük tam sayılar içerir.
         """
         
         destek_direnc_prompt_sade = """
         ## 🛡️ GÜÇLÜ/ZAYIF DESTEK VE DİRENÇ ANALİZİ
-        (YÜZDELİK SİSTEMİ UNUT. SADECE EN ÖNEMLİ, BALİNA GİRİŞİ OLAN YERLERİ YAZ.)
-        (DİKKAT: Listeyi doldurmaya çalışma. Sadece GERÇEKTEN MEVCUT OLAN seviyeleri yaz.)
-        (EĞER bir seviyede AŞIRI YÜKSEK LOT (Balina) varsa yanına "🔥 :green[**ÇOK GÜÇLÜ ALIM**]" veya "🔥 :red[**ÇOK GÜÇLÜ SATIM**]" yaz. Yoksa hiçbir şey yazma, sadece fiyatı bırak.)
+        (GÖREV: SADECE VERİDE GÖRDÜĞÜN, "BALİNA GİRİŞİ" OLAN ÖNEMLİ SEVİYELERİ YAZ.)
+        (DİKKAT: 15 adet yazmak zorunda DEĞİLSİN. Eğer sadece 3 tane varsa, 3 tane yaz.)
+        (EĞER bir seviyede AŞIRI YÜKSEK LOT (Balina) varsa yanına "🔥 :green[**ÇOK GÜÇLÜ ALIM**]" veya "🔥 :red[**ÇOK GÜÇLÜ SATIM**]" yaz. Yoksa sadece fiyatı bırak.)
         (FORMAT: **[FİYAT]**: [NEDENİ - Lot miktarı vs.] [VARSA GÜÇ İBARESİ])
         """
         
         guc_siralama_prompt = """
         ## 🏅 GÜÇ VE ÖNEM SIRALAMASI
         (Bulduğun seviyeleri, ÖNEM sırasına göre diz. En çok lot olandan en aza doğru.)
-        (Eğer sadece 3 tane önemli yer varsa, 3 tane yaz. Uydurup 10 tane yazma.)
+        (Sadece tespit edebildiğin kadarını yaz, listeyi zorlama.)
         * **DESTEKLER (Güçlüden Zayıfa):** [Fiyat] ...
         * **DİRENÇLER (Güçlüden Zayıfa):** [Fiyat] ...
         """
 
         if "SADE" in analysis_mode:
             req_sections = ""
-            if is_depth_avail: req_sections += """\n## 💹 DERİNLİK ANALİZİ (EN AZ 10 MADDE)\n"""
-            if is_akd_avail: req_sections += """\n## 🤵 AKD ANALİZİ (EN AZ 10 MADDE)\n"""
-            if is_kademe_avail: req_sections += """\n## 📊 KADEME ANALİZİ (EN AZ 10 MADDE)\n"""
-            if is_takas_avail: req_sections += """\n## 🌍 TAKAS ANALİZİ (EN AZ 10 MADDE)\n"""
+            if is_depth_avail: req_sections += """\n## 💹 DERİNLİK ANALİZİ (EN AZ 5 MADDE)\n"""
+            if is_akd_avail: req_sections += """\n## 🤵 AKD ANALİZİ (EN AZ 5 MADDE)\n"""
+            if is_kademe_avail: req_sections += """\n## 📊 KADEME ANALİZİ (EN AZ 5 MADDE)\n"""
+            if is_takas_avail: req_sections += """\n## 🌍 TAKAS ANALİZİ (EN AZ 5 MADDE)\n"""
 
             prompt = base_role + f"""
             --- ⚡ SADE MOD ---
@@ -621,15 +605,14 @@ with c1:
             prompt = base_role + f"""
             --- 🛡️ DESTEK-DİRENÇ VE SEVİYE ANALİZİ MODU ---
             GÖREV: Bu modda SADECE kritik fiyat seviyelerine odaklan.
-            Lütfen listeyi doldurmak için TEKRAR EDEN satırlar yazma. Sadece mevcut olanları yaz.
             
-            ## 🧱 KRİTİK DESTEK BÖLGELERİ (Sadece Mevcut Olanlar)
-            (Sıralamayı FİYATA GÖRE YAPMA! Lot miktarına göre önem sırasına diz.)
+            ## 🧱 KRİTİK DESTEK BÖLGELERİ (Mevcut Olanlar)
+            (Lütfen sütunları karıştırma. Lot miktarını fiyat sanma.)
             1. **[FİYAT]**: [NEDENİ]
             ... (Sadece olan kadar yaz)
 
-            ## 🚧 KRİTİK DİRENÇ BÖLGELERİ (Sadece Mevcut Olanlar)
-            (Sıralamayı FİYATA GÖRE YAPMA! Lot miktarına göre önem sırasına diz.)
+            ## 🚧 KRİTİK DİRENÇ BÖLGELERİ (Mevcut Olanlar)
+            (Lütfen sütunları karıştırma. Lot miktarını fiyat sanma.)
             1. **[FİYAT]**: [NEDENİ]
             ... (Sadece olan kadar yaz)
 
@@ -651,8 +634,8 @@ with c1:
             --- 🧠 GELİŞMİŞ MOD ---
             {main_headers}
             {destek_direnc_prompt_sade}
-            --- 🕵️‍♂️ MİKRO-YAPISAL ANALİZ (50 MADDE KONTROLÜ) ---
-            (Mevcut listeden sadece cevabı olanları yaz, asla aynı cevabı tekrarlama)
+            --- 🕵️‍♂️ MİKRO-YAPISAL ANALİZ ---
+            (Mevcut listeden sadece cevabı olanları yaz)
             --- FİNAL ---
             ## 🐋 GENEL SENTEZ
             ## 🧭 YÖN / FİYAT OLASILIĞI
