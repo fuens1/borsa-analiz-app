@@ -731,7 +731,7 @@ with c1:
         1. 🚫 **YASAK:** Elimizde verisi olmayan hiçbir başlığı rapora ekleme.
         2. 🚫 **YASAK:** "Mevcut Veri Seti Bilgilendirmesi" veya giriş cümlesi yazma. Direkt analize başla.
         3. 📝 **BİÇİM:** ASLA PARAGRAF YAZMA. Madde madde ilerle.
-        4. 🎨 **RENK:** :green[**OLUMLU**], :blue[**NÖTR**], :red[**OLUMSUZ**] kelimeleri / cümleleri vurgula. Model ne olursa olsun. Sakın ama sakın bu kuraldan şaşma. **RENK:** :green[**OLUMLU**], :blue[**NÖTR**], :red[**OLUMSUZ**] kelimeleri / cümleleri vurgula.
+        4. 🎨 **RENK:** :green[**OLUMLU**], :blue[**NÖTR**], :red[**OLUMSUZ**] kelimeleri / cümleleri vurgula. Bunu her mod ve modelde uygula.
         """
         
         # --- DESTEK/DİRENÇ BÖLÜMÜNÜN STANDART PROMPT TANIMI ---
@@ -944,9 +944,11 @@ with c1:
                                     full_response += chunk.text
                                     placeholder.markdown(full_response + "▌") 
                             
-                            # ANALİZ BİTTİKTEN SONRA, placeholder'ı son tam yanıtla doldur.
+                            # ANALİZ BAŞARILI, SONUÇLARI KAYDET VE PLACEHOLDER'I GÜNCELLE
+                            
+                            # Akış bitti, placeholder'ı son haliyle dolduruyoruz.
                             placeholder.markdown(full_response)
-                            # Session state'i güncelle, böylece rapor aşağıda tek bir kez görüntülenir.
+                            # Session state'i güncelle.
                             st.session_state.analysis_result = full_response
                             st.session_state.loaded_count = count
                             
@@ -959,7 +961,7 @@ with c1:
                                 if model_name == model_priority[-1]: # Son modelde de kota dolduysa
                                     st.warning(f"⚠️ Anahtar `...{k[-4:]}` tüm modeller için dolu.")
                                 else:
-                                    # Lite dolduysa Flash'a geçecek (döngü devam ediyor)
+                                    # Lite dolduysa Flash'a geçecek veya tam tersi (döngü devam ediyor)
                                     pass 
                                 continue
                             elif "expired" in error_str or "invalid" in error_str or "400" in error_str or "model" in error_str:
@@ -983,8 +985,7 @@ with c1:
 # 💬 SONUÇ VE SOHBET (FİNAL BÖLÜMÜ)
 # ==========================================
 if st.session_state.analysis_result:
-    # Bu bölüm zaten session state'ten okuduğu için, yukarıdaki akış tamamlandıktan sonra
-    # sadece bu kısım çalışarak raporun kalıcı halini gösterir.
+    # Bu bölüm sadece session state'ten okur. Akış bittikten sonra burası tek kaynak olmalı.
     st.markdown("## 🐋 Kurumsal Rapor")
     st.markdown(st.session_state.analysis_result)
     st.markdown("---")
@@ -1055,4 +1056,3 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": full_resp})
             else:
                 st.error("❌ Sohbet: Tüm API anahtarlarının kotası dolu veya geçersiz. Lütfen daha sonra deneyin.")
-
