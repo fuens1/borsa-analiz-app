@@ -161,11 +161,6 @@ st.set_page_config(page_title="BIST Yapay Zeka PRO", layout="wide", page_icon="�
 
 st.markdown("""
 <style>
-    /* 1. ÜST ŞERİDİ GÖRÜNMEZ YAP AMA TIKLANABİLİR KALSIN */
-    header[data-testid="stHeader"] {
-        background-color: transparent !important;
-        pointer-events: none !important;
-    }
 
     /* 2. SAĞ ÜSTTEKİ MENÜLERİ YOK ET */
     [data-testid="stToolbar"], [data-testid="stDecoration"] {
@@ -825,3 +820,4 @@ if st.session_state.analysis_result:
             
             if key_found: st.session_state.messages.append({"role": "assistant", "content": full_resp})
             else: st.error("❌ Sohbet Hatası")
+
