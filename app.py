@@ -644,23 +644,22 @@ with c1:
         3. 🎨 **RENK:** :green[**OLUMLU**], :blue[**NÖTR**], :red[**OLUMSUZ**] cümlelerin yanına ekle.
         """
         
-        # --- GÜNCELLENMİŞ VE SERT PROMPT ---
+        # --- SADECE BALİNA SEVİYELERİ PROMPTU (YÜZDELİK SİSTEM KALDIRILDI) ---
         destek_direnc_prompt_sade = """
         ## 🛡️ GÜÇLÜ/ZAYIF DESTEK VE DİRENÇ ANALİZİ
-        (DİKKAT: ASLA FİYATA GÖRE KÜÇÜKTEN BÜYÜĞE SIRALAMA YAPMA! BU YASAKTIR.)
-        (GÖREV: Destek ve Dirençleri, sadece ve sadece GÜÇ PUANINA göre sırala.)
-        (DİKKAT: Güç yüzdelerini verirken "Lot Sayısı" ve "Hacim" verisine bak. "Fiyat arttıkça güç artar" mantığı YANLIŞTIR.)
-        (FORMAT: **[FİYAT]** (%Güç): [GÜÇLÜ/ZAYIF OLMA NEDENİ].)
+        (YÜZDELİK GÜÇ SİSTEMİNİ KULLANMA. SADECE EN ÖNEMLİLERİ YAZ.)
+        (DİKKAT: Her fiyat seviyesini yazma. Sadece GERÇEKTEN YIĞILMA OLAN yerleri yaz.)
+        (EĞER bir seviyede AŞIRI YÜKSEK LOT (Balina) varsa yanına "🔥 :green[**ÇOK GÜÇLÜ ALIM**]" veya "🔥 :red[**ÇOK GÜÇLÜ SATIM**]" yaz. Yoksa hiçbir şey yazma, sadece fiyatı bırak.)
+        (FORMAT: **[FİYAT]**: [NEDENİ] [VARSA GÜÇ İBARESİ])
         """
         
-        # --- FİYAT KARIŞTIRMA EMİRLİ PROMPT ---
+        # --- GÜÇ SIRALAMASI PROMPTU ---
         guc_siralama_prompt = """
-        ## 🏅 GÜÇ VE ÖNEM SIRALAMASI (FİYATLAR KARIŞIK OLMALI)
-        (DİKKAT: Bu listedeki fiyatlar sayısal olarak sıralı OLURSA, CEVAP HATALI KABUL EDİLECEKTİR.)
-        (GÖREV: Fiyatları unut. Sadece %GÜÇ puanına göre EN GÜÇLÜDEN EN ZAYIFA sırala.)
-        (Örnek Doğru Çıktı: 102.50 (%95), 98.10 (%90), 105.40 (%50)... -> Gördüğün gibi fiyatlar karışık, güç sıralı.)
-        * **DESTEKLER (Güce Göre Azalan - Fiyatlar Karışık Olmalı):** [Fiyat] (%Güç), ...
-        * **DİRENÇLER (Güce Göre Azalan - Fiyatlar Karışık Olmalı):** [Fiyat] (%Güç), ...
+        ## 🏅 GÜÇ VE ÖNEM SIRALAMASI (EN KRİTİK SEVİYELER)
+        (Bulduğun seviyeleri, önem sırasına göre diz. En çok lot olandan en aza doğru.)
+        (Yanına sadece "🔥 ÇOK GÜÇLÜ" olanlarda ibare koy. Diğerlerine koyma.)
+        * **DESTEKLER (Güçlüden Zayıfa):** [Fiyat] ...
+        * **DİRENÇLER (Güçlüden Zayıfa):** [Fiyat] ...
         """
 
         if "SADE" in analysis_mode:
@@ -685,13 +684,13 @@ with c1:
             GÖREV: Bu modda SADECE kritik fiyat seviyelerine odaklan.
             
             ## 🧱 KRİTİK DESTEK BÖLGELERİ (EN AZ 15 ADET)
-            (Sıralamayı FİYATA GÖRE YAPMA! Karışık yaz. Lot miktarına göre güç ver.)
-            1. **[FİYAT]** (%Güç): [NEDENİ]
+            (Sıralamayı FİYATA GÖRE YAPMA! Lot miktarına göre önem sırasına diz.)
+            1. **[FİYAT]**: [NEDENİ]
             ... (15 maddeye tamamla)
 
             ## 🚧 KRİTİK DİRENÇ BÖLGELERİ (EN AZ 15 ADET)
-            (Sıralamayı FİYATA GÖRE YAPMA! Karışık yaz.)
-            1. **[FİYAT]** (%Güç): [NEDENİ]
+            (Sıralamayı FİYATA GÖRE YAPMA! Lot miktarına göre önem sırasına diz.)
+            1. **[FİYAT]**: [NEDENİ]
             ... (15 maddeye tamamla)
 
             {guc_siralama_prompt}
