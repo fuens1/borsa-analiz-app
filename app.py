@@ -582,6 +582,7 @@ with st.sidebar:
                     st.session_state.key_status[k] = key_results
                     
                     prog.progress((i+1)/len(api_keys))
+                    time.sleep(0.5) # RPM'den harcamayı dengelemek için kısa bekleme
                 prog.empty()
                 st.rerun()
         
@@ -731,7 +732,7 @@ with c1:
         1. 🚫 **YASAK:** Elimizde verisi olmayan hiçbir başlığı rapora ekleme.
         2. 🚫 **YASAK:** "Mevcut Veri Seti Bilgilendirmesi" veya giriş cümlesi yazma. Direkt analize başla.
         3. 📝 **BİÇİM:** ASLA PARAGRAF YAZMA. Madde madde ilerle.
-        4. 🎨 **RENK:** :green[**OLUMLU**], :blue[**NÖTR**], :red[**OLUMSUZ**] tüm cümlelerin sonunda belirt. Ne olursa olsun tüm cümlelerin sonunda olsun. Sıralama olarak (OLUMLU-OLUMSUZ-NÖTR) şeklinde olacak. Yani her başlıkta önce OLUMLU maddeler, 2.olarak OLUMSUZ maddeler, son olarak da NÖTR maddeler yer alacak.
+        4. 🎨 **RENK:** :green[**OLUMLU**], :blue[**NÖTR**], :red[**OLUMSUZ**] cümlelerin yanına ekle. Verilen cümlenin duruma göre yanına ekle.
         """
         
         # --- DESTEK/DİRENÇ BÖLÜMÜNÜN STANDART PROMPT TANIMI ---
@@ -946,11 +947,14 @@ with c1:
                             
                             # ANALİZ BAŞARILI, SONUÇLARI KAYDET VE PLACEHOLDER'I GÜNCELLE
                             
-                            # Akış bitti, placeholder'ı son haliyle dolduruyoruz.
+                            # Akış bitti, placeholder'ı son haliyle dolduruyoruz (▌ imlecini kaldırarak).
                             placeholder.markdown(full_response)
-                            # Session state'i güncelle.
+                            # Session state'i güncelle, böylece alt kısım (Sohbet ve nihai rapor) görünür olur.
                             st.session_state.analysis_result = full_response
                             st.session_state.loaded_count = count
+                            
+                            # RPM'den harcamayı dengelemek için kısa bekleme
+                            time.sleep(1)
                             
                             break # Model başarılı oldu, bir sonraki key'e ve modele geçmeye gerek yok
                             
@@ -985,7 +989,7 @@ with c1:
 # 💬 SONUÇ VE SOHBET (FİNAL BÖLÜMÜ)
 # ==========================================
 if st.session_state.analysis_result:
-    # Bu bölüm sadece session state'ten okur. Akış bittikten sonra burası tek kaynak olmalı.
+    # Bu bölüm, sadece st.session_state.analysis_result dolu olduğunda çalışır (Akış bittikten sonra).
     st.markdown("## 🐋 Kurumsal Rapor")
     st.markdown(st.session_state.analysis_result)
     st.markdown("---")
@@ -1038,6 +1042,10 @@ if st.session_state.analysis_result:
                     
                     resp = st.write_stream(parser)
                     full_resp = resp
+                    
+                    # Sohbet yanıtı başarılı, 1 saniye bekle
+                    time.sleep(1)
+                    
                     break 
                     
                 except Exception as e:
@@ -1056,6 +1064,3 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": full_resp})
             else:
                 st.error("❌ Sohbet: Tüm API anahtarlarının kotası dolu veya geçersiz. Lütfen daha sonra deneyin.")
-
-
-
