@@ -171,17 +171,6 @@ st.markdown("""
     footer, .stAppDeployButton, [data-testid="stStatusWidget"] {
         display: none !important;
     }
-
-    /* 4. SOL ÜSTTEKİ "SIDEBAR AÇMA OKUNU" (CollapsedControl) BUL VE SAĞ ALTA TAŞI */
-    [data-testid="stSidebarCollapsedControl"] {
-        display: block !important;
-        position: fixed !important;
-        bottom: 20px !important;
-        right: 20px !important;
-        top: auto !important;
-        left: auto !important;
-        z-index: 1000002 !important; /* En üst katman */
-        pointer-events: auto !important; /* Tıklanabilsin */
         
         background-color: #d90429 !important; /* Kırmızı Arkaplan */
         color: white !important;
@@ -820,4 +809,5 @@ if st.session_state.analysis_result:
             
             if key_found: st.session_state.messages.append({"role": "assistant", "content": full_resp})
             else: st.error("❌ Sohbet Hatası")
+
 
