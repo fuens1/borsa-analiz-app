@@ -739,13 +739,14 @@ with c1:
         destek_direnc_prompt_sade = """
         ## 🛡️ GÜÇLÜ/ZAYIF DESTEK VE DİRENÇ ANALİZİ
         (Grafik ve derinlik verilerine bakarak EN AZ 10 ADET Destek seviyesi ve EN AZ 10 ADET Direnç seviyesi yaz.)
+        (DİKKAT: Güç yüzdelerini ve nedenlerini bulurken, FİYAT SEVİYESİNE değil, BİLGİ KAYNAKLARINA (Derinlik, AKD, Kademe, Grafik Görünümü) odaklan!)
         (HER SEVİYE İÇİN MUTLAKA ŞU FORMATI KULLAN: **[FİYAT]** (%Güç): [GÜÇLÜ/ZAYIF OLMA NEDENİ]. Örnek: **100.50** (%85): Derinlikte 500k lotluk yığılma olması. Fiyat: **50.00** (%20): Yalnızca psikolojik destek olması. Güç yüzdesi 0 ile 100 arasında olmalı.)
         """
         
         # --- DESTEK/DİRENÇ GÜÇ SIRALAMASI PROMPT TANIMI ---
         guc_siralama_prompt = """
         ## 🏅 GÜÇ VE ÖNEM SIRALAMASI
-        (Yukarıda bulduğun destek ve direnç seviyelerini, bulduğun güç derecesine göre, EN ÖNEMLİDEN EN AZ ÖNEMLİYE doğru AZALAN SIRADA AYRI AYRI listele.)
+        (Yukarıda bulduğun destek ve direnç seviyelerini, bulduğun güç derecesine göre, EN ÖNEMLİDEN EN AZ ÖNEMLİYE doğru AZALAN SIRADA AYRI AYRI listele. Fiyat sırasını GÖZ ARDI ET!)
         * **DESTEKLER (Güçlüden Zayıfa):** [Fiyat] (%Güç), [Fiyat] (%Güç), ...
         * **DİRENÇLER (Güçlüden Zayıfa):** [Fiyat] (%Güç), [Fiyat] (%Güç), ...
         """
@@ -789,6 +790,7 @@ with c1:
 
             ## 🧱 KRİTİK DESTEK BÖLGELERİ (EN AZ 15 ADET)
             (Elindeki derinlik, kademe ve AKD verilerini kullanarak EN AZ 15 tane destek noktası belirle.)
+            (DİKKAT: Güç yüzdelerini ve nedenlerini bulurken, FİYAT SEVİYESİNE değil, BİLGİ KAYNAKLARINA (Derinlik, AKD, Kademe, Grafik Görünümü) odaklan!)
             (HER MADDEDE MUTLAKA AÇIKLAMA OLACAK: Neden burası destek? Örnek: **[FİYAT]** (%85): "Derinlikte 1M lot alıcı var", "Fiyat buradan sürekli dönüyor" gibi detaylar ver.)
             1. **[FİYAT]** (%Güç): [NEDENİ]
             2. **[FİYAT]** (%Güç): [NEDENİ]
@@ -796,6 +798,7 @@ with c1:
 
             ## 🚧 KRİTİK DİRENÇ BÖLGELERİ (EN AZ 15 ADET)
             (Elindeki verilere göre EN AZ 15 tane direnç/satış noktası belirle.)
+            (DİKKAT: Güç yüzdelerini ve nedenlerini bulurken, FİYAT SEVİYESİNE değil, BİLGİ KAYNAKLARINA (Derinlik, AKD, Kademe, Grafik Görünümü) odaklan!)
             (HER MADDEDE AÇIKLAMA YAP: Örnek: **[FİYAT]** (%90): "Burada satış duvarı var", "Maliyetlenme burada yoğun" gibi.)
             1. **[FİYAT]** (%Güç): [NEDENİ]
             2. **[FİYAT]** (%Güç): [NEDENİ]
