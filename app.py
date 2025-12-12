@@ -44,16 +44,13 @@ def init_firebase():
     if not FIREBASE_ENABLED: return False
     try:
         if not firebase_admin._apps:
-            # 1. Streamlit Cloud (Secrets)
             if "firebase" in st.secrets:
                 key_dict = json.loads(st.secrets["firebase"]["json_content"])
                 cred = credentials.Certificate(key_dict)
-            # 2. Lokal Test (Dosya)
             elif os.path.exists("firebase_key.json"):
                 cred = credentials.Certificate("firebase_key.json")
             else:
                 return False
-            
             firebase_admin.initialize_app(cred, {'databaseURL': FIREBASE_DB_URL})
         return True
     except Exception as e:
@@ -83,25 +80,31 @@ def get_model(key):
     """API key ile kullanılabilecek modeli bulur"""
     try:
         genai.configure(api_key=key)
-        # Sadece Flash'ı döndürüyoruz. Lite'ın kontrolünü analiz aşamasında yapacağız.
         models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        
         for m in models:
             if "gemini-2.5-flash" in m: return m
-        
         return models[0] if models else None
     except: return None
 
-# --- GÜNCELLEME: ARTIK GÖRSELLERİ BULANIKLAŞTIRMIYORUZ (Yüksek Kalite) ---
-def compress_image(image, max_size=(3072, 3072)): 
-    """Görselleri analiz için hazırlar (Yüksek Çözünürlük Korunur)"""
-    if image.mode in ("RGBA", "P"): image = image.convert("RGB")
-    image.thumbnail(max_size, Image.Resampling.LANCZOS)
+# --- GÜNCELLEME: RESİZE İPTAL (PIXEL PERFECT MOD) ---
+def compress_image(image):
+    """
+    Görseli ASLA küçültmez. Olduğu gibi (RAW) bırakır.
+    Borsa tablolarındaki ince yazıların okunabilmesi için
+    piksel kaybı olmamalıdır.
+    """
+    # Sadece format uyumluluğu için RGB'ye çeviriyoruz (PNG transparency sorununu önlemek için)
+    if image.mode in ("RGBA", "P"): 
+        image = image.convert("RGB")
+    
+    # BURADA ARTIK RESIZE (thumbnail) YOK!
+    # image.thumbnail(...) satırı silindi.
+    
     return image
 
 def fetch_stock_news(symbol):
     """Google News RSS (Son 24 Saat)"""
-    if not NEWS_ENABLED: return "Haber modülü aktif değil (feedparser eksik)."
+    if not NEWS_ENABLED: return "Haber modülü aktif değil."
     try:
         query = f"{symbol} Borsa KAP when:1d"
         rss_url = f"https://news.google.com/rss/search?q={quote(query)}&hl=tr&gl=TR&ceid=TR:tr"
@@ -124,9 +127,7 @@ def fetch_data_via_bridge(symbol, data_type):
 
     status_area = st.empty()
     try:
-        # 1. EMİR GÖNDER
         status_area.info(f"📡 {symbol} için {data_type} isteniyor... PC'ye bağlanılıyor.")
-        
         ref_req = db.reference('bridge/request')
         ref_req.set({
             'symbol': symbol,
@@ -135,94 +136,53 @@ def fetch_data_via_bridge(symbol, data_type):
             'timestamp': time.time()
         })
         
-        # 2. CEVABI BEKLE (25 Saniye)
         progress_bar = st.progress(0)
         for i in range(25):
             time.sleep(1)
             progress_bar.progress((i + 1) / 25)
-            
             status_data = ref_req.get()
             status = status_data.get('status') if status_data else None
             
             if status == 'processing':
                 status_area.warning("⏳ Robot emri aldı, Telegram'dan yanıt bekleniyor...")
-            
             elif status == 'completed':
                 status_area.success("✅ Veri Alındı!")
                 progress_bar.empty()
-                
-                # Resmi indir
                 ref_res = db.reference('bridge/response')
                 data = ref_res.get()
                 if data and 'image_base64' in data:
                     img_bytes = base64.b64decode(data['image_base64'])
                     return Image.open(io.BytesIO(img_bytes))
                 break
-                
             elif status == 'timeout':
                 status_area.error("❌ Zaman aşımı. Hedef bot cevap vermedi.")
                 break
         else:
             status_area.error("❌ Yanıt yok. PC'deki 'bridge.py' çalışıyor mu?")
-            
     except Exception as e:
         status_area.error(f"Hata: {e}")
     return None
 
 # ==========================================
-# 🎨 SAYFA AYARLARI VE CSS DÜZELTMESİ (ATOM BOMBASI v2)
+# 🎨 SAYFA AYARLARI (GİZLEME KODLARI DAHİL)
 # ==========================================
 
 st.set_page_config(page_title="BIST Yapay Zeka PRO", layout="wide", page_icon="🐋")
 
 st.markdown("""
 <style>
-    /* --- CSS ATOM BOMBASI: SAĞ ALT KÖŞEYİ YOK ETME --- */
-    
-    /* 1. Header (Üst Menü) Gizle */
-    header[data-testid="stHeader"] {
-        display: none !important;
-        visibility: hidden !important;
+    /* CSS ATOM BOMBASI: BUTONLARI YOK ET */
+    header[data-testid="stHeader"], footer, [data-testid="stToolbar"], [data-testid="stDecoration"] {
+        display: none !important; visibility: hidden !important;
     }
-
-    /* 2. Footer (Alt Bilgi) Gizle */
-    footer {
-        display: none !important;
-        visibility: hidden !important;
+    .stAppDeployButton, [data-testid="stAppDeployButton"] {
+        display: none !important; visibility: hidden !important; height: 0 !important; width: 0 !important;
     }
-
-    /* 3. Toolbar (Sağ Üst Seçenekler) Gizle */
-    [data-testid="stToolbar"] {
-        display: none !important;
-        visibility: hidden !important;
-    }
-
-    /* 4. Deploy Butonu - En Agresif Gizleme */
-    .stAppDeployButton {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        height: 0 !important;
-        width: 0 !important;
-        pointer-events: none !important;
-    }
-    [data-testid="stAppDeployButton"] {
-        display: none !important;
-    }
-
-    /* 5. Viewer Badge (İzleyici Avatarı) - En Agresif Gizleme */
     [data-testid="stStatusWidget"] {
-        display: none !important;
-        visibility: hidden !important;
-    }
-    
-    /* 6. Decoration (Renkli Çizgiler) Gizle */
-    [data-testid="stDecoration"] {
-        display: none !important;
-        visibility: hidden !important;
+        display: none !important; visibility: hidden !important;
     }
 
-    /* --- DİĞER ARAYÜZ DÜZENLEMELERİ --- */
+    /* Genel Arayüz */
     .st-emotion-cache-n1sltv p { font-size: 10px; }
     .main { background-color: #0e1117; }
     h1 { color: #00d4ff !important; }
@@ -231,17 +191,9 @@ st.markdown("""
     .stAlert { border-left: 5px solid #ffbd45; }
     
     .x-btn, .live-data-btn {
-        display: inline-block;
-        padding: 12px 20px;
-        text-align: center;
-        text-decoration: none;
-        font-size: 16px;
-        border-radius: 8px;
-        width: 100%;
-        margin-top: 10px;
-        font-weight: bold;
-        transition: 0.3s;
-        color: white !important;
+        display: inline-block; padding: 12px 20px; text-align: center; text-decoration: none;
+        font-size: 16px; border-radius: 8px; width: 100%; margin-top: 10px; font-weight: bold;
+        transition: 0.3s; color: white !important;
     }
     .x-btn { background-color: #000000; border: 1px solid #333; }
     .x-btn:hover { background-color: #1a1a1a; border-color: #1d9bf0; }
@@ -256,7 +208,6 @@ st.markdown("""
     div.stButton > button[kind="secondary"]:first-child {
         padding: 0 4px; font-size: 8px; min-height: 20px; line-height: 0; margin-top: -10px;
     }
-
     .element-container:has(> .stJson) { display: none; }
 </style>
 """, unsafe_allow_html=True)
@@ -380,20 +331,18 @@ if fetch_btn:
     try:
         today_str = datetime.date.today().strftime("%Y-%m-%d")
         headers = {'User-Agent': 'Mozilla/5.0'}
-        
         with st.spinner(f"{api_ticker_input} Verileri Çekiliyor..."):
             url_depth = f"https://webapi.hisseplus.com/api/v1/derinlik?sembol={api_ticker_input}"
             r_depth = requests.get(url_depth, headers=headers)
             st.session_state.api_depth_data = r_depth.json() if r_depth.status_code == 200 else None
-            
             url_akd = f"https://webapi.hisseplus.com/api/v1/akd?sembol={api_ticker_input}&ilk={today_str}&son={today_str}"
             r_akd = requests.get(url_akd, headers=headers)
             st.session_state.api_akd_data = r_akd.json() if r_akd.status_code == 200 else None
     except Exception as e:
         st.error(f"API Hatası: {e}")
 
-# --- DATA STATUS INDICATORS ---
-if st.session_state.api_depth_data is not None or st.session_state.api_akd_data is not None:
+# --- DATA STATUS ---
+if st.session_state.api_depth_data or st.session_state.api_akd_data:
     st.markdown("##### 📊 Veri Durumu")
     stat_col1, stat_col2 = st.columns(2)
     with stat_col1:
@@ -405,7 +354,6 @@ if st.session_state.api_depth_data is not None or st.session_state.api_akd_data 
 
 valid_model_name = None
 working_key = None
-
 for k in api_keys:
     mod = get_model(k)
     if mod: 
@@ -415,8 +363,7 @@ for k in api_keys:
 
 if not valid_model_name:
     st.error("❌ Aktif Model Bulunamadı. Lütfen API anahtarlarınızı kontrol edin.")
-    if not st.session_state.is_admin: 
-        st.stop()
+    if not st.session_state.is_admin: st.stop()
 
 # --- UPLOAD SECTION ---
 file_key_suffix = str(st.session_state.reset_counter)
@@ -499,7 +446,6 @@ with st.sidebar:
             st.markdown(f"<span style='font-size: small;'>Aktif Key Sayısı: {len(api_keys)}</span>", unsafe_allow_html=True)
             st.text_input("Yeni Key Ekle:", type="password", key="new_api_key_input")
             if st.button("➕ Anahtarı Ekle", on_click=add_api_key, use_container_width=True): pass
-            
             st.markdown("---")
             for k in api_keys:
                 cols = st.columns([1, 3, 2])
@@ -511,18 +457,15 @@ with st.sidebar:
                     status_text = f"<span style='font-size: xx-small;'>Lite: {lite_status} | Flash: {flash_status}</span>"
                 else:
                     status_text = "<span style='font-size: x-small;' class='key-status-limit'>❓ TEST ET</span>"
-                
                 with cols[0]:
                     if st.button("❌", key=f"del_key_{k[-4:]}_v4", on_click=delete_api_key, args=(k,)): pass
                 with cols[1]: st.markdown(key_display, unsafe_allow_html=True)
                 with cols[2]: st.markdown(status_text, unsafe_allow_html=True)
-
             st.markdown("---")
             if st.button("🔄 Kota Testi", use_container_width=True, key="admin_key_test"):
                 st.session_state.key_status = {}
                 prog = st.progress(0)
                 test_prompt = "Hello" 
-                
                 def test_model_quota(api_key, model_name):
                     try:
                         genai.configure(api_key=api_key)
@@ -534,7 +477,6 @@ with st.sidebar:
                         if "429" in error_str or "quota" in error_str: return "<span class='key-status-limit'>⚠️ KOTA</span>"
                         elif "model" in error_str: return "<span class='key-status-fail'>❌ MODEL YOK</span>"
                         else: return "<span class='key-status-fail'>❌ HATA</span>"
-                
                 for i, k in enumerate(api_keys):
                     key_results = {}
                     key_results['lite'] = test_model_quota(k, 'gemini-2.5-flash-lite')
@@ -548,7 +490,6 @@ with st.sidebar:
 
     st.header("📲 Telegram Köprüsü")
     tg_ticker = st.text_input("Hisse Kodu (TG):", api_ticker_input, key="tg_ticker_final").upper() 
-    
     col_t1, col_t2 = st.columns(2)
     with col_t1:
         if st.button("📉 Derinlik", key="tg_dr"): st.session_state.tg_img_derinlik = fetch_data_via_bridge(tg_ticker, "derinlik")
@@ -582,7 +523,6 @@ with st.sidebar:
 # --- ANALYZE ---
 st.markdown("---")
 c1, c2 = st.columns([1, 1])
-
 MODEL_OPTIONS = {"gemini-2.5-flash": "🚀 Flash", "gemini-2.5-flash-lite": "⚡ Lite"}
 
 with c2:
@@ -645,7 +585,6 @@ with c1:
         4. 🚫 **ASLA:** Listeyi doldurmak için AYNI ŞEYİ TEKRARLAMA ve uydurma veri yazma. Eğer listede 3 veri varsa 3 tane yaz ve bırak.
         """
         
-        # --- TEKRAR ETMEYEN ve SADECE GÖRÜNENİ YAZAN PROMPT ---
         destek_direnc_prompt_sade = """
         ## 🛡️ GÜÇLÜ/ZAYIF DESTEK VE DİRENÇ ANALİZİ
         (YÜZDELİK SİSTEMİ UNUT. SADECE EN ÖNEMLİ, BALİNA GİRİŞİ OLAN YERLERİ YAZ.)
@@ -654,7 +593,6 @@ with c1:
         (FORMAT: **[FİYAT]**: [NEDENİ - Lot miktarı vs.] [VARSA GÜÇ İBARESİ])
         """
         
-        # --- GÜÇ SIRALAMASI PROMPTU ---
         guc_siralama_prompt = """
         ## 🏅 GÜÇ VE ÖNEM SIRALAMASI
         (Bulduğun seviyeleri, ÖNEM sırasına göre diz. En çok lot olandan en aza doğru.)
