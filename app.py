@@ -731,7 +731,7 @@ with c1:
         1. 🚫 **YASAK:** Elimizde verisi olmayan hiçbir başlığı rapora ekleme.
         2. 🚫 **YASAK:** "Mevcut Veri Seti Bilgilendirmesi" veya giriş cümlesi yazma. Direkt analize başla.
         3. 📝 **BİÇİM:** ASLA PARAGRAF YAZMA. Madde madde ilerle.
-        4. 🎨 **RENK:** :green[**OLUMLU**], :blue[**NÖTR**], :red[**OLUMSUZ**] kelimeleri / cümleleri vurgula.
+        4. 🎨 **RENK:** :green[**OLUMLU**], :blue[**NÖTR**], :red[**OLUMSUZ**] kelimeleri / cümleleri vurgula. Model ne olursa olsun. Sakın ama sakın bu kuraldan şaşma. **RENK:** :green[**OLUMLU**], :blue[**NÖTR**], :red[**OLUMSUZ**] kelimeleri / cümleleri vurgula.
         """
         
         # --- DESTEK/DİRENÇ BÖLÜMÜNÜN STANDART PROMPT TANIMI ---
@@ -1055,3 +1055,4 @@ if st.session_state.analysis_result:
                 st.session_state.messages.append({"role": "assistant", "content": full_resp})
             else:
                 st.error("❌ Sohbet: Tüm API anahtarlarının kotası dolu veya geçersiz. Lütfen daha sonra deneyin.")
+
