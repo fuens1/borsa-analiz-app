@@ -153,97 +153,7 @@ def fetch_data_via_bridge(symbol, data_type):
         status_area.error(f"Hata: {e}")
     return None
 
-# ==========================================
-# 🎨 SAYFA AYARLARI VE CSS DÜZELTMESİ (SON VE KESİN ÇÖZÜM)
-# ==========================================
 
-st.set_page_config(page_title="BIST Yapay Zeka PRO", layout="wide", page_icon="🐋")
-
-st.markdown("""
-<style>
-
-    /* 2. SAĞ ÜSTTEKİ MENÜLERİ YOK ET */
-    [data-testid="stToolbar"], [data-testid="stDecoration"] {
-        display: none !important;
-    }
-
-    /* 3. SAĞ ALTI TEMİZLE */
-    footer, .stAppDeployButton, [data-testid="stStatusWidget"] {
-        display: none !important;
-    }
-        
-        background-color: #d90429 !important; /* Kırmızı Arkaplan */
-        color: white !important;
-        border: 2px solid white !important;
-        border-radius: 12px !important;
-        padding: 10px 20px !important;
-        width: auto !important;
-        height: auto !important;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important;
-        
-        /* İçerik Düzeni */
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        transition: transform 0.2s !important;
-    }
-
-    /* Butona Hover Efekti */
-    [data-testid="stSidebarCollapsedControl"]:hover {
-        transform: scale(1.05) !important;
-        background-color: #ff0000 !important;
-    }
-
-    /* Orijinal Ok İkonunu Biraz Küçült ve Beyaz Yap */
-    [data-testid="stSidebarCollapsedControl"] svg {
-        fill: white !important;
-        width: 20px !important;
-        height: 20px !important;
-    }
-
-    /* BUTONUN YANINA YAZI EKLEME: "YÖNETİCİ PANELİ" */
-    [data-testid="stSidebarCollapsedControl"]::after {
-        content: "YÖNETİCİ PANELİ";
-        color: white !important;
-        font-weight: bold !important;
-        font-size: 14px !important;
-        margin-left: 8px !important;
-        font-family: sans-serif !important;
-    }
-
-    /* Sidebar Açılınca Butonun Kaybolmasını Engelle (Opsiyonel, genelde sidebar üstüne biner) */
-    section[data-testid="stSidebar"] {
-        z-index: 1000001 !important;
-    }
-
-    /* --- DİĞER ARAYÜZ --- */
-    .main { background-color: #0e1117; }
-    h1 { color: #00d4ff !important; }
-    h2 { color: #ffbd45 !important; border-bottom: 2px solid #ffbd45; padding-bottom: 10px;}
-    .stAlert { border-left: 5px solid #ffbd45; }
-    div[data-testid="stFileUploader"] { margin-bottom: 10px; }
-    
-    .x-btn, .live-data-btn {
-        display: inline-block; padding: 12px 20px; text-align: center; text-decoration: none;
-        font-size: 16px; border-radius: 8px; width: 100%; margin-top: 10px; font-weight: bold;
-        transition: 0.3s; color: white !important;
-    }
-    .x-btn { background-color: #000000; border: 1px solid #333; }
-    .x-btn:hover { background-color: #1a1a1a; border-color: #1d9bf0; }
-    
-    .live-data-btn { background-color: #d90429; border: 1px solid #ef233c; }
-    .live-data-btn:hover { background-color: #ef233c; }
-
-    .key-status-pass { color: #00ff00; font-weight: bold; font-size: x-small; }
-    .key-status-fail { color: #ff4444; font-weight: bold; font-size: x-small; }
-    .key-status-limit { color: #ffbd45; font-weight: bold; font-size: x-small; }
-
-    div.stButton > button[kind="secondary"]:first-child {
-        padding: 0 4px; font-size: 8px; min-height: 20px; line-height: 0; margin-top: -10px;
-    }
-    .element-container:has(> .stJson) { display: none; }
-</style>
-""", unsafe_allow_html=True)
 
 # ==========================================
 # --- SESSION INIT ---
@@ -809,5 +719,6 @@ if st.session_state.analysis_result:
             
             if key_found: st.session_state.messages.append({"role": "assistant", "content": full_resp})
             else: st.error("❌ Sohbet Hatası")
+
 
 
