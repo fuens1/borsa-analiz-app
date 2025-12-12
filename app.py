@@ -154,95 +154,6 @@ def fetch_data_via_bridge(symbol, data_type):
         status_area.error(f"Hata: {e}")
     return None
 
-# ==========================================
-# 🎨 SAYFA AYARLARI VE ÖZEL BUTON CSS'İ
-# ==========================================
-
-st.set_page_config(page_title="BIST Yapay Zeka PRO", layout="wide", page_icon="🐋")
-
-st.markdown("""
-<style>
-    /* --- CSS SİHRİ: SAĞ ALTA YÖNETİCİ BUTONU EKLEME --- */
-    
-    /* 1. Header'ı şeffaf yap ve tıklamaları engelle (içindeki buton hariç) */
-    header[data-testid="stHeader"] {
-        background: transparent !important;
-        pointer-events: none !important;
-        height: 0 !important; /* Alan kaplamasın */
-    }
-
-    /* 2. Gereksiz diğer her şeyi gizle */
-    [data-testid="stToolbar"], [data-testid="stDecoration"], footer, .stAppDeployButton, [data-testid="stStatusWidget"] {
-        display: none !important;
-    }
-
-    /* 3. GERÇEK Sidebar Açma Butonunu bul, SAĞ ALTA taşı ve Kırmızı Yap */
-    /* Bu selector (button[kind="header"]) Streamlit'in sidebar açma butonunu hedefler */
-    button[kind="header"] {
-        position: fixed !important;
-        bottom: 30px !important;
-        right: 30px !important;
-        top: auto !important;
-        left: auto !important;
-        z-index: 999999 !important; /* En üstte olsun */
-        pointer-events: auto !important; /* Tıklanabilsin */
-
-        background-color: #d90429 !important; /* Kırmızı renk */
-        color: white !important;
-        border: none !important;
-        padding: 15px 25px !important;
-        border-radius: 30px !important;
-        box-shadow: 0px 4px 15px rgba(0,0,0,0.4) !important;
-        transition: all 0.3s ease !important;
-        
-        /* İçeriği ortala */
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        width: auto !important;
-        height: auto !important;
-    }
-
-    /* Butona Hover Efekti (Büyüme) */
-    button[kind="header"]:hover {
-        background-color: #ef233c !important;
-        transform: scale(1.05) !important;
-        box-shadow: 0px 6px 20px rgba(0,0,0,0.6) !important;
-    }
-
-    /* Butonun içindeki orijinal ok ikonunu (SVG) gizle */
-    button[kind="header"] svg {
-        display: none !important;
-    }
-
-    /* Butona CSS ile yeni yazı ekle */
-    button[kind="header"]::after {
-        content: "⚙️ YÖNETİCİ PANELİ";
-        font-weight: bold !important;
-        font-size: 16px !important;
-        letter-spacing: 1px !important;
-    }
-
-    /* --- DİĞER ARAYÜZ AYARLARI --- */
-    .main { background-color: #0e1117; }
-    h1 { color: #00d4ff !important; }
-    h2 { color: #ffbd45 !important; border-bottom: 2px solid #ffbd45; padding-bottom: 10px;}
-    .stAlert { border-left: 5px solid #ffbd45; }
-    
-    .x-btn, .live-data-btn {
-        display: inline-block; padding: 12px 20px; text-align: center; text-decoration: none;
-        font-size: 16px; border-radius: 8px; width: 100%; margin-top: 10px; font-weight: bold;
-        transition: 0.3s; color: white !important;
-    }
-    .x-btn { background-color: #000000; border: 1px solid #333; }
-    .x-btn:hover { background-color: #1a1a1a; border-color: #1d9bf0; }
-    
-    .live-data-btn { background-color: #d90429; border: 1px solid #ef233c; }
-    .live-data-btn:hover { background-color: #ef233c; }
-
-    .element-container:has(> .stJson) { display: none; }
-</style>
-""", unsafe_allow_html=True)
 
 # ==========================================
 # --- SESSION INIT ---
@@ -808,3 +719,4 @@ if st.session_state.analysis_result:
             
             if key_found: st.session_state.messages.append({"role": "assistant", "content": full_resp})
             else: st.error("❌ Sohbet Hatası")
+
