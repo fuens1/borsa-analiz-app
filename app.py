@@ -155,44 +155,75 @@ def fetch_data_via_bridge(symbol, data_type):
     return None
 
 # ==========================================
-# 🎨 SAYFA AYARLARI VE CERRAH TİTİZLİĞİNDE CSS
+# 🎨 SAYFA AYARLARI VE ÖZEL BUTON CSS'İ
 # ==========================================
 
 st.set_page_config(page_title="BIST Yapay Zeka PRO", layout="wide", page_icon="🐋")
 
 st.markdown("""
 <style>
-    /* --- SIDEBAR'I KURTARAN, GEREKSİZLERİ SİLEN CSS --- */
+    /* --- CSS SİHRİ: SAĞ ALTA YÖNETİCİ BUTONU EKLEME --- */
     
-    /* 1. Header'ı YOK ETME, Sadece Şeffaf Yap (Böylece Sol Üstteki Ok Kalır) */
+    /* 1. Header'ı şeffaf yap ve tıklamaları engelle (içindeki buton hariç) */
     header[data-testid="stHeader"] {
-        background-color: rgba(0,0,0,0) !important;
-        z-index: 1 !important; /* Sidebar butonunun tıklanabilir kalması için */
+        background: transparent !important;
+        pointer-events: none !important;
+        height: 0 !important; /* Alan kaplamasın */
     }
 
-    /* 2. Sadece SAĞ TARAFTAKİ Menüyü (Toolbar) Gizle */
-    [data-testid="stToolbar"] {
-        display: none !important;
-    }
-
-    /* 3. Üstteki Renkli Çizgiyi (Decoration) Gizle */
-    [data-testid="stDecoration"] {
+    /* 2. Gereksiz diğer her şeyi gizle */
+    [data-testid="stToolbar"], [data-testid="stDecoration"], footer, .stAppDeployButton, [data-testid="stStatusWidget"] {
         display: none !important;
     }
 
-    /* 4. Footer ve Sağ Alt Köşeyi Tamamen Yok Et */
-    footer {
-        display: none !important;
+    /* 3. GERÇEK Sidebar Açma Butonunu bul, SAĞ ALTA taşı ve Kırmızı Yap */
+    /* Bu selector (button[kind="header"]) Streamlit'in sidebar açma butonunu hedefler */
+    button[kind="header"] {
+        position: fixed !important;
+        bottom: 30px !important;
+        right: 30px !important;
+        top: auto !important;
+        left: auto !important;
+        z-index: 999999 !important; /* En üstte olsun */
+        pointer-events: auto !important; /* Tıklanabilsin */
+
+        background-color: #d90429 !important; /* Kırmızı renk */
+        color: white !important;
+        border: none !important;
+        padding: 15px 25px !important;
+        border-radius: 30px !important;
+        box-shadow: 0px 4px 15px rgba(0,0,0,0.4) !important;
+        transition: all 0.3s ease !important;
+        
+        /* İçeriği ortala */
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: auto !important;
+        height: auto !important;
     }
-    .stAppDeployButton, [data-testid="stAppDeployButton"] {
-        display: none !important;
+
+    /* Butona Hover Efekti (Büyüme) */
+    button[kind="header"]:hover {
+        background-color: #ef233c !important;
+        transform: scale(1.05) !important;
+        box-shadow: 0px 6px 20px rgba(0,0,0,0.6) !important;
     }
-    [data-testid="stStatusWidget"] {
+
+    /* Butonun içindeki orijinal ok ikonunu (SVG) gizle */
+    button[kind="header"] svg {
         display: none !important;
     }
 
-    /* --- DİĞER ARAYÜZ --- */
-    .st-emotion-cache-n1sltv p { font-size: 10px; }
+    /* Butona CSS ile yeni yazı ekle */
+    button[kind="header"]::after {
+        content: "⚙️ YÖNETİCİ PANELİ";
+        font-weight: bold !important;
+        font-size: 16px !important;
+        letter-spacing: 1px !important;
+    }
+
+    /* --- DİĞER ARAYÜZ AYARLARI --- */
     .main { background-color: #0e1117; }
     h1 { color: #00d4ff !important; }
     h2 { color: #ffbd45 !important; border-bottom: 2px solid #ffbd45; padding-bottom: 10px;}
@@ -209,13 +240,6 @@ st.markdown("""
     .live-data-btn { background-color: #d90429; border: 1px solid #ef233c; }
     .live-data-btn:hover { background-color: #ef233c; }
 
-    .key-status-pass { color: #00ff00; font-weight: bold; font-size: x-small; }
-    .key-status-fail { color: #ff4444; font-weight: bold; font-size: x-small; }
-    .key-status-limit { color: #ffbd45; font-weight: bold; font-size: x-small; }
-
-    div.stButton > button[kind="secondary"]:first-child {
-        padding: 0 4px; font-size: 8px; min-height: 20px; line-height: 0; margin-top: -10px;
-    }
     .element-container:has(> .stJson) { display: none; }
 </style>
 """, unsafe_allow_html=True)
